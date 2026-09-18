@@ -1,0 +1,164 @@
+[
+  {
+    "machine_id": "22c5c9ef-8314-4b30-b129-e7d88affce1b",
+    "floor_number": 1,
+    "machine_name": "สักทอง",
+    "max_hours_limit": 24
+  },
+  {
+    "machine_id": "0699298a-995a-4178-8b8c-0ecc9118636d",
+    "floor_number": 2,
+    "machine_name": "เครื่องช็อค",
+    "max_hours_limit": 12
+  },
+  {
+    "machine_id": "ec1a7234-ec55-4d15-ac5d-2c2988e766d4",
+    "floor_number": 3,
+    "machine_name": "เครื่องช็อค",
+    "max_hours_limit": 16
+  },
+  {
+    "machine_id": "b0088f18-6408-497c-af45-550b683839ae",
+    "floor_number": 4,
+    "machine_name": "เครื่องช็อค",
+    "max_hours_limit": 24
+  },
+  {
+    "machine_id": "0b8a320f-3c78-44cb-87c7-4e2da9b72244",
+    "floor_number": 5,
+    "machine_name": "เอกซเรย์",
+    "max_hours_limit": 12
+  },
+  {
+    "machine_id": "fbd01f39-c585-494d-882f-abe4475ccb50",
+    "floor_number": 6,
+    "machine_name": "เครื่องทำยาต้าน",
+    "max_hours_limit": 16
+  },
+  {
+    "machine_id": "aa896756-e1cc-4823-b827-00ea248667ba",
+    "floor_number": 7,
+    "machine_name": "เครื่องทำยาต้าน",
+    "max_hours_limit": 20
+  },
+  {
+    "machine_id": "2d08f253-49b0-49a6-ad33-37ac1dfc0d67",
+    "floor_number": 8,
+    "machine_name": "หมอใหญ่",
+    "max_hours_limit": 10
+  },
+  {
+    "machine_id": "1d7ba809-d219-4bd6-a2e5-9cb742130e92",
+    "floor_number": 9,
+    "machine_name": "หมอใหญ่",
+    "max_hours_limit": 14
+  },
+  {
+    "machine_id": "a1520d1a-8b00-4b1b-99a7-d0929b6b67be",
+    "floor_number": 10,
+    "machine_name": "หมอใหญ่",
+    "max_hours_limit": 24
+  },
+  {
+    "machine_id": "cc903a36-f286-46e5-893b-94cc33445731",
+    "floor_number": 11,
+    "machine_name": "วิศวะ เล็ก",
+    "max_hours_limit": 12
+  },
+  {
+    "machine_id": "4dce1efe-cae8-4c74-8b8a-155450ed984c",
+    "floor_number": 12,
+    "machine_name": "เครื่องส้ม",
+    "max_hours_limit": 8
+  },
+  {
+    "machine_id": "aa08be39-8628-4de1-85a9-3cb23bd275de",
+    "floor_number": 13,
+    "machine_name": "แบต",
+    "max_hours_limit": 18
+  },
+  {
+    "machine_id": "0f844a3f-93d4-4f0b-ad8c-04c7b64c6f62",
+    "floor_number": 14,
+    "machine_name": "แผง",
+    "max_hours_limit": 10
+  },
+  {
+    "machine_id": "63bce269-b2ba-45fc-8441-e6b6ba792f63",
+    "floor_number": 15,
+    "machine_name": "แผง",
+    "max_hours_limit": 10
+  },
+  {
+    "machine_id": "7018dcb8-3a07-4900-8041-6c67ed058b2b",
+    "floor_number": 16,
+    "machine_name": "หมอเล็ก",
+    "max_hours_limit": 8
+  },
+  {
+    "machine_id": "6b0ab2ae-53f8-4c50-8ced-52a1eb7558f1",
+    "floor_number": 17,
+    "machine_name": "น้ำ เชฟ",
+    "max_hours_limit": 12
+  },
+  {
+    "machine_id": "4ad4c5e8-9be7-4fa3-8e20-0c37210d77ba",
+    "floor_number": 18,
+    "machine_name": "ไอดอล",
+    "max_hours_limit": 14
+  },
+  {
+    "machine_id": "74a06b9c-d868-454a-b2f4-04d22c3d78ce",
+    "floor_number": 19,
+    "machine_name": "เมล็ดพันธุ์ดี",
+    "max_hours_limit": 16
+  },
+  {
+    "machine_id": "7c7a8037-0525-44f5-b900-2c950dd698b8",
+    "floor_number": 20,
+    "machine_name": "ปุ๋ยอินทรีย์",
+    "max_hours_limit": 18
+  },
+  {
+    "machine_id": "12b331b7-4e8b-4769-9fdd-48eef0d46656",
+    "floor_number": 21,
+    "machine_name": "วิจัย",
+    "max_hours_limit": 14
+  },
+  {
+    "machine_id": "4af9e608-f080-4b8e-b139-fff919f3e192",
+    "floor_number": 22,
+    "machine_name": "วิจัย",
+    "max_hours_limit": 16
+  },
+  {
+    "machine_id": "d1cf4318-250a-4e81-8b24-90192e5c4512",
+    "floor_number": 23,
+    "machine_name": "เมล็ด อินทรี",
+    "max_hours_limit": 20
+  },
+  {
+    "machine_id": "120b5ca3-d4b3-4aa0-b7f6-fb91f231db2b",
+    "floor_number": 24,
+    "machine_name": "วิศวะ ใหญ่",
+    "max_hours_limit": 18
+  },
+  {
+    "machine_id": "59bca884-37c1-4506-b638-4c17f2b5a038",
+    "floor_number": 25,
+    "machine_name": "น้ำ เกษตร",
+    "max_hours_limit": 20
+  },
+  {
+    "machine_id": "1f440da7-9afb-448d-ae31-487316ef7cbc",
+    "floor_number": 26,
+    "machine_name": "สักทอง",
+    "max_hours_limit": 24
+  },
+  {
+    "machine_id": "8533f8a3-a18b-424f-8e9c-ff438abcb7f2",
+    "floor_number": 27,
+    "machine_name": "หมอ เซรุ่ม",
+    "max_hours_limit": 24
+  }
+]

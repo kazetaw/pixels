@@ -1,0 +1,535 @@
+[
+  {
+    "id": "23d630f5-4dbb-4e9b-9d38-ce1d5a28ad04",
+    "name": "ช็อคโกแลตสูตรพิเศษ",
+    "machine_id": "ec1a7234-ec55-4d15-ac5d-2c2988e766d4",
+    "time_per_unit": "07:05:53",
+    "ingredients": {
+      "2f439ab8-a0d2-4bfe-9fb2-714289dd5b42": 2,
+      "d85f19ab-8bf2-45f6-9415-c5b98224dc6b": 2
+    }
+  },
+  {
+    "id": "2f439ab8-a0d2-4bfe-9fb2-714289dd5b42",
+    "name": "ไวท์ช็อคโกแลต",
+    "machine_id": "4dce1efe-cae8-4c74-8b8a-155450ed984c",
+    "time_per_unit": "00:30:00",
+    "ingredients": {
+      "เมล็ดโกโก้": 2,
+      "น้ำตาล": 1,
+      "นมแกะ": 1,
+      "เนย": 1,
+      "ดอกกล้วยไม้": 1
+    }
+  },
+  {
+    "id": "d85f19ab-8bf2-45f6-9415-c5b98224dc6b",
+    "name": "ช็อคโกแลตนม",
+    "machine_id": "0699298a-995a-4178-8b8c-0ecc9118636d",
+    "time_per_unit": "01:00:00",
+    "ingredients": {
+      "เมล็ดโกโก้": 2,
+      "น้ำตาล": 1,
+      "เนย": 1,
+      "นมแกะ": 1
+    }
+  },
+  {
+    "id": "a863a340-7afa-468f-921c-3e58b9b14a61",
+    "name": "ผลิตพลาสติก",
+    "machine_id": "cc903a36-f286-46e5-893b-94cc33445731",
+    "time_per_unit": "00:03:00",
+    "ingredients": {
+      "ถุงพลาสติก": 1
+    }
+  },
+  {
+    "id": "8f4a89b6-f4b1-4461-9417-cbe88da07449",
+    "name": "ทองแดง",
+    "machine_id": "cc903a36-f286-46e5-893b-94cc33445731",
+    "time_per_unit": "00:08:00",
+    "ingredients": {
+      "แร่ทองแดง": 1
+    }
+  },
+  {
+    "id": "5148013a-aaef-4108-87ea-decedb0b4ca5",
+    "name": "เหล็ก",
+    "machine_id": "cc903a36-f286-46e5-893b-94cc33445731",
+    "time_per_unit": "00:12:00",
+    "ingredients": {
+      "แร่เหล็ก": 1
+    }
+  },
+  {
+    "id": "7f21829a-49bf-4599-8e60-5c0c14c3950f",
+    "name": "โคบอลต์",
+    "machine_id": "cc903a36-f286-46e5-893b-94cc33445731",
+    "time_per_unit": "00:21:00",
+    "ingredients": {
+      "แร่โคบอลต์": 1
+    }
+  },
+  {
+    "id": "1d1eb32f-7350-4bbf-be18-4c8a16090c1d",
+    "name": "ซิลิคอน",
+    "machine_id": "cc903a36-f286-46e5-893b-94cc33445731",
+    "time_per_unit": "00:07:00",
+    "ingredients": {
+      "แร่ซิลิคอน": 1
+    }
+  },
+  {
+    "id": "bb07e523-ec8c-44b0-8ef5-976995e88581",
+    "name": "แกร์ไฟต์",
+    "machine_id": "cc903a36-f286-46e5-893b-94cc33445731",
+    "time_per_unit": "00:20:00",
+    "ingredients": {
+      "แร่แกร์ไฟต์": 1
+    }
+  },
+  {
+    "id": "4b216d86-5f12-4297-97d7-c9506c520e17",
+    "name": "แมกนีไทด์",
+    "machine_id": "cc903a36-f286-46e5-893b-94cc33445731",
+    "time_per_unit": "01:00:00",
+    "ingredients": {
+      "แร่แมกนีไทต์": 1
+    }
+  },
+  {
+    "id": "ee4e209e-9782-4bbb-9e32-cd5f44b3e398",
+    "name": "สังกะสี",
+    "machine_id": "cc903a36-f286-46e5-893b-94cc33445731",
+    "time_per_unit": "00:06:00",
+    "ingredients": {
+      "แร่สังกะสี": 1
+    }
+  },
+  {
+    "id": "8000c1d3-037b-499f-97c6-1ffc2cf9aece",
+    "name": "คาร์บอน",
+    "machine_id": "cc903a36-f286-46e5-893b-94cc33445731",
+    "time_per_unit": "00:05:00",
+    "ingredients": {
+      "แร่ถ่านหิน": 1
+    }
+  },
+  {
+    "id": "a70e200d-4da0-4ba0-94b5-3cf103ca3a73",
+    "name": "ไมกา",
+    "machine_id": "cc903a36-f286-46e5-893b-94cc33445731",
+    "time_per_unit": "00:09:00",
+    "ingredients": {
+      "แร่หินชนวน": 1
+    }
+  },
+  {
+    "id": "09fc172b-44e1-49ba-b376-ed97888a6062",
+    "name": "ตะกั่ว",
+    "machine_id": "cc903a36-f286-46e5-893b-94cc33445731",
+    "time_per_unit": "00:06:00",
+    "ingredients": {
+      "แร่ตะกั่ว": 1
+    }
+  },
+  {
+    "id": "73876d5e-a814-40e6-a45a-2c8573ff6cc0",
+    "name": "โลหะกันความร้อน",
+    "machine_id": "4dce1efe-cae8-4c74-8b8a-155450ed984c",
+    "time_per_unit": "00:34:00",
+    "ingredients": {
+      "แร่เหล็ก": 1,
+      "แร่โคบอลต์": 1
+    }
+  },
+  {
+    "id": "0f07378e-70a7-4a1a-ad69-f8cdc49f9a10",
+    "name": "สายรับส่งข้อมูล",
+    "machine_id": "4dce1efe-cae8-4c74-8b8a-155450ed984c",
+    "time_per_unit": "00:05:00",
+    "ingredients": {
+      "สายไฟ": 1,
+      "ลวดทองแดง": 1
+    }
+  },
+  {
+    "id": "56edd3c0-0ccd-4cb6-975f-f055cffe6d41",
+    "name": "มอเตอร์พลังสูง",
+    "machine_id": "4dce1efe-cae8-4c74-8b8a-155450ed984c",
+    "time_per_unit": "00:45:00",
+    "ingredients": {
+      "8f4a89b6-f4b1-4461-9417-cbe88da07449": 1,
+      "5148013a-aaef-4108-87ea-decedb0b4ca5": 1,
+      "4b216d86-5f12-4297-97d7-c9506c520e17": 1
+    }
+  },
+  {
+    "id": "cf255a0c-a0a4-44c9-b92d-4bf09b7625aa",
+    "name": "หน่วยความจำ",
+    "machine_id": "4dce1efe-cae8-4c74-8b8a-155450ed984c",
+    "time_per_unit": "03:19:00",
+    "ingredients": {
+      "1eb99599-4243-4069-ab83-948bdfa904e7": 1,
+      "73876d5e-a814-40e6-a45a-2c8573ff6cc0": 1
+    }
+  },
+  {
+    "id": "31b48e6f-b17c-4d98-aac4-24aea968263e",
+    "name": "วงจรรวม",
+    "machine_id": "0f844a3f-93d4-4f0b-ad8c-04c7b64c6f62",
+    "time_per_unit": "00:35:00",
+    "ingredients": {
+      "1d1eb32f-7350-4bbf-be18-4c8a16090c1d": 1,
+      "8000c1d3-037b-499f-97c6-1ffc2cf9aece": 1,
+      "839df72f-a603-40fa-bd67-1290b10441bf": 1
+    }
+  },
+  {
+    "id": "da905bc4-34a6-46ec-bbbc-511a57e47031",
+    "name": "แบตเตอรี่ไฮบริด",
+    "machine_id": "aa08be39-8628-4de1-85a9-3cb23bd275de",
+    "time_per_unit": "02:56:00",
+    "ingredients": {
+      "7faa56ed-00a9-426b-9b94-6ca897950455": 1,
+      "61a8ebce-3c14-4633-b959-bd60e399803f": 1
+    }
+  },
+  {
+    "id": "d7d69399-fe74-4b6e-86d9-dfeba7230f3f",
+    "name": "โปรแกรมควบคุม",
+    "machine_id": "cc903a36-f286-46e5-893b-94cc33445731",
+    "time_per_unit": "00:03:00",
+    "ingredients": {
+      "กระดาษ": 1
+    }
+  },
+  {
+    "id": "7faa56ed-00a9-426b-9b94-6ca897950455",
+    "name": "แปลนไฟฟ้า",
+    "machine_id": "cc903a36-f286-46e5-893b-94cc33445731",
+    "time_per_unit": "00:12:00",
+    "ingredients": {
+      "d7d69399-fe74-4b6e-86d9-dfeba7230f3f": 1,
+      "0f07378e-70a7-4a1a-ad69-f8cdc49f9a10": 1
+    }
+  },
+  {
+    "id": "61a8ebce-3c14-4633-b959-bd60e399803f",
+    "name": "แบตเตอรี่",
+    "machine_id": "aa08be39-8628-4de1-85a9-3cb23bd275de",
+    "time_per_unit": "01:53:00",
+    "ingredients": {
+      "125ad738-1968-4f8c-9914-f115ed4603cc": 1,
+      "ee4e209e-9782-4bbb-9e32-cd5f44b3e398": 1,
+      "09fc172b-44e1-49ba-b376-ed97888a6062": 1,
+      "bb07e523-ec8c-44b0-8ef5-976995e88581": 1
+    }
+  },
+  {
+    "id": "b9e8cb8f-389a-45de-b867-3942b1ca3365",
+    "name": "หน่วยประมวลผล",
+    "machine_id": "0f844a3f-93d4-4f0b-ad8c-04c7b64c6f62",
+    "time_per_unit": "07:29:00",
+    "ingredients": {
+      "cf255a0c-a0a4-44c9-b92d-4bf09b7625aa": 1,
+      "1eb99599-4243-4069-ab83-948bdfa904e7": 1,
+      "ad7e7c87-7af2-421b-a214-a4dc309856ac": 1
+    }
+  },
+  {
+    "id": "125ad738-1968-4f8c-9914-f115ed4603cc",
+    "name": "เซลล์พลังงาน",
+    "machine_id": "aa08be39-8628-4de1-85a9-3cb23bd275de",
+    "time_per_unit": "00:47:00",
+    "ingredients": {
+      "839df72f-a603-40fa-bd67-1290b10441bf": 1,
+      "7f21829a-49bf-4599-8e60-5c0c14c3950f": 1
+    }
+  },
+  {
+    "id": "ad7e7c87-7af2-421b-a214-a4dc309856ac",
+    "name": "แปลนหน่วยประมวลผล",
+    "machine_id": "cc903a36-f286-46e5-893b-94cc33445731",
+    "time_per_unit": "00:12:00",
+    "ingredients": {
+      "0f07378e-70a7-4a1a-ad69-f8cdc49f9a10": 1,
+      "d7d69399-fe74-4b6e-86d9-dfeba7230f3f": 1
+    }
+  },
+  {
+    "id": "feb9a056-7b05-45b2-b3e5-417864a7bf08",
+    "name": "วงจรไฟฟ้า",
+    "machine_id": "0f844a3f-93d4-4f0b-ad8c-04c7b64c6f62",
+    "time_per_unit": "00:41:00",
+    "ingredients": {
+      "7faa56ed-00a9-426b-9b94-6ca897950455": 1,
+      "8f4a89b6-f4b1-4461-9417-cbe88da07449": 1,
+      "09fc172b-44e1-49ba-b376-ed97888a6062": 1,
+      "a863a340-7afa-468f-921c-3e58b9b14a61": 1
+    }
+  },
+  {
+    "id": "839df72f-a603-40fa-bd67-1290b10441bf",
+    "name": "ตัวเก็บประจุ",
+    "machine_id": "aa08be39-8628-4de1-85a9-3cb23bd275de",
+    "time_per_unit": "00:12:00",
+    "ingredients": {
+      "a70e200d-4da0-4ba0-94b5-3cf103ca3a73": 1
+    }
+  },
+  {
+    "id": "1eb99599-4243-4069-ab83-948bdfa904e7",
+    "name": "เซมิคอนดักเตอร์",
+    "machine_id": "0f844a3f-93d4-4f0b-ad8c-04c7b64c6f62",
+    "time_per_unit": "01:48:00",
+    "ingredients": {
+      "31b48e6f-b17c-4d98-aac4-24aea968263e": 1,
+      "feb9a056-7b05-45b2-b3e5-417864a7bf08": 1
+    }
+  },
+  {
+    "id": "a3a21000-6fda-4a7c-975e-912f207a4e0e",
+    "name": "ยาต้านไวรัส",
+    "machine_id": "aa896756-e1cc-4823-b827-00ea248667ba",
+    "time_per_unit": null,
+    "ingredients": {}
+  },
+  {
+    "id": "09fa72b3-0bbb-4a57-97e5-cf236f0a1e31",
+    "name": "ยาบำรุงกำลัง",
+    "machine_id": "7018dcb8-3a07-4900-8041-6c67ed058b2b",
+    "time_per_unit": "00:45:00",
+    "ingredients": {
+      "เถาบอระเพ็ด": 1,
+      "ผลบอระเพ็ด": 1,
+      "สารอดีนารีน": 1
+    }
+  },
+  {
+    "id": "5f177dfa-e1f7-4e05-88f3-ed947eada352",
+    "name": "เซรุ่มเพิ่มพลัง",
+    "machine_id": "8533f8a3-a18b-424f-8e9c-ff438abcb7f2",
+    "time_per_unit": "05:50:00",
+    "ingredients": {
+      "a3a21000-6fda-4a7c-975e-912f207a4e0e": 1
+    }
+  },
+  {
+    "id": "a87ae50e-979d-447b-9e4f-22acca519a16",
+    "name": "น้ำแร่ธรรมชาติ",
+    "machine_id": "59bca884-37c1-4506-b638-4c17f2b5a038",
+    "time_per_unit": "00:57:00",
+    "ingredients": {
+      "น้ำบริสุทธิ์": 1,
+      "แร่หินแกรนิต": 1
+    }
+  },
+  {
+    "id": "2da1b446-0069-45b7-95bb-7ed5a842b481",
+    "name": "ดินอินทรีย์",
+    "machine_id": "d1cf4318-250a-4e81-8b24-90192e5c4512",
+    "time_per_unit": "01:11:00",
+    "ingredients": {
+      "ดินร่วน": 1,
+      "ปลาแบสเล็ก": 1,
+      "ใบกะเพรา": 1
+    }
+  },
+  {
+    "id": "f974a94f-7cce-45a1-9f08-847c40ac58c8",
+    "name": "ยากำจัดศัตรูพืช",
+    "machine_id": "4af9e608-f080-4b8e-b139-fff919f3e192",
+    "time_per_unit": "02:33:00",
+    "ingredients": {
+      "สูตรยากำจัดแมลง": 1,
+      "สูตรยากำจัดพืช": 1
+    }
+  },
+  {
+    "id": "cd47fd45-a4f3-43b0-a9f8-e6468987f438",
+    "name": "ปุ๋ยอินทรีย์สูตรพิเศษ",
+    "machine_id": "7c7a8037-0525-44f5-b900-2c950dd698b8",
+    "time_per_unit": "02:00:00",
+    "ingredients": {
+      "ปุ๋ยคอก": 1,
+      "หัวเชื้อจุลินทรีย์": 1,
+      "น้ำบริสุทธิ์": 1,
+      "ผักกาด": 1,
+      "ไส้เดือนดิน": 1
+    }
+  },
+  {
+    "id": "17a71f55-eb71-4499-8794-fee5d6499458",
+    "name": "เมล็ดพันธุ์ต้นสักทอง",
+    "machine_id": "22c5c9ef-8314-4b30-b129-e7d88affce1b",
+    "time_per_unit": "13:27:00",
+    "ingredients": {
+      "2da1b446-0069-45b7-95bb-7ed5a842b481": 1,
+      "c9f195b8-8e14-46e1-afce-25dbf4fa05ac": 1,
+      "048836df-6342-45c9-be03-e8770620f1ec": 1,
+      "cd47fd45-a4f3-43b0-a9f8-e6468987f438": 1,
+      "a87ae50e-979d-447b-9e4f-22acca519a16": 1,
+      "f974a94f-7cce-45a1-9f08-847c40ac58c8": 1
+    }
+  },
+  {
+    "id": "263f3a58-b5ec-4b3f-8f2e-ded805f0fe37",
+    "name": "ดีเอ็นเอแบบ A",
+    "machine_id": "2d08f253-49b0-49a6-ad33-37ac1dfc0d67",
+    "time_per_unit": null,
+    "ingredients": {}
+  },
+  {
+    "id": "34579c76-be55-417f-a9c4-54163b6eec6b",
+    "name": "ตัวอย่างนิวเคลียส",
+    "machine_id": "a1520d1a-8b00-4b1b-99a7-d0929b6b67be",
+    "time_per_unit": null,
+    "ingredients": {}
+  },
+  {
+    "id": "91df2b19-6715-4121-87b0-b2260c404fb4",
+    "name": "สกัดเซลล์ใหม่",
+    "machine_id": "1d7ba809-d219-4bd6-a2e5-9cb742130e92",
+    "time_per_unit": "07:47:00",
+    "ingredients": {
+      "34579c76-be55-417f-a9c4-54163b6eec6b": 1,
+      "263f3a58-b5ec-4b3f-8f2e-ded805f0fe37": 1,
+      "หลอดทดลอง": 1
+    }
+  },
+  {
+    "id": "f03fdad7-f736-4b6b-bf26-d1f189e433cc",
+    "name": "ออกแบบท่าเต้นฟรีสไตล์",
+    "machine_id": "4ad4c5e8-9be7-4fa3-8e20-0c37210d77ba",
+    "time_per_unit": "13:21:00",
+    "ingredients": {
+      "แผ่นบันทึกข้อมูล": 1,
+      "คลิปท่าเต้นสไตล์ใหม่": 1,
+      "แผ่นเดโม่เพลงแดนซ์": 1
+    }
+  },
+  {
+    "id": "5e013a52-345c-41fb-9151-03801800ad96",
+    "name": "อุปกรณ์ควบคุมอัตโนมัติ",
+    "machine_id": "120b5ca3-d4b3-4aa0-b7f6-fb91f231db2b",
+    "time_per_unit": "15:45:00",
+    "ingredients": {
+      "56edd3c0-0ccd-4cb6-975f-f055cffe6d41": 1,
+      "da905bc4-34a6-46ec-bbbc-511a57e47031": 1,
+      "b9e8cb8f-389a-45de-b867-3942b1ca3365": 1,
+      "8f2c19ab-e0d6-43bf-9485-25aca39ecbfc": 1
+    }
+  },
+  {
+    "id": "8f2c19ab-e0d6-43bf-9485-25aca39ecbfc",
+    "name": "ผลทดสอบการทำงาน",
+    "machine_id": "cc903a36-f286-46e5-893b-94cc33445731",
+    "time_per_unit": null,
+    "ingredients": {}
+  },
+  {
+    "id": "09a7f859-b766-4288-8aa5-98f1c0193493",
+    "name": "ยารังสี",
+    "machine_id": "0b8a320f-3c78-44cb-87c7-4e2da9b72244",
+    "time_per_unit": "02:01:00",
+    "ingredients": {
+      "รายงานการรักษา": 1,
+      "แร่โคบอลต์": 1
+    }
+  },
+  {
+    "id": "e59ad144-ad87-43d8-a854-cb63d03531d0",
+    "name": "โกรทฮอร์โมน",
+    "machine_id": "aa896756-e1cc-4823-b827-00ea248667ba",
+    "time_per_unit": "05:44:00",
+    "ingredients": {
+      "หลอดทดลอง": 1,
+      "8951d4c7-44bc-4e97-b69e-592c7ce982cb": 1,
+      "263f3a58-b5ec-4b3f-8f2e-ded805f0fe37": 1
+    }
+  },
+  {
+    "id": "8951d4c7-44bc-4e97-b69e-592c7ce982cb",
+    "name": "แบบจำลองร่างกาย",
+    "machine_id": "0b8a320f-3c78-44cb-87c7-4e2da9b72244",
+    "time_per_unit": "12:00:00",
+    "ingredients": {
+      "ก้อนโคลน": 1
+    }
+  },
+  {
+    "id": "b5832ff1-c629-4e24-96bc-71868663eee6",
+    "name": "ยาเพิ่มสมาธิ",
+    "machine_id": "7018dcb8-3a07-4900-8041-6c67ed058b2b",
+    "time_per_unit": "00:24:00",
+    "ingredients": {
+      "ใบชา": 1,
+      "ปลากระพง": 1,
+      "สารเอ็นโดรฟิน": 1
+    }
+  },
+  {
+    "id": "bcb53fef-45be-4d3c-9583-59a456405ee0",
+    "name": "เซรุ่มเพิ่มสมาธิ",
+    "machine_id": "8533f8a3-a18b-424f-8e9c-ff438abcb7f2",
+    "time_per_unit": "05:20:00",
+    "ingredients": {
+      "a3a21000-6fda-4a7c-975e-912f207a4e0e": 1,
+      "b5832ff1-c629-4e24-96bc-71868663eee6": 1
+    }
+  },
+  {
+    "id": "eb842e09-49ac-4c9d-b93a-20880926b320",
+    "name": "สูตรเครื่องดื่มและขนมหวาน",
+    "machine_id": "6b0ab2ae-53f8-4c50-8ced-52a1eb7558f1",
+    "time_per_unit": "03:57:00",
+    "ingredients": {
+      "9fb4f8dd-8f51-42a3-b7a0-225287553d05": 1,
+      "นมถั่วเหลืองปั่น": 1,
+      "น้ำว่านหางจระเข้": 1,
+      "109285c6-e161-4679-a342-bf6e94119ad3": 1,
+      "น้ำมะพร้าวปั่น": 1
+    }
+  },
+  {
+    "id": "048836df-6342-45c9-be03-e8770620f1ec",
+    "name": "เมล็ดพืชต้านทานวัชพืช",
+    "machine_id": "7c7a8037-0525-44f5-b900-2c950dd698b8",
+    "time_per_unit": "01:32:00",
+    "ingredients": {
+      "สูตรยากำจัดวัชพืช": 1,
+      "7c2bb569-6bb8-4134-8fe6-b0260303aa15": 1
+    }
+  },
+  {
+    "id": "c9f195b8-8e14-46e1-afce-25dbf4fa05ac",
+    "name": "เมล็ดพืชต้านทานแมลง",
+    "machine_id": "d1cf4318-250a-4e81-8b24-90192e5c4512",
+    "time_per_unit": null,
+    "ingredients": {
+      "7c2bb569-6bb8-4134-8fe6-b0260303aa15": 1,
+      "สูตรยากำจัดแมลง": 1
+    }
+  },
+  {
+    "id": "7c2bb569-6bb8-4134-8fe6-b0260303aa15",
+    "name": "เมล็ดพืชพันธุ์ดี",
+    "machine_id": "d1cf4318-250a-4e81-8b24-90192e5c4512",
+    "time_per_unit": "00:07:00",
+    "ingredients": {
+      "เมล็ดพืช": 1
+    }
+  },
+  {
+    "id": "109285c6-e161-4679-a342-bf6e94119ad3",
+    "name": "น้ำส้มโซดา",
+    "machine_id": "6b0ab2ae-53f8-4c50-8ced-52a1eb7558f1",
+    "time_per_unit": "00:38:00",
+    "ingredients": {
+      "ส้ม": 1,
+      "มะนาว": 1,
+      "โซดา": 1
+    }
+  }
+]
