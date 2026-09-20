@@ -8,29 +8,27 @@ interface TargetItemListProps {
 
 export function TargetItemList({ items, recipes, onRemove }: TargetItemListProps) {
   const recipeMap = new Map(recipes.map((r) => [r.id, r.name]));
-
-  if (items.length === 0) {
-    return (
-      <p className="text-sm text-gray-400 italic">ยังไม่มีไอเทมเป้าหมาย</p>
-    );
-  }
+  if (items.length === 0) return null;
 
   return (
-    <ul className="space-y-1">
+    <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
       {items.map((item, index) => (
         <li
           key={`${item.target_item_id}-${index}`}
-          className="flex items-center justify-between rounded-md bg-blue-50 px-3 py-2 text-sm"
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            background: '#eff6ff', borderRadius: 6, padding: '6px 10px',
+          }}
         >
-          <span className="font-medium text-gray-800">
+          <span style={{ fontSize: 13, fontWeight: 500, color: '#1e40af', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {recipeMap.get(item.target_item_id) ?? item.target_item_id}
           </span>
-          <div className="flex items-center gap-2">
-            <span className="text-gray-600">×{item.target_quantity}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            <span style={{ fontSize: 12, color: '#3b82f6', fontWeight: 500 }}>×{item.target_quantity}</span>
             <button
               onClick={() => onRemove(index)}
-              className="text-red-500 hover:text-red-700 font-bold text-base leading-none"
-              aria-label={`Remove ${recipeMap.get(item.target_item_id) ?? item.target_item_id}`}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: 14, lineHeight: 1, padding: 0 }}
+              aria-label="ลบ"
             >
               ✕
             </button>

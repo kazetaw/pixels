@@ -52,28 +52,22 @@ export function DataEditor({ initialRecipes, initialMachines, initialStocks, ini
   ];
 
   return (
-    <div className="space-y-4">
+    <div>
       {/* Sub-tabs */}
-      <div className="flex gap-1 border-b border-gray-200">
+      <nav className="tab-nav">
         {tabs.map(({ key, label }) => (
           <button
             key={key}
             onClick={() => setTab(key)}
-            className={`px-4 py-2 text-sm font-medium rounded-t-md transition-colors ${
-              tab === key
-                ? 'bg-white border border-b-white border-gray-200 text-blue-700 font-semibold -mb-px'
-                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-            }`}
+            className={tab === key ? 'active' : ''}
           >
             {label}
+            {reloading && tab === key && (
+              <span style={{ fontSize: 11, color: '#94a3b8', marginLeft: 6 }}>โหลด…</span>
+            )}
           </button>
         ))}
-        {reloading && (
-          <span className="ml-2 text-xs text-gray-400 self-center animate-pulse">
-            กำลังโหลด…
-          </span>
-        )}
-      </div>
+      </nav>
 
       {/* Content */}
       {tab === 'recipes' && (

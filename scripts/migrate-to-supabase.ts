@@ -154,12 +154,28 @@ async function migrateRecipes() {
   console.log('\n🍫  Migrating recipes…');
   const raw = await fs.readFile(RECIPES_JSON, 'utf-8');
   const recipes: RecipeRow[] = JSON.parse(raw);
+
+  // Get valid machine_ids already in DB
+  const { data: machineRows } = await db.from('machines').select('machine_id');
+  const validMachineIds = new Set((machineRows ?? []).map((m) => m.machine_id));
+
   let uploaded = 0;
+  let skipped = 0;
 
   for (const r of recipes) {
     process.stdout.write(`  ${r.name}… `);
-    let imageUrl: string | undefined;
 
+    // If machine_id doesn't exist in machines table, set to null to avoid FK error
+    const safeMachineId = r.machine_id && validMachineIds.has(r.machine_id)
+      ? r.machine_id
+      : null;
+
+    if (r.machine_id && !validMachineIds.has(r.machine_id)) {
+      process.stdout.write(`(machine_id not found — set null) `);
+      skipped++;
+    }
+
+    let imageUrl: string | undefined;
     if (r.image) {
       try {
         imageUrl = await uploadFromBase64(r.image, `recipes/${r.id}.png`);
@@ -172,7 +188,7 @@ async function migrateRecipes() {
     const { error } = await db.from('recipes').upsert({
       id:            r.id,
       name:          r.name,
-      machine_id:    r.machine_id ?? null,
+      machine_id:    safeMachineId,
       time_per_unit: r.time_per_unit ?? null,
       ingredients:   r.ingredients,
       image_url:     imageUrl ?? null,
@@ -185,7 +201,7 @@ async function migrateRecipes() {
     }
   }
 
-  console.log(`  → ${recipes.length} recipes inserted, ${uploaded} images uploaded`);
+  console.log(`  → ${recipes.length} recipes processed, ${uploaded} images uploaded, ${skipped} machine_ids set to null`);
 }
 
 // ── migrate stocks ────────────────────────────────────────────────────────────
@@ -218,8 +234,9 @@ async function migrateStockImages() {
     process.stdout.write(`  ${itemId}… `);
     let imageUrl: string;
     try {
-      const safeName = itemId.replace(/[^a-zA-Z0-9_\-ก-ฮ]/g, '_');
-      imageUrl = await uploadFromBase64(dataUri, `stocks/${safeName}_${randomUUID()}.png`) ?? dataUri;
+      // Use UUID only as filename — avoid Thai chars in storage path
+      const fileUuid = randomUUID();
+      imageUrl = await uploadFromBase64(dataUri, `stocks/${fileUuid}.png`) ?? dataUri;
       uploaded++;
 
       const { error } = await db.from('stock_images').upsert(

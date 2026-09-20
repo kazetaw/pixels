@@ -466,12 +466,12 @@ export function RecipeEditor({ recipes, machines, stocks, onChange }: RecipeEdit
         <table className="min-w-full divide-y divide-gray-200 text-sm">
           <thead className="bg-gray-50 sticky top-0">
             <tr>
-              <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase w-12">รูป</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">ชื่อสินค้า</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">เครื่องจักร</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">เวลา</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Ingredients</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">จัดการ</th>
+              <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 w-12">รูป</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">ชื่อสินค้า</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">เครื่องจักร</th>
+              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500">เวลา</th>
+              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500">Ingredients</th>
+              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500">จัดการ</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 bg-white">

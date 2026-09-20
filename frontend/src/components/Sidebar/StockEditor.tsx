@@ -7,24 +7,14 @@ interface StockEditorProps {
   onUpdate: (itemId: string, qty: number) => void;
 }
 
-// Collect all unique items (recipe outputs + all ingredients)
 function getAllItems(recipes: Recipe[], stocks: StockMap): Array<{ id: string; name: string }> {
   const itemMap = new Map<string, string>();
   for (const recipe of recipes) {
     itemMap.set(recipe.id, recipe.name);
     for (const ingredientId of Object.keys(recipe.ingredients)) {
-      if (!itemMap.has(ingredientId)) {
-        // Convert snake_case to Title Case for raw materials
-        const name = ingredientId
-          .split('_')
-          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-          .join(' ');
-        itemMap.set(ingredientId, name);
-      }
+      if (!itemMap.has(ingredientId)) itemMap.set(ingredientId, ingredientId);
     }
   }
-  // Include raw materials that were added directly in the stock manager,
-  // even before a recipe starts using them.
   for (const itemId of Object.keys(stocks)) {
     if (!itemMap.has(itemId)) itemMap.set(itemId, itemId);
   }
@@ -35,27 +25,25 @@ export function StockEditor({ recipes, stocks, stockImages, onUpdate }: StockEdi
   const items = getAllItems(recipes, stocks);
 
   return (
-    <div className="space-y-1 max-h-64 overflow-y-auto pr-1">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 260, overflowY: 'auto', paddingRight: 2 }}>
       {items.map(({ id, name }) => (
-        <div key={id} className="flex items-center gap-2">
+        <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
           {stockImages[id] ? (
-            <img
-              src={stockImages[id]}
-              alt=""
-              className="h-7 w-7 rounded object-contain bg-white/10 flex-shrink-0"
-            />
+            <img src={stockImages[id]} alt="" style={{ width: 26, height: 26, borderRadius: 4, objectFit: 'contain', background: '#f1f5f9', flexShrink: 0 }} />
           ) : (
-            <div className="h-7 w-7 rounded bg-white/10 flex-shrink-0" />
+            <div style={{ width: 26, height: 26, borderRadius: 4, background: '#f1f5f9', flexShrink: 0 }} />
           )}
-          <label className="flex-1 text-sm text-gray-700 truncate" title={name}>
+          <span style={{ flex: 1, fontSize: 12, color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={name}>
             {name}
-          </label>
+          </span>
           <input
-            type="number"
-            min={0}
-            value={stocks[id] ?? 0}
+            type="number" min={0} value={stocks[id] ?? 0}
             onChange={(e) => onUpdate(id, Number(e.target.value))}
-            className="w-24 rounded border border-gray-300 px-2 py-1 text-sm text-right focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            style={{
+              width: 60, borderRadius: 4, border: '1px solid #e2e8f0',
+              padding: '4px 6px', fontSize: 12, textAlign: 'right',
+              color: '#0f172a', outline: 'none',
+            }}
           />
         </div>
       ))}

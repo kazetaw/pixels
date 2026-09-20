@@ -1,74 +1,80 @@
 import { ShoppingListEntry, StockImageMap, StockMap } from '../../types';
+import { Table } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
+import { WarningOutlined } from '@ant-design/icons';
 
-interface ShoppingListTableProps {
+interface Props {
   entries: ShoppingListEntry[];
   stocks: StockMap;
   stockImages: StockImageMap;
 }
 
-export function ShoppingListTable({ entries, stocks, stockImages }: ShoppingListTableProps) {
-  if (entries.length === 0) {
-    return <p className="text-sm text-gray-500 italic">ไม่มีวัตถุดิบที่ต้องจัดหา</p>;
-  }
+export function ShoppingListTable({ entries, stocks, stockImages }: Props) {
+  if (entries.length === 0)
+    return <p style={{ fontSize: 13, color: '#94a3b8', fontStyle: 'italic' }}>ไม่มีวัตถุดิบที่ต้องจัดหา</p>;
+
+  const columns: ColumnsType<ShoppingListEntry> = [
+    {
+      title: '',
+      dataIndex: 'item_id',
+      width: 44,
+      render: (id) => stockImages[id]
+        ? <img src={stockImages[id]} alt="" style={{ width: 36, height: 36, borderRadius: 6, objectFit: 'contain', background: '#f8fafc' }} />
+        : <div style={{ width: 36, height: 36, borderRadius: 6, background: '#f1f5f9' }} />,
+    },
+    {
+      title: 'ชื่อวัตถุดิบ',
+      dataIndex: 'item_name',
+      render: (name, row) => {
+        const inStock = stocks[row.item_id] ?? 0;
+        const isShort = row.net_required > inStock;
+        return (
+          <span style={{ fontSize: 13, fontWeight: 500, color: isShort ? '#b91c1c' : '#0f172a' }}>
+            {isShort && <WarningOutlined style={{ marginRight: 5, color: '#ef4444', fontSize: 12 }} />}
+            {name}
+          </span>
+        );
+      },
+    },
+    {
+      title: 'ต้องใช้ทั้งหมด',
+      dataIndex: 'total_needed',
+      align: 'right',
+      render: (v) => <span style={{ fontSize: 13, color: '#374151' }}>{v.toLocaleString()}</span>,
+    },
+    {
+      title: 'ต้องจัดหาเพิ่ม',
+      dataIndex: 'net_required',
+      align: 'right',
+      render: (v, row) => {
+        const inStock = stocks[row.item_id] ?? 0;
+        const isShort = row.net_required > inStock;
+        return (
+          <span style={{ fontSize: 13, fontWeight: 600, color: isShort ? '#dc2626' : '#0f172a' }}>
+            {v.toLocaleString()}
+          </span>
+        );
+      },
+    },
+    {
+      title: 'มีในสต็อก',
+      dataIndex: 'item_id',
+      align: 'right',
+      render: (id) => <span style={{ fontSize: 13, color: '#64748b' }}>{(stocks[id] ?? 0).toLocaleString()}</span>,
+    },
+  ];
 
   return (
-    <div className="overflow-x-auto">
-      <table className="min-w-full divide-y divide-gray-200 text-sm">
-        <thead className="bg-gray-50">
-          <tr>
-            <th className="px-3 py-3 text-left font-semibold text-gray-600 uppercase tracking-wide text-xs w-12">
-              รูป
-            </th>
-            <th className="px-4 py-3 text-left font-semibold text-gray-600 uppercase tracking-wide text-xs">
-              ชื่อวัตถุดิบ
-            </th>
-            <th className="px-4 py-3 text-right font-semibold text-gray-600 uppercase tracking-wide text-xs">
-              ต้องใช้ทั้งหมด
-            </th>
-            <th className="px-4 py-3 text-right font-semibold text-gray-600 uppercase tracking-wide text-xs">
-              ต้องจัดหาเพิ่ม
-            </th>
-            <th className="px-4 py-3 text-right font-semibold text-gray-600 uppercase tracking-wide text-xs">
-              มีในสต็อก
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-100 bg-white">
-          {entries.map((entry) => {
-            const inStock = stocks[entry.item_id] ?? 0;
-            const isShort = entry.net_required > inStock;
-            return (
-              <tr
-                key={entry.item_id}
-                className={isShort ? 'bg-red-50' : ''}
-              >
-                <td className="px-3 py-2">
-                  {stockImages[entry.item_id] ? (
-                    <img src={stockImages[entry.item_id]} alt="" className="h-9 w-9 rounded object-contain bg-gray-50 border border-gray-100" />
-                  ) : (
-                    <div className="h-9 w-9 rounded bg-gray-100" />
-                  )}
-                </td>
-                <td className="px-4 py-2 font-medium text-gray-800">
-                  {isShort && (
-                    <span className="mr-1 text-red-500" title="สต็อกไม่พอ">⚠</span>
-                  )}
-                  {entry.item_name}
-                </td>
-                <td className="px-4 py-2 text-right text-gray-600">
-                  {entry.total_needed.toLocaleString()}
-                </td>
-                <td className={`px-4 py-2 text-right font-semibold ${isShort ? 'text-red-600' : 'text-gray-800'}`}>
-                  {entry.net_required.toLocaleString()}
-                </td>
-                <td className="px-4 py-2 text-right text-gray-500">
-                  {inStock.toLocaleString()}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+    <Table<ShoppingListEntry>
+      columns={columns}
+      dataSource={entries}
+      rowKey="item_id"
+      pagination={false}
+      size="small"
+      rowClassName={(row) => {
+        const inStock = stocks[row.item_id] ?? 0;
+        return row.net_required > inStock ? 'bg-red-50' : '';
+      }}
+    />
   );
 }

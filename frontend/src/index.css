@@ -2,18 +2,194 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Override Ant Design font to Inter */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+/* ── Reset / Base ────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  line-height: 22px;
+  color: #0f172a;
+  background: #f8fafc;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Ant Design sidebar override */
-.ant-layout-sider .ant-menu-dark {
-  background: transparent;
+/* ── Ant Design global overrides ────────────────────────────────── */
+
+/* Remove dark sider default */
+.ant-layout-sider,
+.ant-layout-sider-children {
+  background: #ffffff !important;
 }
 
-/* Subtle scrollbar */
-::-webkit-scrollbar { width: 5px; height: 5px; }
+/* Nav menu — light sidebar */
+.ant-menu-light .ant-menu-item-selected {
+  background-color: #eff6ff !important;
+  color: #2563eb !important;
+  font-weight: 500;
+}
+.ant-menu-light .ant-menu-item-selected::after {
+  border-right: 3px solid #2563eb !important;
+}
+.ant-menu-light .ant-menu-item:hover {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+.ant-menu-item {
+  border-radius: 0 !important;
+  margin: 0 !important;
+  width: 100% !important;
+}
+
+/* Tables */
+.ant-table-thead > tr > th {
+  background: #f8fafc !important;
+  color: #64748b !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.02em !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  padding: 10px 16px !important;
+}
+.ant-table-tbody > tr > td {
+  padding: 10px 16px !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  font-size: 13px !important;
+}
+.ant-table-tbody > tr:hover > td {
+  background: #f8fafc !important;
+}
+.ant-table {
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 8px !important;
+  overflow: hidden !important;
+}
+
+/* Buttons */
+.ant-btn {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  border-radius: 6px !important;
+  height: 34px !important;
+}
+.ant-btn-primary {
+  background: #2563eb !important;
+  border-color: #2563eb !important;
+}
+.ant-btn-primary:hover {
+  background: #1d4ed8 !important;
+  border-color: #1d4ed8 !important;
+}
+
+/* Inputs */
+.ant-input, .ant-input-number, .ant-select-selector {
+  border-color: #e2e8f0 !important;
+  border-radius: 6px !important;
+  font-size: 13px !important;
+}
+.ant-input:focus, .ant-input-number:focus,
+.ant-select-selector:focus, .ant-select-focused .ant-select-selector {
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 2px #bfdbfe !important;
+}
+
+/* Modal */
+.ant-modal-content {
+  border-radius: 10px !important;
+  padding: 24px !important;
+}
+.ant-modal-header {
+  border-bottom: 1px solid #e2e8f0 !important;
+  padding-bottom: 14px !important;
+  margin-bottom: 20px !important;
+}
+.ant-modal-title {
+  font-size: 15px !important;
+  font-weight: 600 !important;
+}
+
+/* Form labels */
+.ant-form-item-label > label {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: #374151 !important;
+}
+
+/* Tags */
+.ant-tag {
+  border-radius: 4px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  padding: 1px 8px !important;
+}
+
+/* Tooltip */
+.ant-tooltip-inner {
+  font-size: 12px !important;
+  border-radius: 6px !important;
+}
+
+/* Alert */
+.ant-alert {
+  border-radius: 6px !important;
+  font-size: 13px !important;
+}
+
+/* Divider */
+.ant-divider { border-color: #e2e8f0 !important; }
+
+/* Spin */
+.ant-spin-dot-item { background: #2563eb !important; }
+
+/* ── Scrollbar ────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #d9d9d9; border-radius: 3px; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* ── Utilities ────────────────────────────────────────────────────── */
+.page-content {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 28px 24px;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #0f172a;
+  margin-bottom: 4px;
+}
+.section-sub {
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 20px;
+}
+
+/* Tab nav (DataEditor) */
+.tab-nav {
+  display: flex;
+  border-bottom: 1px solid #e2e8f0;
+  gap: 0;
+  margin-bottom: 20px;
+}
+.tab-nav button {
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  margin-bottom: -1px;
+}
+.tab-nav button:hover { color: #0f172a; }
+.tab-nav button.active {
+  color: #2563eb;
+  border-bottom-color: #2563eb;
+}

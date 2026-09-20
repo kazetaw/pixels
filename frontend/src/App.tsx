@@ -1,36 +1,33 @@
 import { useState } from 'react';
+import { Layout, Menu, Alert, Spin, Empty, Button, message } from 'antd';
 import {
-  Layout, Menu, Typography, Alert, Spin, Empty, Divider,
-} from 'antd';
-import {
-  CalculatorOutlined, BarChartOutlined, DatabaseOutlined,
-  BookOutlined, SaveOutlined, PlayCircleOutlined,
+  CalculatorOutlined,
+  BarChartOutlined,
+  DatabaseOutlined,
+  SaveOutlined,
+  PlayCircleOutlined,
 } from '@ant-design/icons';
 import { useAppState } from './hooks/useAppState';
-import { TargetItemForm } from './components/Sidebar/TargetItemForm';
-import { TargetItemList } from './components/Sidebar/TargetItemList';
-import { StockEditor } from './components/Sidebar/StockEditor';
+import { TargetItemForm }    from './components/Sidebar/TargetItemForm';
+import { TargetItemList }    from './components/Sidebar/TargetItemList';
+import { StockEditor }       from './components/Sidebar/StockEditor';
 import { ShoppingListTable } from './components/MainPanel/ShoppingListTable';
 import { MachineWorkloadTable } from './components/MainPanel/MachineWorkloadTable';
-import { UserGuide } from './components/UserGuide';
 import { ProductionPlanner } from './components/Planner/ProductionPlanner';
-import { DataEditor } from './components/DataEditor/DataEditor';
-import { SaveStatus } from './hooks/useAppState';
-import { Button, message } from 'antd';
+import { DataEditor }        from './components/DataEditor/DataEditor';
+import type { SaveStatus }   from './hooks/useAppState';
 
 const { Sider, Content } = Layout;
-const { Title, Text } = Typography;
 
-type MainView = 'calculator' | 'planner' | 'data' | 'guide';
+type MainView = 'calculator' | 'planner' | 'data';
 
 const NAV_ITEMS = [
   { key: 'calculator', icon: <CalculatorOutlined />, label: 'คำนวณ BOM' },
   { key: 'planner',    icon: <BarChartOutlined />,   label: 'วางแผนการผลิต' },
   { key: 'data',       icon: <DatabaseOutlined />,   label: 'จัดการข้อมูล' },
-  { key: 'guide',      icon: <BookOutlined />,        label: 'คู่มือการใช้งาน' },
 ];
 
-// ── Sidebar action buttons ────────────────────────────────────────────────────
+// ── Sidebar save + calculate ──────────────────────────────────────────────────
 function SidebarActions({
   onSave, onCalculate, saveStatus, saveError, loading, canCalculate,
 }: {
@@ -45,9 +42,7 @@ function SidebarActions({
 
   const handleSave = async () => {
     await onSave();
-    if (saveStatus !== 'error') {
-      messageApi.success('บันทึกสต็อกสำเร็จ');
-    }
+    if (saveStatus !== 'error') messageApi.success('บันทึกสต็อกสำเร็จ');
   };
 
   return (
@@ -80,6 +75,16 @@ function SidebarActions({
   );
 }
 
+// ── Page heading ──────────────────────────────────────────────────────────────
+function PageHead({ title, sub }: { title: string; sub?: string }) {
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <h2 style={{ fontSize: 18, fontWeight: 600, color: '#0f172a', margin: 0 }}>{title}</h2>
+      {sub && <p style={{ fontSize: 13, color: '#64748b', margin: '3px 0 0' }}>{sub}</p>}
+    </div>
+  );
+}
+
 // ── Main App ──────────────────────────────────────────────────────────────────
 export default function App() {
   const [view, setView] = useState<MainView>('data');
@@ -94,120 +99,110 @@ export default function App() {
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      {/* ── Sider ── */}
+
+      {/* ── Sider ─────────────────────────────────────────────────────── */}
       <Sider
-        width={260}
+        width={240}
         style={{
-          overflow: 'hidden',
+          background: '#ffffff',
+          borderRight: '1px solid #e2e8f0',
           height: '100vh',
           position: 'fixed',
-          left: 0,
-          top: 0,
-          bottom: 0,
+          left: 0, top: 0, bottom: 0,
           display: 'flex',
           flexDirection: 'column',
+          overflow: 'hidden',
         }}
       >
-        {/* Logo / brand */}
+        {/* Brand */}
         <div style={{
-          padding: '20px 20px 12px',
-          borderBottom: '1px solid rgba(255,255,255,0.08)',
+          padding: '18px 20px 14px',
+          borderBottom: '1px solid #e2e8f0',
         }}>
-          <Text style={{ color: '#fff', fontWeight: 600, fontSize: 15, display: 'block' }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: '#0f172a', lineHeight: 1.3 }}>
             โรงงานคำนวณทรัพยากร
-          </Text>
-          <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12 }}>
+          </div>
+          <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>
             ระบบวางแผนการผลิต
-          </Text>
+          </div>
         </div>
 
-        {/* Navigation */}
+        {/* Nav */}
         <Menu
-          theme="dark"
           mode="inline"
           selectedKeys={[view]}
           onClick={({ key }) => setView(key as MainView)}
           items={NAV_ITEMS}
-          style={{ flex: 'none', borderRight: 0 }}
+          style={{
+            borderRight: 0,
+            paddingTop: 8,
+            fontSize: 13,
+          }}
         />
 
-        <Divider style={{ borderColor: 'rgba(255,255,255,0.08)', margin: '4px 0' }} />
-
-        {/* BOM inputs — only shown on calculator view */}
-        <div style={{
-          flex: 1,
-          overflowY: 'auto',
-          padding: '12px 16px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 16,
-        }}>
-          {view === 'calculator' && (
-            <>
+        {/* BOM panel */}
+        {view === 'calculator' && (
+          <>
+            <div style={{
+              flex: 1,
+              overflowY: 'auto',
+              padding: '12px 16px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 14,
+              borderTop: '1px solid #e2e8f0',
+            }}>
               <TargetItemForm recipes={recipes} onAdd={addTargetItem} />
+
               {targetItems.length > 0 && (
                 <div>
-                  <Text style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12, fontWeight: 500 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
                     รายการเป้าหมาย
-                  </Text>
-                  <div style={{ marginTop: 8 }}>
-                    <TargetItemList items={targetItems} recipes={recipes} onRemove={removeTargetItem} />
                   </div>
+                  <TargetItemList items={targetItems} recipes={recipes} onRemove={removeTargetItem} />
                 </div>
               )}
-              <div>
-                <Text style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12, fontWeight: 500 }}>
-                  สต็อกปัจจุบัน
-                </Text>
-                <div style={{ marginTop: 8 }}>
-                  {recipes.length === 0 ? (
-                    <Text style={{ color: 'rgba(255,255,255,0.35)', fontSize: 12 }}>กำลังโหลด…</Text>
-                  ) : (
-                    <StockEditor recipes={recipes} stocks={stocks} stockImages={stockImages} onUpdate={updateStock} />
-                  )}
-                </div>
-              </div>
-            </>
-          )}
-        </div>
 
-        {/* Bottom actions (BOM only) */}
-        {view === 'calculator' && (
-          <div style={{
-            padding: '12px 16px',
-            borderTop: '1px solid rgba(255,255,255,0.08)',
-            flexShrink: 0,
-          }}>
-            <SidebarActions
-              onSave={saveStocks}
-              onCalculate={runCalculation}
-              saveStatus={saveStatus}
-              saveError={saveError}
-              loading={loading}
-              canCalculate={targetItems.length > 0}
-            />
-          </div>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+                  สต็อกปัจจุบัน
+                </div>
+                {recipes.length === 0
+                  ? <div style={{ fontSize: 12, color: '#cbd5e1' }}>กำลังโหลด…</div>
+                  : <StockEditor recipes={recipes} stocks={stocks} stockImages={stockImages} onUpdate={updateStock} />
+                }
+              </div>
+            </div>
+
+            <div style={{
+              padding: '12px 16px',
+              borderTop: '1px solid #e2e8f0',
+              flexShrink: 0,
+            }}>
+              <SidebarActions
+                onSave={saveStocks}
+                onCalculate={runCalculation}
+                saveStatus={saveStatus}
+                saveError={saveError}
+                loading={loading}
+                canCalculate={targetItems.length > 0}
+              />
+            </div>
+          </>
         )}
       </Sider>
 
-      {/* ── Main content ── */}
-      <Layout style={{ marginLeft: 260 }}>
-        <Content style={{
-          minHeight: '100vh',
-          background: '#f5f5f5',
-          overflowY: 'auto',
-        }}>
-
-          {/* Guide */}
-          {view === 'guide' && <UserGuide onClose={() => setView('calculator')} />}
+      {/* ── Main ──────────────────────────────────────────────────────── */}
+      <Layout style={{ marginLeft: 240 }}>
+        <Content style={{ minHeight: '100vh', background: '#f8fafc', overflowY: 'auto' }}>
 
           {/* Data Editor */}
           {view === 'data' && (
-            <div style={{ maxWidth: 1100, margin: '0 auto', padding: '28px 24px' }}>
-              <Title level={4} style={{ marginBottom: 4 }}>จัดการข้อมูล</Title>
-              <Text type="secondary" style={{ display: 'block', marginBottom: 20 }}>
-                เพิ่ม แก้ไข หรือลบสูตรการผลิตและสต็อกวัตถุดิบ
-              </Text>
+            <div className="page-content">
+              <PageHead
+                title="จัดการข้อมูล"
+                sub="เพิ่ม แก้ไข หรือลบสูตรการผลิต เครื่องจักร และสต็อกวัตถุดิบ"
+              />
               <DataEditor
                 initialRecipes={recipes}
                 initialMachines={_machines}
@@ -219,28 +214,28 @@ export default function App() {
 
           {/* Production Planner */}
           {view === 'planner' && (
-            <div style={{ maxWidth: 1100, margin: '0 auto', padding: '28px 24px' }}>
-              <Title level={4} style={{ marginBottom: 4 }}>วางแผนการผลิต</Title>
-              <Text type="secondary" style={{ display: 'block', marginBottom: 20 }}>
-                กำหนดสูตรแต่ละชั้น ระยะเวลา Event และดูผลการผลิตพร้อมวัตถุดิบที่ต้องใช้
-              </Text>
+            <div className="page-content">
+              <PageHead
+                title="วางแผนการผลิต"
+                sub="กำหนดสูตรแต่ละชั้น ระยะเวลา Event และดูผลการผลิตพร้อมวัตถุดิบที่ต้องใช้"
+              />
               <ProductionPlanner recipes={recipes} stocks={stocks} machines={_machines} />
             </div>
           )}
 
-          {/* BOM Calculator results */}
+          {/* BOM Calculator */}
           {view === 'calculator' && (
             <div style={{ maxWidth: 900, margin: '0 auto', padding: '28px 24px' }}>
-              <Title level={4} style={{ marginBottom: 4 }}>ผลการคำนวณ BOM</Title>
-              <Text type="secondary" style={{ display: 'block', marginBottom: 20 }}>
-                เพิ่มไอเทมเป้าหมาย ตั้งค่าสต็อก แล้วกดคำนวณ
-              </Text>
+              <PageHead
+                title="ผลการคำนวณ BOM"
+                sub="เพิ่มไอเทมเป้าหมาย ตั้งค่าสต็อก แล้วกดคำนวณ"
+              />
 
               {initError && (
                 <Alert
                   type="error"
                   message="โหลดข้อมูลไม่สำเร็จ"
-                  description={`${initError} — ตรวจสอบว่า Backend รันอยู่ที่ port 3000`}
+                  description={initError}
                   showIcon
                   style={{ marginBottom: 16 }}
                 />
@@ -256,38 +251,39 @@ export default function App() {
               )}
 
               {loading && (
-                <div style={{ textAlign: 'center', padding: '48px 0' }}>
-                  <Spin size="large" tip="กำลังคำนวณ…" />
+                <div style={{ textAlign: 'center', padding: '60px 0' }}>
+                  <Spin size="large" />
+                  <div style={{ fontSize: 13, color: '#64748b', marginTop: 12 }}>กำลังคำนวณ…</div>
                 </div>
               )}
 
               {!loading && calculationResult && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                  <div>
-                    <Title level={5} style={{ marginBottom: 12 }}>
-                      รายการที่ต้องจัดหา
-                      <Text type="secondary" style={{ fontSize: 13, fontWeight: 400, marginLeft: 8 }}>
-                        {calculationResult.shopping_list.length} รายการ
-                      </Text>
-                    </Title>
-                    <ShoppingListTable entries={calculationResult.shopping_list} stocks={stocks} stockImages={stockImages} />
-                  </div>
-                  <div>
-                    <Title level={5} style={{ marginBottom: 12 }}>
-                      ภาระงานเครื่องจักร
-                      <Text type="secondary" style={{ fontSize: 13, fontWeight: 400, marginLeft: 8 }}>
-                        {calculationResult.machine_workloads.length} เครื่อง
-                      </Text>
-                    </Title>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+                  <section>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 12 }}>
+                      <span style={{ fontSize: 15, fontWeight: 600, color: '#0f172a' }}>รายการที่ต้องจัดหา</span>
+                      <span style={{ fontSize: 12, color: '#94a3b8' }}>{calculationResult.shopping_list.length} รายการ</span>
+                    </div>
+                    <ShoppingListTable
+                      entries={calculationResult.shopping_list}
+                      stocks={stocks}
+                      stockImages={stockImages}
+                    />
+                  </section>
+                  <section>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 12 }}>
+                      <span style={{ fontSize: 15, fontWeight: 600, color: '#0f172a' }}>ภาระงานเครื่องจักร</span>
+                      <span style={{ fontSize: 12, color: '#94a3b8' }}>{calculationResult.machine_workloads.length} เครื่อง</span>
+                    </div>
                     <MachineWorkloadTable entries={calculationResult.machine_workloads} />
-                  </div>
+                  </section>
                 </div>
               )}
 
               {!loading && !calculationResult && !initError && !calcError && (
                 <Empty
-                  description="เพิ่มไอเทมเป้าหมายทางซ้าย แล้วกดคำนวณ"
-                  style={{ padding: '64px 0' }}
+                  description={<span style={{ fontSize: 13, color: '#94a3b8' }}>เพิ่มไอเทมเป้าหมายทางซ้าย แล้วกดคำนวณ</span>}
+                  style={{ padding: '80px 0' }}
                 />
               )}
             </div>
