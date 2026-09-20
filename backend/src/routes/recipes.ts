@@ -77,6 +77,7 @@ router.post('/api/recipes', async (req: Request, res: Response) => {
       machine_id: body.machine_id ?? null,
       time_per_unit: body.time_per_unit ?? null,
       ingredients: body.ingredients ?? {},
+      ...(body.image !== undefined && { image: body.image }),
     };
 
     // Add the new recipe first so syncNameToUUID can also patch its own ingredients
@@ -122,6 +123,7 @@ router.put('/api/recipes/:id', async (req: Request, res: Response) => {
       machine_id: body.machine_id ?? oldRecipe.machine_id,
       time_per_unit: body.time_per_unit !== undefined ? body.time_per_unit : oldRecipe.time_per_unit,
       ingredients: body.ingredients ?? oldRecipe.ingredients,
+      ...(body.image !== undefined && { image: body.image }),
     };
 
     const updatedRecipes = [...recipes];

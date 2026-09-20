@@ -54,16 +54,31 @@ export function useAppState(): AppState {
 
   // Load all data on mount
   useEffect(() => {
-    fetchAllData()
-      .then((data) => {
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    let cancelled = false;
+
+    const loadData = async () => {
+      try {
+        const data = await fetchAllData();
+        if (cancelled) return;
         setRecipes(data.recipes);
         setMachines(data.machines);
         setStocks(data.stocks);
         setStockImages(data.stockImages ?? {});
-      })
-      .catch((err: Error) => {
-        setInitError(err.message ?? 'Failed to load application data');
-      });
+        setInitError(null);
+      } catch (err: unknown) {
+        if (cancelled) return;
+        setInitError((err as Error).message ?? 'Failed to load application data');
+        // Frontend may start before Backend. Keep trying until it becomes available.
+        retryTimer = setTimeout(loadData, 3000);
+      }
+    };
+
+    void loadData();
+    return () => {
+      cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
+    };
   }, []);
 
   const addTargetItem = useCallback((item: TargetItem) => {

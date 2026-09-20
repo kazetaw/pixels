@@ -4,7 +4,7 @@
     "description":  "Factory Resource Calculator Backend",
     "main":  "dist/server.js",
     "scripts":  {
-                    "dev":  "tsx src/server.ts",
+                    "dev":  "node --import tsx src/server.ts",
                     "build":  "tsc",
                     "start":  "node dist/server.js"
                 },

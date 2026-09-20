@@ -82,7 +82,7 @@ function SidebarActions({
 
 // ── Main App ──────────────────────────────────────────────────────────────────
 export default function App() {
-  const [view, setView] = useState<MainView>('calculator');
+  const [view, setView] = useState<MainView>('data');
 
   const {
     recipes, machines: _machines, stocks, stockImages,

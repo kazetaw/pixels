@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Recipe, Machine, StockMap, StockImageMap } from '../../types';
 import { fetchAllData } from '../../api/client';
 import { RecipeEditor } from './RecipeEditor';
@@ -22,12 +22,22 @@ export function DataEditor({ initialRecipes, initialMachines, initialStocks, ini
   const [stockImages, setStockImages] = useState<StockImageMap>(initialStockImages);
   const [reloading, setReloading] = useState(false);
 
+  // App data can arrive after this editor first mounts when Backend starts later.
+  useEffect(() => {
+    setRecipes(initialRecipes);
+    setMachines(initialMachines);
+    setStocks(initialStocks);
+    setStockImages(initialStockImages);
+  }, [initialRecipes, initialMachines, initialStocks, initialStockImages]);
+
   const reload = useCallback(async () => {
     setReloading(true);
     try {
       const data = await fetchAllData();
       setRecipes(data.recipes);
       setMachines(data.machines);
+      setStocks(data.stocks);
+      setStockImages(data.stockImages ?? {});
     } finally {
       setReloading(false);
     }
