@@ -6,7 +6,7 @@ import {
 import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, UploadOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { UploadProps } from 'antd';
-import { Machine } from '../../types';
+import { Machine, Recipe, StockMap } from '../../types';
 import { createMachine, updateMachine, deleteMachine } from '../../api/client';
 
 const { Text } = Typography;
@@ -49,6 +49,8 @@ function OccupationBadge({ occ }: { occ: Occupation }) {
 
 interface MachineEditorProps {
   machines: Machine[];
+  recipes: Recipe[];
+  stocks: StockMap;
   onChange: () => void;
 }
 
@@ -56,11 +58,14 @@ interface MachineEditorProps {
 interface MachineFormProps {
   open: boolean;
   initial?: Machine | null;
+  machines: Machine[];
+  recipes: Recipe[];
+  stocks: StockMap;
   onSave: (data: Omit<Machine, 'machine_id'>) => Promise<void>;
   onCancel: () => void;
 }
 
-function MachineFormModal({ open, initial, onSave, onCancel }: MachineFormProps) {
+function MachineFormModal({ open, initial, machines, recipes, stocks, onSave, onCancel }: MachineFormProps) {
   const [form] = Form.useForm();
   const [imagePreview, setImagePreview] = useState<string>(initial?.image ?? '');
   const [saving, setSaving] = useState(false);
@@ -89,6 +94,17 @@ function MachineFormModal({ open, initial, onSave, onCancel }: MachineFormProps)
   const handleSave = async () => {
     try {
       const values = await form.validateFields();
+      const normalizedName = values.machine_name.trim().normalize('NFKC').toLocaleLowerCase('th');
+      const recipeIds = new Set(recipes.map((recipe) => recipe.id));
+      const conflict = [
+        ...machines.filter((machine) => machine.machine_id !== initial?.machine_id).map((machine) => machine.machine_name),
+        ...recipes.map((recipe) => recipe.name),
+        ...Object.keys(stocks).filter((key) => !recipeIds.has(key)),
+      ].find((otherName) => otherName.trim().normalize('NFKC').toLocaleLowerCase('th') === normalizedName);
+      if (conflict) {
+        form.setFields([{ name: 'machine_name', errors: [`ชื่อนี้ซ้ำกับ "${conflict}" กรุณาใช้ชื่ออื่น`] }]);
+        return;
+      }
       setSaving(true);
       await onSave({
         machine_name:    values.machine_name.trim(),
@@ -178,7 +194,7 @@ function MachineFormModal({ open, initial, onSave, onCancel }: MachineFormProps)
 }
 
 // ── Main MachineEditor ────────────────────────────────────────────────────────
-export function MachineEditor({ machines, onChange }: MachineEditorProps) {
+export function MachineEditor({ machines, recipes, stocks, onChange }: MachineEditorProps) {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing]   = useState<Machine | null>(null);
   const [search, setSearch]     = useState('');
@@ -361,12 +377,18 @@ export function MachineEditor({ machines, onChange }: MachineEditorProps) {
 
       <MachineFormModal
         open={showForm}
+        machines={machines}
+        recipes={recipes}
+        stocks={stocks}
         onSave={handleCreate}
         onCancel={() => setShowForm(false)}
       />
       <MachineFormModal
         open={!!editing}
         initial={editing}
+        machines={machines}
+        recipes={recipes}
+        stocks={stocks}
         onSave={handleUpdate}
         onCancel={() => setEditing(null)}
       />

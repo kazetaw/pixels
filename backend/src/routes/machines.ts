@@ -1,8 +1,9 @@
 import { Router, Request, Response } from 'express';
 import { randomUUID } from 'crypto';
-import { readMachines, writeMachines, readRecipes } from '../services/fileStore';
+import { readMachines, writeMachines, readRecipes, readStocks } from '../services/fileStore';
 import { parseTimeToHours } from '../utils/time';
 import { Machine } from '../types';
+import { duplicateNameError, findNameConflict } from '../utils/names';
 
 const router = Router();
 
@@ -47,7 +48,9 @@ router.post('/api/machines', async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'floor_number must be a positive number' });
 
   try {
-    const [machines, recipes] = await Promise.all([readMachines(), readRecipes()]);
+    const [machines, recipes, stocks] = await Promise.all([readMachines(), readRecipes(), readStocks()]);
+    const conflict = findNameConflict(body.machine_name, { recipes, machines, stocks });
+    if (conflict) return res.status(409).json({ error: duplicateNameError(conflict) });
 
     const newMachine: Machine = {
       machine_id:      randomUUID(),
@@ -76,10 +79,15 @@ router.put('/api/machines/:id', async (req: Request, res: Response) => {
   const body = req.body as Partial<Machine>;
 
   try {
-    const [machines, recipes] = await Promise.all([readMachines(), readRecipes()]);
+    const [machines, recipes, stocks] = await Promise.all([readMachines(), readRecipes(), readStocks()]);
     const idx = machines.findIndex((m) => m.machine_id === id);
     if (idx === -1)
       return res.status(404).json({ error: `Machine "${id}" not found` });
+
+    const requestedName = body.machine_name ?? machines[idx].machine_name;
+    if (!requestedName.trim()) return res.status(400).json({ error: 'machine_name is required' });
+    const conflict = findNameConflict(requestedName, { recipes, machines, stocks, excludeMachineId: id });
+    if (conflict) return res.status(409).json({ error: duplicateNameError(conflict) });
 
     const updated: Machine = {
       ...machines[idx],

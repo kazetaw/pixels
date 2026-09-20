@@ -163,7 +163,7 @@ export default function App() {
                   {recipes.length === 0 ? (
                     <Text style={{ color: 'rgba(255,255,255,0.35)', fontSize: 12 }}>กำลังโหลด…</Text>
                   ) : (
-                    <StockEditor recipes={recipes} stocks={stocks} onUpdate={updateStock} />
+                    <StockEditor recipes={recipes} stocks={stocks} stockImages={stockImages} onUpdate={updateStock} />
                   )}
                 </div>
               </div>
@@ -270,7 +270,7 @@ export default function App() {
                         {calculationResult.shopping_list.length} รายการ
                       </Text>
                     </Title>
-                    <ShoppingListTable entries={calculationResult.shopping_list} stocks={stocks} />
+                    <ShoppingListTable entries={calculationResult.shopping_list} stocks={stocks} stockImages={stockImages} />
                   </div>
                   <div>
                     <Title level={5} style={{ marginBottom: 12 }}>

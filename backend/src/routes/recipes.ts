@@ -1,7 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { randomUUID } from 'crypto';
-import { readRecipes, writeRecipes, readStocks, writeStocks } from '../services/fileStore';
+import { readRecipes, writeRecipes, readStocks, writeStocks, readMachines } from '../services/fileStore';
 import { Recipe, StockMap } from '../types';
+import { duplicateNameError, findNameConflict } from '../utils/names';
 
 const router = Router();
 
@@ -66,7 +67,9 @@ router.post('/api/recipes', async (req: Request, res: Response) => {
   if (!body.name?.trim()) return res.status(400).json({ error: 'name is required' });
 
   try {
-    const [recipes, stocks] = await Promise.all([readRecipes(), readStocks()]);
+    const [recipes, stocks, machines] = await Promise.all([readRecipes(), readStocks(), readMachines()]);
+    const conflict = findNameConflict(body.name, { recipes, machines, stocks });
+    if (conflict) return res.status(409).json({ error: duplicateNameError(conflict) });
 
     const newRecipe: Recipe = {
       id: randomUUID(),
@@ -103,12 +106,15 @@ router.put('/api/recipes/:id', async (req: Request, res: Response) => {
   const body = req.body as Partial<Recipe>;
 
   try {
-    const [recipes, stocks] = await Promise.all([readRecipes(), readStocks()]);
+    const [recipes, stocks, machines] = await Promise.all([readRecipes(), readStocks(), readMachines()]);
     const idx = recipes.findIndex((r) => r.id === id);
     if (idx === -1) return res.status(404).json({ error: `Recipe "${id}" not found` });
 
     const oldRecipe = recipes[idx];
     const newName = (body.name ?? oldRecipe.name).trim();
+    if (!newName) return res.status(400).json({ error: 'name is required' });
+    const conflict = findNameConflict(newName, { recipes, machines, stocks, excludeRecipeId: id });
+    if (conflict) return res.status(409).json({ error: duplicateNameError(conflict) });
 
     const updated: Recipe = {
       ...oldRecipe,

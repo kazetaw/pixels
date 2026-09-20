@@ -2,13 +2,14 @@ import { useState, useMemo } from 'react';
 import { Upload, Button } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
 import type { UploadProps } from 'antd';
-import { StockMap, StockImageMap, Recipe } from '../../types';
+import { StockMap, StockImageMap, Recipe, Machine } from '../../types';
 import { saveStocks } from '../../api/client';
 
 interface StockEditorFullProps {
   stocks: StockMap;
   stockImages: StockImageMap;
   recipes: Recipe[];
+  machines: Machine[];
   onSaved: (newStocks: StockMap, newImages: StockImageMap) => void;
 }
 
@@ -61,7 +62,7 @@ function buildItemNames(recipes: Recipe[]): Map<string, string> {
 }
 
 // ── main component ────────────────────────────────────────────────────────────
-export function StockEditorFull({ stocks, stockImages, recipes, onSaved }: StockEditorFullProps) {
+export function StockEditorFull({ stocks, stockImages, recipes, machines, onSaved }: StockEditorFullProps) {
   const [local, setLocal] = useState<StockMap>({ ...stocks });
   const [localImages, setLocalImages] = useState<StockImageMap>({ ...stockImages });
   const [search, setSearch] = useState('');
@@ -114,6 +115,16 @@ export function StockEditorFull({ stocks, stockImages, recipes, onSaved }: Stock
     const k = newKey.trim();
     const q = Number(newQty);
     if (!k) { setErr('กรุณากรอกชื่อหรือเลือก recipe'); return; }
+    if (!useRecipe) {
+      const normalizedName = k.normalize('NFKC').toLocaleLowerCase('th');
+      const recipeIds = new Set(recipes.map((recipe) => recipe.id));
+      const conflict = [
+        ...recipes.map((recipe) => recipe.name),
+        ...machines.map((machine) => machine.machine_name),
+        ...Object.keys(local).filter((key) => !recipeIds.has(key)),
+      ].find((otherName) => otherName.trim().normalize('NFKC').toLocaleLowerCase('th') === normalizedName);
+      if (conflict) { setErr(`ชื่อนี้ซ้ำกับ "${conflict}" กรุณาใช้ชื่ออื่น`); return; }
+    }
     setLocal((prev) => ({ ...prev, [k]: q }));
     if (newImage) setLocalImages((prev) => ({ ...prev, [k]: newImage }));
     setNewKey(''); setNewQty(''); setNewImage(undefined); setErr(''); setSaved(false);

@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
-import { writeStocks, writeStockImages, readStockImages } from '../services/fileStore';
+import { writeStocks, writeStockImages, readStockImages, readRecipes, readMachines } from '../services/fileStore';
 import { StockMap, StockImageMap } from '../types';
+import { duplicateNameError, findNameConflict, normalizeName } from '../utils/names';
 
 const router = Router();
 
@@ -37,6 +38,19 @@ router.post('/api/stocks', async (req: Request, res: Response) => {
   }
 
   try {
+    const [recipes, machines] = await Promise.all([readRecipes(), readMachines()]);
+    const recipeIds = new Set(recipes.map((recipe) => recipe.id));
+    const rawNames = new Map<string, string>();
+    for (const key of Object.keys(stockMap)) {
+      if (recipeIds.has(key)) continue;
+      const normalized = normalizeName(key);
+      if (!normalized) return res.status(400).json({ error: 'ชื่อวัตถุดิบต้องไม่ว่าง' });
+      const duplicate = rawNames.get(normalized);
+      if (duplicate) return res.status(409).json({ error: `ชื่อวัตถุดิบซ้ำ: "${duplicate}" และ "${key}"` });
+      rawNames.set(normalized, key);
+      const conflict = findNameConflict(key, { recipes, machines, stocks: {} });
+      if (conflict) return res.status(409).json({ error: duplicateNameError(conflict) });
+    }
     if (imageMap) {
       await Promise.all([writeStocks(stockMap), writeStockImages(imageMap)]);
     } else {

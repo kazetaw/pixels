@@ -1,11 +1,12 @@
-import { ShoppingListEntry, StockMap } from '../../types';
+import { ShoppingListEntry, StockImageMap, StockMap } from '../../types';
 
 interface ShoppingListTableProps {
   entries: ShoppingListEntry[];
   stocks: StockMap;
+  stockImages: StockImageMap;
 }
 
-export function ShoppingListTable({ entries, stocks }: ShoppingListTableProps) {
+export function ShoppingListTable({ entries, stocks, stockImages }: ShoppingListTableProps) {
   if (entries.length === 0) {
     return <p className="text-sm text-gray-500 italic">ไม่มีวัตถุดิบที่ต้องจัดหา</p>;
   }
@@ -15,6 +16,9 @@ export function ShoppingListTable({ entries, stocks }: ShoppingListTableProps) {
       <table className="min-w-full divide-y divide-gray-200 text-sm">
         <thead className="bg-gray-50">
           <tr>
+            <th className="px-3 py-3 text-left font-semibold text-gray-600 uppercase tracking-wide text-xs w-12">
+              รูป
+            </th>
             <th className="px-4 py-3 text-left font-semibold text-gray-600 uppercase tracking-wide text-xs">
               ชื่อวัตถุดิบ
             </th>
@@ -38,6 +42,13 @@ export function ShoppingListTable({ entries, stocks }: ShoppingListTableProps) {
                 key={entry.item_id}
                 className={isShort ? 'bg-red-50' : ''}
               >
+                <td className="px-3 py-2">
+                  {stockImages[entry.item_id] ? (
+                    <img src={stockImages[entry.item_id]} alt="" className="h-9 w-9 rounded object-contain bg-gray-50 border border-gray-100" />
+                  ) : (
+                    <div className="h-9 w-9 rounded bg-gray-100" />
+                  )}
+                </td>
                 <td className="px-4 py-2 font-medium text-gray-800">
                   {isShort && (
                     <span className="mr-1 text-red-500" title="สต็อกไม่พอ">⚠</span>

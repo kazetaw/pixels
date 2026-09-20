@@ -76,6 +76,8 @@ export function DataEditor({ initialRecipes, initialMachines, initialStocks, ini
       {tab === 'machines' && (
         <MachineEditor
           machines={machines}
+          recipes={recipes}
+          stocks={stocks}
           onChange={reload}
         />
       )}
@@ -85,6 +87,7 @@ export function DataEditor({ initialRecipes, initialMachines, initialStocks, ini
           stocks={stocks}
           stockImages={stockImages}
           recipes={recipes}
+          machines={machines}
           onSaved={(newStocks, newImages) => { setStocks(newStocks); setStockImages(newImages); }}
         />
       )}

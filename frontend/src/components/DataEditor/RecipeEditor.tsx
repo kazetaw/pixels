@@ -244,6 +244,14 @@ function RecipeForm({ initial, recipes, machines, stocks, onSave, onCancel }: Re
 
   const handleSave = async () => {
     if (!name.trim()) { setErr('กรุณากรอกชื่อ'); return; }
+    const normalizedName = name.trim().normalize('NFKC').toLocaleLowerCase('th');
+    const recipeIds = new Set(recipes.map((recipe) => recipe.id));
+    const conflict = [
+      ...recipes.filter((recipe) => recipe.id !== initial?.id).map((recipe) => recipe.name),
+      ...machines.map((machine) => machine.machine_name),
+      ...Object.keys(stocks).filter((key) => !recipeIds.has(key)),
+    ].find((otherName) => otherName.trim().normalize('NFKC').toLocaleLowerCase('th') === normalizedName);
+    if (conflict) { setErr(`ชื่อนี้ซ้ำกับ "${conflict}" กรุณาใช้ชื่ออื่น`); return; }
     setSaving(true); setErr('');
     try {
       await onSave({
