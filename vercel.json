@@ -5,7 +5,8 @@
   "installCommand": "npm install && npm install --prefix frontend",
   "framework": null,
   "rewrites": [
-    { "source": "/api/:path*", "destination": "/api/index" },
-    { "source": "/(.*)",       "destination": "/index.html" }
+    { "source": "/api/upload-image", "destination": "/api/upload-image" },
+    { "source": "/api/:path*",       "destination": "/api/index" },
+    { "source": "/(.*)",             "destination": "/index.html" }
   ]
 }
