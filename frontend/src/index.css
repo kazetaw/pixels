@@ -193,3 +193,36 @@ body {
   color: #2563eb;
   border-bottom-color: #2563eb;
 }
+
+/* ── Responsive layout ───────────────────────────────────────────── */
+
+/* Desktop: sider visible, topbar hidden, main offset */
+.desktop-sider { display: flex !important; }
+.mobile-topbar  { display: none !important; }
+.main-layout    { margin-left: 200px !important; }
+
+/* Mobile (≤ 768px): hide sider, show topbar, remove offset */
+@media (max-width: 768px) {
+  .desktop-sider { display: none !important; }
+  .mobile-topbar  { display: flex !important; }
+  .main-layout    { margin-left: 0 !important; }
+
+  /* push content below fixed topbar */
+  .main-layout .ant-layout-content {
+    padding-top: 48px;
+  }
+
+  .page-content {
+    padding: 20px 16px;
+  }
+
+  /* Drawer: no rounded corners on left edge */
+  .mobile-drawer .ant-drawer-content-wrapper {
+    box-shadow: 4px 0 16px rgba(0,0,0,0.08) !important;
+  }
+
+  /* Tables scroll horizontally on small screens */
+  .ant-table-wrapper {
+    overflow-x: auto;
+  }
+}

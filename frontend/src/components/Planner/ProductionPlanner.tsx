@@ -1,5 +1,7 @@
 // frontend/src/components/Planner/ProductionPlanner.tsx
 import { useState, useCallback, useMemo } from 'react';
+import { Spin, Empty } from 'antd';
+import { LoadingOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import { Recipe, Machine, PlanRequest, PlanResponse, FloorAssignment } from '../../types';
 import { runPlan } from '../../api/client';
 import { PlanSummary } from './PlanSummary';
@@ -28,15 +30,6 @@ const OCCUPATION_COLOR: Record<string, string> = {
   เกษตร:   'bg-lime-50 text-lime-700 border-lime-200',
   ทุกอาชีพ: 'bg-purple-50 text-purple-700 border-purple-200',
 };
-
-function Spinner() {
-  return (
-    <svg className="inline h-4 w-4 animate-spin text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-    </svg>
-  );
-}
 
 function parseTime(t: string | null): number {
   if (!t) return 0;
@@ -281,15 +274,12 @@ export function ProductionPlanner({ recipes, machines = [] }: ProductionPlannerP
           <button
             onClick={handleCalculate}
             disabled={loading || assignedCount === 0}
-            className="w-full rounded-md bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            {loading ? (
-              <span className="flex items-center justify-center gap-2">
-                <Spinner /> กำลังคำนวณ…
-              </span>
-            ) : (
-              'คำนวณแผนการผลิต'
-            )}
+            {loading
+              ? <><Spin indicator={<LoadingOutlined style={{ fontSize: 14, color: '#fff' }} spin />} /> กำลังคำนวณ…</>
+              : <><PlayCircleOutlined /> คำนวณแผนการผลิต</>
+            }
           </button>
         </div>
       </div>
@@ -297,14 +287,16 @@ export function ProductionPlanner({ recipes, machines = [] }: ProductionPlannerP
       {/* ── Right: results ── */}
       <div className="flex-1 overflow-y-auto">
         {!result && !loading && !error && (
-          <div className="flex flex-col items-center justify-center h-64 text-center rounded-lg border-2 border-dashed border-gray-200 bg-white">
-            <p className="text-sm font-semibold text-gray-600">ยังไม่มีผลการวางแผน</p>
-            <p className="text-xs text-gray-400 mt-1">กำหนดชั้นและสูตรการผลิต แล้วกดคำนวณ</p>
-          </div>
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description={<span style={{ fontSize: 13, color: '#94a3b8' }}>กำหนดชั้นและสูตรการผลิต แล้วกดคำนวณ</span>}
+            style={{ padding: '60px 0' }}
+          />
         )}
         {loading && (
-          <div className="flex items-center justify-center h-32 rounded-lg bg-indigo-50 border border-indigo-200">
-            <span className="text-sm text-indigo-600 font-medium animate-pulse">กำลังคำนวณ…</span>
+          <div style={{ textAlign: 'center', padding: '60px 0' }}>
+            <Spin indicator={<LoadingOutlined style={{ fontSize: 28, color: '#2563eb' }} spin />} />
+            <div style={{ fontSize: 13, color: '#64748b', marginTop: 12 }}>กำลังคำนวณ…</div>
           </div>
         )}
         {result && !loading && <PlanSummary result={result} />}
