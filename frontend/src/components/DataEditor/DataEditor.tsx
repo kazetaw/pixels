@@ -4,6 +4,7 @@ import { fetchAllData } from '../../api/client';
 import { RecipeEditor } from './RecipeEditor';
 import { StockEditorFull } from './StockEditorFull';
 import { MachineEditor } from './MachineEditor';
+import { MigratePanel } from './MigratePanel';
 
 interface DataEditorProps {
   initialRecipes: Recipe[];
@@ -12,7 +13,7 @@ interface DataEditorProps {
   initialStockImages: StockImageMap;
 }
 
-type DataTab = 'recipes' | 'machines' | 'stocks';
+type DataTab = 'recipes' | 'machines' | 'stocks' | 'migrate';
 
 export function DataEditor({ initialRecipes, initialMachines, initialStocks, initialStockImages }: DataEditorProps) {
   const [tab, setTab] = useState<DataTab>('recipes');
@@ -47,6 +48,7 @@ export function DataEditor({ initialRecipes, initialMachines, initialStocks, ini
     { key: 'recipes',  label: 'สูตรการผลิต' },
     { key: 'machines', label: 'เครื่องจักร' },
     { key: 'stocks',   label: 'สต็อกวัตถุดิบ' },
+    { key: 'migrate',  label: '🔧 จัดการ DB' },
   ];
 
   return (
@@ -101,6 +103,8 @@ export function DataEditor({ initialRecipes, initialMachines, initialStocks, ini
           onSaved={(newStocks, newImages) => { setStocks(newStocks); setStockImages(newImages); }}
         />
       )}
+
+      {tab === 'migrate' && <MigratePanel />}
     </div>
   );
 }
