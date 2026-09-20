@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import {
   Table, Button, Input, Select, Modal, Form, InputNumber,
-  Space, Tag, Avatar, Typography, Tooltip, message, Upload,
+  Space, Tag, Avatar, Typography, Tooltip, message,
 } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, UploadOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import type { UploadProps } from 'antd';
 import { Machine, Recipe, StockMap } from '../../types';
 import { createMachine, updateMachine, deleteMachine } from '../../api/client';
+import { ImagePicker } from '../shared/ImagePicker';
 
 const { Text } = Typography;
 
@@ -67,28 +67,18 @@ interface MachineFormProps {
 
 function MachineFormModal({ open, initial, machines, recipes, stocks, onSave, onCancel }: MachineFormProps) {
   const [form] = Form.useForm();
-  const [imagePreview, setImagePreview] = useState<string>(initial?.image ?? '');
+  const [imageUrl, setImageUrl] = useState<string | undefined>(initial?.image);
   const [saving, setSaving] = useState(false);
+  const [editingId] = useState(initial?.machine_id);
 
   // sync preview when editing different item
   const handleAfterOpen = () => {
-    setImagePreview(initial?.image ?? '');
+    setImageUrl(initial?.image);
     form.setFieldsValue({
       machine_name: initial?.machine_name ?? '',
       floor_number: initial?.floor_number ?? 1,
       occupation:   initial?.occupation  ?? undefined,
     });
-  };
-
-  const uploadProps: UploadProps = {
-    accept: 'image/*',
-    showUploadList: false,
-    beforeUpload: (file) => {
-      const reader = new FileReader();
-      reader.onload = (ev) => setImagePreview(ev.target?.result as string);
-      reader.readAsDataURL(file);
-      return false; // ไม่ส่ง HTTP request
-    },
   };
 
   const handleSave = async () => {
@@ -111,10 +101,10 @@ function MachineFormModal({ open, initial, machines, recipes, stocks, onSave, on
         floor_number:    Number(values.floor_number),
         max_hours_limit: 0,
         ...(values.occupation && { occupation: values.occupation }),
-        ...(imagePreview       && { image: imagePreview }),
+        ...(imageUrl           && { image: imageUrl }),
       });
       form.resetFields();
-      setImagePreview('');
+      setImageUrl(undefined);
     } catch {
       // validation error — antd handles display
     } finally {
@@ -164,29 +154,16 @@ function MachineFormModal({ open, initial, machines, recipes, stocks, onSave, on
           </Select>
         </Form.Item>
 
-        {/* รูปภาพ — เพิ่มและอัพเดตได้ ไม่มีปุ่มลบ */}
+        {/* รูปภาพ — อัปโหลดผ่าน Supabase Storage */}
         <Form.Item label="รูปภาพ">
-          <Space align="center">
-            <div
-              style={{
-                width: 64, height: 64, borderRadius: 8,
-                border: '1px dashed #d9d9d9', display: 'flex',
-                alignItems: 'center', justifyContent: 'center',
-                overflow: 'hidden', background: '#fafafa',
-              }}
-            >
-              {imagePreview ? (
-                <img src={imagePreview} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              ) : (
-                <PlusOutlined style={{ fontSize: 20, color: '#bbb' }} />
-              )}
-            </div>
-            <Upload {...uploadProps}>
-              <Button size="small" icon={<UploadOutlined />}>
-                {imagePreview ? 'เปลี่ยนรูป' : 'เลือกรูปจากเครื่อง'}
-              </Button>
-            </Upload>
-          </Space>
+          <ImagePicker
+            value={imageUrl}
+            onChange={setImageUrl}
+            folder="machines"
+            itemId={editingId}
+            size={64}
+            variant="button"
+          />
         </Form.Item>
       </Form>
     </Modal>

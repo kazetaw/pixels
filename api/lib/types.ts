@@ -1,20 +1,25 @@
-// frontend/src/types/index.ts
+/**
+ * api/lib/types.ts
+ *
+ * Shared TypeScript types for Vercel API Functions.
+ * Mirrors backend/src/types/index.ts — keep in sync.
+ */
 
 export interface Recipe {
   id: string;
   name: string;
-  machine_id: string | null;     // null = ยังไม่กำหนดเครื่องจักร
-  time_per_unit: string | null;
-  ingredients: Record<string, number>;
-  image?: string;
+  machine_id: string | null;
+  time_per_unit: string | null;   // "HH:MM:SS"
+  ingredients: Record<string, number>; // item_id → quantity
+  image?: string;                 // URL from Supabase Storage (not base64)
 }
 
 export interface Machine {
   machine_id: string;
   machine_name: string;
   floor_number: number;
-  max_hours_limit: number;
-  image?: string;
+  max_hours_limit: number;        // computed, not stored
+  image?: string;                 // URL from Supabase Storage
   occupation?: 'วิศวะกร' | 'หมอ' | 'เชฟ' | 'ไอดอล' | 'เกษตร' | 'ทุกอาชีพ';
 }
 
@@ -29,8 +34,8 @@ export interface TargetItem {
 export interface ShoppingListEntry {
   item_id: string;
   item_name: string;
-  total_needed: number;  // gross quantity before stock deduction
-  net_required: number;  // quantity still needed after stock deduction
+  total_needed: number;
+  net_required: number;
 }
 
 export interface MachineWorkloadEntry {
@@ -53,7 +58,7 @@ export interface AppData {
   stockImages: StockImageMap;
 }
 
-// ── Production Planner types ──────────────────────────────────────────────────
+// ── Production Planner ────────────────────────────────────────────────────────
 
 export interface FloorAssignment {
   floor_number: number;
@@ -81,7 +86,7 @@ export interface FloorPlanResult {
   floor_number: number;
   recipe_id: string;
   recipe_name: string;
-  time_per_unit: string;    // "HH:MM:SS"
+  time_per_unit: string;
   cycles: number;
   output_qty: number;
   bom_tree: BomTreeNode;

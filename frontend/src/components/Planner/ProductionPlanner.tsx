@@ -95,7 +95,7 @@ export function ProductionPlanner({ recipes, machines = [] }: ProductionPlannerP
     (occupation: string): Recipe[] => {
       if (!hasOccupations || occupation === '') return recipesWithTime;
       return recipesWithTime.filter((r) => {
-        const occ = machineOccupationMap.get(r.machine_id) ?? '';
+        const occ = machineOccupationMap.get(r.machine_id ?? '') ?? '';
         return occ === occupation;
       }).sort((a, b) => a.name.localeCompare(b.name, 'th'));
     },

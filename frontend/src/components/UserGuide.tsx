@@ -289,7 +289,7 @@ export function UserGuide({ onClose }: UserGuideProps) {
           Factory Resource Calculator — สร้างสำหรับ Game Event โรงงาน 27 ชั้น
         </div>
 
-      </div>
+      </div> 
     </div>
   );
 }

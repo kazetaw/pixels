@@ -135,3 +135,30 @@ export async function updateMachine(id: string, m: Partial<Omit<Machine, 'machin
 export async function deleteMachine(id: string): Promise<void> {
   await handleResponse<{ ok: boolean }>(await fetch(`/api/machines/${id}`, { method: 'DELETE' }));
 }
+
+// ── Image Upload ──────────────────────────────────────────────────────────────
+
+export interface UploadImageResult {
+  url: string;
+  path: string;
+}
+
+/**
+ * Upload an image file to Supabase Storage via the /api/upload-image endpoint.
+ * @param file    The File object from an <input type="file">
+ * @param folder  Sub-folder: "machines" | "recipes" | "stocks"
+ * @param itemId  Optional entity id used as filename (auto-generated if omitted)
+ */
+export async function uploadImage(
+  file: File,
+  folder: 'machines' | 'recipes' | 'stocks',
+  itemId?: string
+): Promise<UploadImageResult> {
+  const form = new FormData();
+  form.append('file', file);
+  form.append('folder', folder);
+  if (itemId) form.append('itemId', itemId);
+
+  const response = await fetch('/api/upload-image', { method: 'POST', body: form });
+  return handleResponse<UploadImageResult>(response);
+}

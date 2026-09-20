@@ -4,7 +4,7 @@ import {
   WarningOutlined, CheckOutlined, RightOutlined, DownOutlined,
   ApartmentOutlined, SwapOutlined, InboxOutlined,
 } from '@ant-design/icons';
-import { Tag, Alert } from 'antd';
+import { Alert } from 'antd';
 import { PlanResponse, FloorPlanResult } from '../../types';
 import { BomTree } from './BomTree';
 

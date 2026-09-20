@@ -1,9 +1,7 @@
 import { useState, useMemo } from 'react';
-import { Upload, Button } from 'antd';
-import { UploadOutlined } from '@ant-design/icons';
-import type { UploadProps } from 'antd';
 import { StockMap, StockImageMap, Recipe, Machine } from '../../types';
 import { saveStocks } from '../../api/client';
+import { ImagePicker } from '../shared/ImagePicker';
 
 interface StockEditorFullProps {
   stocks: StockMap;
@@ -11,42 +9,6 @@ interface StockEditorFullProps {
   recipes: Recipe[];
   machines: Machine[];
   onSaved: (newStocks: StockMap, newImages: StockImageMap) => void;
-}
-
-// ── ImagePicker (inline, reused from RecipeEditor style) ──────────────────────
-interface ImagePickerProps {
-  value: string | undefined;
-  onChange: (v: string | undefined) => void;
-}
-
-function ImagePicker({ value, onChange }: ImagePickerProps) {
-  const uploadProps: UploadProps = {
-    accept: 'image/*',
-    showUploadList: false,
-    beforeUpload: (file) => {
-      const reader = new FileReader();
-      reader.onload = () => onChange(reader.result as string);
-      reader.readAsDataURL(file);
-      return false;
-    },
-  };
-
-  return (
-    <div className="flex items-center gap-2">
-      {value && (
-        <img
-          src={value}
-          alt="preview"
-          className="h-10 w-10 rounded object-contain bg-gray-50 border border-gray-200 flex-shrink-0"
-        />
-      )}
-      <Upload {...uploadProps}>
-        <Button icon={<UploadOutlined />} size="small">
-          {value ? 'เปลี่ยน' : 'อัปโหลด'}
-        </Button>
-      </Upload>
-    </div>
-  );
 }
 
 // ── derive all known item names ───────────────────────────────────────────────
@@ -181,6 +143,10 @@ export function StockEditorFull({ stocks, stockImages, recipes, machines, onSave
                     <ImagePicker
                       value={img}
                       onChange={(v) => handleImageChange(key, v)}
+                      folder="stocks"
+                      itemId={key}
+                      size={40}
+                      variant="button"
                     />
                   </td>
                   <td className="px-4 py-2">
@@ -242,7 +208,13 @@ export function StockEditorFull({ stocks, stockImages, recipes, machines, onSave
         {/* image for new item */}
         <div className="flex items-center gap-2">
           <span className="text-xs text-gray-500">รูปรายการใหม่:</span>
-          <ImagePicker value={newImage} onChange={setNewImage} />
+          <ImagePicker
+            value={newImage}
+            onChange={setNewImage}
+            folder="stocks"
+            size={40}
+            variant="button"
+          />
         </div>
         {err && <p className="text-xs text-red-600">{err}</p>}
       </div>

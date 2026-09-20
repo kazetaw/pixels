@@ -1,79 +1,14 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { Recipe, Machine, StockMap } from '../../types';
 import { createRecipe, updateRecipe, deleteRecipe } from '../../api/client';
 import { TimeInput } from '../shared/TimeInput';
+import { ImagePicker } from '../shared/ImagePicker';
 
 interface RecipeEditorProps {
   recipes: Recipe[];
   machines: Machine[];
   stocks: StockMap;
   onChange: () => void;
-}
-
-// ── ImagePicker ────────────────────────────────────────────────────────────────
-interface ImagePickerProps {
-  value: string | undefined;
-  onChange: (v: string | undefined) => void;
-}
-
-function ImagePicker({ value, onChange }: ImagePickerProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => onChange(reader.result as string);
-    reader.readAsDataURL(file);
-    // reset so same file can be re-selected
-    e.target.value = '';
-  };
-
-  return (
-    <div className="flex items-center gap-3">
-      {value ? (
-        <div className="relative flex-shrink-0">
-          <img
-            src={value}
-            alt="preview"
-            className="h-16 w-16 rounded-lg object-contain bg-gray-50 border border-gray-200"
-          />
-          <button
-            type="button"
-            onClick={() => onChange(undefined)}
-            className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-xs leading-none hover:bg-red-600"
-            title="ลบรูป"
-          >
-            ✕
-          </button>
-        </div>
-      ) : (
-        <div
-          onClick={() => inputRef.current?.click()}
-          className="h-16 w-16 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors flex-shrink-0"
-        >
-          <span className="text-2xl text-gray-300">+</span>
-        </div>
-      )}
-      <div className="space-y-1">
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          className="text-xs text-blue-600 hover:text-blue-800 font-medium"
-        >
-          {value ? 'เปลี่ยนรูป' : 'อัปโหลดรูป'}
-        </button>
-        <p className="text-xs text-gray-400">PNG, JPG — แปลงเป็น base64</p>
-      </div>
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={handleFile}
-      />
-    </div>
-  );
 }
 
 // ── Ingredient row editor ─────────────────────────────────────────────────────
@@ -289,7 +224,7 @@ function RecipeForm({ initial, recipes, machines, stocks, onSave, onCancel }: Re
         {/* Image */}
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1">รูปสินค้า</label>
-          <ImagePicker value={image} onChange={setImage} />
+          <ImagePicker value={image} onChange={setImage} folder="recipes" itemId={initial?.id} />
         </div>
 
         {/* Machine — กรองด้วยอาชีพ */}
