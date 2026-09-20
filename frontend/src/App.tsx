@@ -218,13 +218,14 @@ export default function App() {
         height: 48, alignItems: 'center', padding: '0 16px',
         justifyContent: 'space-between',
       }} className="mobile-topbar">
-        <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>โรงงานคำนวณทรัพยากร</span>
         <Button
           type="text"
           icon={<MenuOutlined />}
           onClick={() => setDrawerOpen(true)}
           style={{ color: '#374151' }}
         />
+        <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>โรงงานคำนวณทรัพยากร</span>
+        <div style={{ width: 32 }} />
       </div>
 
       {/* ── Mobile drawer ───────────────────────────────────────────── */}
