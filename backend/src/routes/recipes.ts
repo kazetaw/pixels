@@ -64,7 +64,6 @@ router.get('/api/recipes', async (_req: Request, res: Response) => {
 router.post('/api/recipes', async (req: Request, res: Response) => {
   const body = req.body as Partial<Recipe>;
   if (!body.name?.trim()) return res.status(400).json({ error: 'name is required' });
-  if (!body.machine_id?.trim()) return res.status(400).json({ error: 'machine_id is required' });
 
   try {
     const [recipes, stocks] = await Promise.all([readRecipes(), readStocks()]);
@@ -72,7 +71,7 @@ router.post('/api/recipes', async (req: Request, res: Response) => {
     const newRecipe: Recipe = {
       id: randomUUID(),
       name: body.name.trim(),
-      machine_id: body.machine_id.trim(),
+      machine_id: body.machine_id ?? null,
       time_per_unit: body.time_per_unit ?? null,
       ingredients: body.ingredients ?? {},
     };

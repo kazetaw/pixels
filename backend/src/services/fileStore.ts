@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import { Recipe, Machine, StockMap } from '../types';
+import { Recipe, Machine, StockMap, StockImageMap } from '../types';
 
 // Data directory is at backend/data/ relative to this file's location (src/services/)
 const DATA_DIR = path.resolve(__dirname, '../../data');
@@ -8,6 +8,7 @@ const DATA_DIR = path.resolve(__dirname, '../../data');
 const RECIPES_PATH = path.join(DATA_DIR, 'recipes.json');
 const MACHINES_PATH = path.join(DATA_DIR, 'machines.json');
 const STOCKS_PATH = path.join(DATA_DIR, 'stocks.json');
+const STOCK_IMAGES_PATH = path.join(DATA_DIR, 'stock_images.json');
 
 /**
  * Read all recipes from recipes.json.
@@ -45,6 +46,22 @@ export async function readStocks(): Promise<StockMap> {
 }
 
 /**
+ * Read stock images from stock_images.json.
+ * Returns an empty object {} if the file is missing or empty.
+ */
+export async function readStockImages(): Promise<StockImageMap> {
+  try {
+    const raw = await fs.readFile(STOCK_IMAGES_PATH, 'utf-8');
+    const trimmed = raw.trim();
+    if (!trimmed) return {};
+    return JSON.parse(trimmed) as StockImageMap;
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return {};
+    throw err;
+  }
+}
+
+/**
  * Overwrite stocks.json with the provided stock map.
  * Creates the file if it doesn't exist.
  */
@@ -53,8 +70,22 @@ export async function writeStocks(stocks: StockMap): Promise<void> {
 }
 
 /**
+ * Overwrite stock_images.json with the provided image map.
+ */
+export async function writeStockImages(images: StockImageMap): Promise<void> {
+  await fs.writeFile(STOCK_IMAGES_PATH, JSON.stringify(images, null, 2), 'utf-8');
+}
+
+/**
  * Overwrite recipes.json with the provided array.
  */
 export async function writeRecipes(recipes: Recipe[]): Promise<void> {
   await fs.writeFile(RECIPES_PATH, JSON.stringify(recipes, null, 2), 'utf-8');
+}
+
+/**
+ * Overwrite machines.json with the provided array.
+ */
+export async function writeMachines(machines: Machine[]): Promise<void> {
+  await fs.writeFile(MACHINES_PATH, JSON.stringify(machines, null, 2), 'utf-8');
 }

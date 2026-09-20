@@ -1,4 +1,4 @@
-import { AppData, StockMap, TargetItem, CalculateResponse, PlanRequest, PlanResponse, Recipe } from '../types';
+import { AppData, StockMap, StockImageMap, TargetItem, CalculateResponse, PlanRequest, PlanResponse, Recipe } from '../types';
 
 /**
  * Helper to handle fetch responses — throws with server error message on non-OK status.
@@ -22,12 +22,12 @@ export async function fetchAllData(): Promise<AppData> {
   return handleResponse<AppData>(await fetch('/api/data'));
 }
 
-/** POST /api/stocks — overwrite stocks.json */
-export async function saveStocks(stocks: StockMap): Promise<void> {
+/** POST /api/stocks — overwrite stocks.json (and optionally stock_images.json) */
+export async function saveStocks(stocks: StockMap, images?: StockImageMap): Promise<void> {
   await handleResponse<{ ok: boolean }>(await fetch('/api/stocks', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(stocks),
+    body: JSON.stringify(images !== undefined ? { stocks, images } : stocks),
   }));
 }
 
@@ -106,4 +106,32 @@ export async function diagnose(): Promise<DiagnoseResult> {
 
 export async function migrate(): Promise<MigrateResult> {
   return handleResponse<MigrateResult>(await fetch('/api/migrate', { method: 'POST' }));
+}
+
+// ── Machines CRUD ─────────────────────────────────────────────────────────────
+
+import { Machine } from '../types';
+
+export async function fetchMachines(): Promise<Machine[]> {
+  return handleResponse<Machine[]>(await fetch('/api/machines'));
+}
+
+export async function createMachine(m: Omit<Machine, 'machine_id'>): Promise<Machine> {
+  return handleResponse<Machine>(await fetch('/api/machines', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(m),
+  }));
+}
+
+export async function updateMachine(id: string, m: Partial<Omit<Machine, 'machine_id'>>): Promise<Machine> {
+  return handleResponse<Machine>(await fetch(`/api/machines/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(m),
+  }));
+}
+
+export async function deleteMachine(id: string): Promise<void> {
+  await handleResponse<{ ok: boolean }>(await fetch(`/api/machines/${id}`, { method: 'DELETE' }));
 }

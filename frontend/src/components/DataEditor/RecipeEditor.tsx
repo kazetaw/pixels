@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Recipe, Machine, StockMap } from '../../types';
 import { createRecipe, updateRecipe, deleteRecipe } from '../../api/client';
 import { TimeInput } from '../shared/TimeInput';
@@ -8,6 +8,72 @@ interface RecipeEditorProps {
   machines: Machine[];
   stocks: StockMap;
   onChange: () => void;
+}
+
+// ── ImagePicker ────────────────────────────────────────────────────────────────
+interface ImagePickerProps {
+  value: string | undefined;
+  onChange: (v: string | undefined) => void;
+}
+
+function ImagePicker({ value, onChange }: ImagePickerProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => onChange(reader.result as string);
+    reader.readAsDataURL(file);
+    // reset so same file can be re-selected
+    e.target.value = '';
+  };
+
+  return (
+    <div className="flex items-center gap-3">
+      {value ? (
+        <div className="relative flex-shrink-0">
+          <img
+            src={value}
+            alt="preview"
+            className="h-16 w-16 rounded-lg object-contain bg-gray-50 border border-gray-200"
+          />
+          <button
+            type="button"
+            onClick={() => onChange(undefined)}
+            className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-xs leading-none hover:bg-red-600"
+            title="ลบรูป"
+          >
+            ✕
+          </button>
+        </div>
+      ) : (
+        <div
+          onClick={() => inputRef.current?.click()}
+          className="h-16 w-16 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors flex-shrink-0"
+        >
+          <span className="text-2xl text-gray-300">+</span>
+        </div>
+      )}
+      <div className="space-y-1">
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+        >
+          {value ? 'เปลี่ยนรูป' : 'อัปโหลดรูป'}
+        </button>
+        <p className="text-xs text-gray-400">PNG, JPG — แปลงเป็น base64</p>
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleFile}
+      />
+    </div>
+  );
 }
 
 // ── Ingredient row editor ─────────────────────────────────────────────────────
@@ -36,9 +102,7 @@ function IngredientEditor({ ingredients, recipes, stocks, onChange }: IngEditorP
     ? allOptions.filter((o) => o.label.toLowerCase().includes(query.toLowerCase()))
     : allOptions;
 
-  // resolved key: if user picked from list selectedKey is set, else query is used as-is
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-
   const effectiveKey = selectedKey ?? (query.trim() || null);
 
   const handleSelect = (opt: typeof allOptions[0]) => {
@@ -72,7 +136,6 @@ function IngredientEditor({ ingredients, recipes, stocks, onChange }: IngEditorP
 
   return (
     <div className="space-y-2">
-      {/* Current list */}
       <div className="max-h-44 overflow-y-auto space-y-1 border border-gray-200 rounded-md p-2 bg-gray-50">
         {Object.keys(ingredients).length === 0 && (
           <p className="text-xs text-gray-400 italic">ยังไม่มี ingredient</p>
@@ -93,7 +156,6 @@ function IngredientEditor({ ingredients, recipes, stocks, onChange }: IngEditorP
         })}
       </div>
 
-      {/* Autocomplete input */}
       <div className="flex gap-2 items-center relative">
         <div className="flex-1 relative">
           <input
@@ -102,8 +164,8 @@ function IngredientEditor({ ingredients, recipes, stocks, onChange }: IngEditorP
             onFocus={() => setShowSugg(true)}
             onBlur={() => setTimeout(() => setShowSugg(false), 150)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') { setShowSugg(false); }
-              if (e.key === 'Escape') { setShowSugg(false); }
+              if (e.key === 'Enter') setShowSugg(false);
+              if (e.key === 'Escape') setShowSugg(false);
             }}
             placeholder="พิมพ์หรือเลือกวัตถุดิบ / สินค้า…"
             className="w-full rounded border border-gray-300 px-2 py-1.5 text-xs focus:outline-none focus:border-blue-400"
@@ -124,7 +186,6 @@ function IngredientEditor({ ingredients, recipes, stocks, onChange }: IngEditorP
                   <span className="flex-1 truncate">{o.label}</span>
                 </li>
               ))}
-              {/* allow manual entry if no match */}
               {query.trim() && !allOptions.some((o) => o.label === query.trim()) && (
                 <li
                   onMouseDown={() => { setSelectedKey(null); setShowSugg(false); }}
@@ -136,7 +197,6 @@ function IngredientEditor({ ingredients, recipes, stocks, onChange }: IngEditorP
             </ul>
           )}
         </div>
-
         <input
           type="number" min={1} value={qty}
           onChange={(e) => setQty(e.target.value)}
@@ -170,21 +230,28 @@ interface RecipeFormProps {
 function RecipeForm({ initial, recipes, machines, stocks, onSave, onCancel }: RecipeFormProps) {
   const [name, setName] = useState(initial?.name ?? '');
   const [machineId, setMachineId] = useState(initial?.machine_id ?? '');
+  const [filterOcc, setFilterOcc] = useState<string>(() => {
+    if (!initial?.machine_id) return '';
+    const m = machines.find((m) => m.machine_id === initial.machine_id);
+    return m?.occupation ?? '';
+  });
+  const [showMachineDropdown, setShowMachineDropdown] = useState(false);
   const [timePerUnit, setTimePerUnit] = useState<string | null>(initial?.time_per_unit ?? null);
   const [ingredients, setIngredients] = useState<Record<string, number>>(initial?.ingredients ?? {});
+  const [image, setImage] = useState<string | undefined>(initial?.image);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
 
   const handleSave = async () => {
     if (!name.trim()) { setErr('กรุณากรอกชื่อ'); return; }
-    if (!machineId.trim()) { setErr('กรุณาเลือกเครื่องจักร'); return; }
     setSaving(true); setErr('');
     try {
       await onSave({
         name: name.trim(),
-        machine_id: machineId,
+        machine_id: machineId || null,
         time_per_unit: timePerUnit || null,
         ingredients,
+        image: image || undefined,
       });
     } catch (e: unknown) {
       setErr((e as Error).message);
@@ -211,24 +278,106 @@ function RecipeForm({ initial, recipes, machines, stocks, onSave, onCancel }: Re
           />
         </div>
 
-        {/* Machine */}
+        {/* Image */}
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">รูปสินค้า</label>
+          <ImagePicker value={image} onChange={setImage} />
+        </div>
+
+        {/* Machine — กรองด้วยอาชีพ */}
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1">เครื่องจักร *</label>
-          <select
-            value={machineId}
-            onChange={(e) => setMachineId(e.target.value)}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-          >
-            <option value="">— เลือกเครื่อง —</option>
-            {machines
-              .slice()
-              .sort((a, b) => a.floor_number - b.floor_number)
-              .map((m) => (
-                <option key={m.machine_id} value={m.machine_id}>
-                  ชั้น {m.floor_number} — {m.machine_name}
-                </option>
-              ))}
-          </select>
+          {(() => {
+            const occupations = Array.from(
+              new Set(machines.map((m) => m.occupation).filter(Boolean) as string[])
+            ).sort((a, b) => a.localeCompare(b, 'th'));
+            return occupations.length > 0 ? (
+              <div className="flex gap-2 mb-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => { setFilterOcc(''); setMachineId(''); }}
+                  className={`rounded-full px-3 py-0.5 text-xs border transition-colors ${
+                    filterOcc === ''
+                      ? 'bg-gray-700 text-white border-gray-700'
+                      : 'bg-gray-50 text-gray-500 border-gray-200 hover:border-gray-400'
+                  }`}
+                >
+                  ทั้งหมด
+                </button>
+                {occupations.map((occ) => (
+                  <button
+                    key={occ}
+                    type="button"
+                    onClick={() => { setFilterOcc(occ); setMachineId(''); }}
+                    className={`rounded-full px-3 py-0.5 text-xs border transition-colors ${
+                      filterOcc === occ
+                        ? 'bg-indigo-600 text-white border-indigo-600'
+                        : 'bg-gray-50 text-gray-500 border-gray-200 hover:border-gray-400'
+                    }`}
+                  >
+                    {occ}
+                  </button>
+                ))}
+              </div>
+            ) : null;
+          })()}
+          {/* Custom machine picker with image */}
+          {(() => {
+            const filteredMachines = machines
+              .filter((m) => filterOcc === '' || m.occupation === filterOcc)
+              .sort((a, b) => a.floor_number - b.floor_number);
+            const selectedMachine = machines.find((m) => m.machine_id === machineId);
+            return (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowMachineDropdown((v) => !v)}
+                  onBlur={() => setTimeout(() => setShowMachineDropdown(false), 150)}
+                  className="w-full flex items-center gap-2 rounded-md border border-gray-300 px-3 py-2 text-sm bg-white focus:border-blue-500 focus:outline-none text-left"
+                >
+                  {selectedMachine ? (
+                    <>
+                      {selectedMachine.image && (
+                        <img src={selectedMachine.image} alt="" className="h-8 w-8 rounded object-contain bg-gray-50 border border-gray-100 flex-shrink-0" />
+                      )}
+                      <span className="flex-1 truncate">ชั้น {selectedMachine.floor_number} — {selectedMachine.machine_name}</span>
+                    </>
+                  ) : (
+                    <span className="text-gray-400 flex-1">— เลือกเครื่อง —</span>
+                  )}
+                  <span className="text-gray-400 flex-shrink-0">▾</span>
+                </button>
+                {showMachineDropdown && (
+                  <ul className="absolute z-50 top-full left-0 right-0 mt-0.5 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                    <li
+                      onMouseDown={() => { setMachineId(''); setShowMachineDropdown(false); }}
+                      className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer text-gray-400 text-sm border-b border-gray-100"
+                    >
+                      — เลือกเครื่อง —
+                    </li>
+                    {filteredMachines.map((m) => (
+                      <li
+                        key={m.machine_id}
+                        onMouseDown={() => { setMachineId(m.machine_id); setShowMachineDropdown(false); }}
+                        className={`flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-indigo-50 ${machineId === m.machine_id ? 'bg-indigo-50' : ''}`}
+                      >
+                        {m.image ? (
+                          <img src={m.image} alt="" className="h-10 w-10 rounded object-contain bg-white border border-gray-100 flex-shrink-0" />
+                        ) : (
+                          <div className="h-10 w-10 rounded bg-gray-100 flex-shrink-0" />
+                        )}
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-gray-800 truncate">{m.machine_name}</p>
+                          <p className="text-xs text-gray-400">ชั้น {m.floor_number}{m.occupation ? ` · ${m.occupation}` : ''}</p>
+                        </div>
+                        {machineId === m.machine_id && <span className="ml-auto text-indigo-500 flex-shrink-0">✓</span>}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          })()}
         </div>
 
         {/* Time per unit */}
@@ -281,14 +430,35 @@ export function RecipeEditor({ recipes, machines, stocks, onChange }: RecipeEdit
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Recipe | null>(null);
   const [search, setSearch] = useState('');
+  const [filterMachine, setFilterMachine] = useState('');
+  const [filterOcc, setFilterOcc] = useState<string>('');
   const [deleting, setDeleting] = useState<string | null>(null);
 
   const machineMap = new Map(machines.map((m) => [m.machine_id, `ชั้น ${m.floor_number} — ${m.machine_name}`]));
   const recipeMap = new Map(recipes.map((r) => [r.id, r.name]));
 
-  const filtered = recipes.filter((r) =>
-    r.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const usedMachineIds = new Set(recipes.map((r) => r.machine_id));
+  const occupationOptions = Array.from(
+    new Set(
+      machines
+        .filter((m) => usedMachineIds.has(m.machine_id) && m.occupation)
+        .map((m) => m.occupation!)
+    )
+  ).sort((a, b) => a.localeCompare(b, 'th'));
+
+  const machineOptions = machines
+    .filter((m) => usedMachineIds.has(m.machine_id))
+    .sort((a, b) => a.machine_name.localeCompare(b.machine_name, 'th'));
+
+  const filtered = recipes
+    .filter((r) => {
+      const matchSearch = r.name.toLowerCase().includes(search.toLowerCase());
+      const matchMachine = filterMachine === '' || r.machine_id === filterMachine;
+      const machine = machines.find((m) => m.machine_id === r.machine_id);
+      const matchOcc = filterOcc === '' || machine?.occupation === filterOcc;
+      return matchSearch && matchMachine && matchOcc;
+    })
+    .sort((a, b) => a.name.localeCompare(b.name, 'th'));
 
   const handleCreate = async (data: Omit<Recipe, 'id'>) => {
     await createRecipe(data);
@@ -313,13 +483,33 @@ export function RecipeEditor({ recipes, machines, stocks, onChange }: RecipeEdit
   return (
     <div className="space-y-3">
       {/* Toolbar */}
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="🔍 ค้นหา recipe…"
-          className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+          placeholder="ค้นหาชื่อ recipe…"
+          className="flex-1 min-w-[140px] rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
         />
+        <select
+          value={filterMachine}
+          onChange={(e) => setFilterMachine(e.target.value)}
+          className="rounded-md border border-gray-300 px-3 py-2 text-sm bg-white focus:border-blue-500 focus:outline-none"
+        >
+          <option value="">ทุกเครื่องจักร</option>
+          {machineOptions.map((m) => (
+            <option key={m.machine_id} value={m.machine_id}>{m.machine_name}</option>
+          ))}
+        </select>
+        {occupationOptions.length > 0 && (
+          <select
+            value={filterOcc}
+            onChange={(e) => setFilterOcc(e.target.value)}
+            className="rounded-md border border-gray-300 px-3 py-2 text-sm bg-white focus:border-blue-500 focus:outline-none"
+          >
+            <option value="">ทุกอาชีพ</option>
+            {occupationOptions.map((o) => <option key={o} value={o}>{o}</option>)}
+          </select>
+        )}
         <button
           onClick={() => setShowForm(true)}
           className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
@@ -333,6 +523,7 @@ export function RecipeEditor({ recipes, machines, stocks, onChange }: RecipeEdit
         <table className="min-w-full divide-y divide-gray-200 text-sm">
           <thead className="bg-gray-50 sticky top-0">
             <tr>
+              <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase w-12">รูป</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">ชื่อสินค้า</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">เครื่องจักร</th>
               <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">เวลา</th>
@@ -343,13 +534,27 @@ export function RecipeEditor({ recipes, machines, stocks, onChange }: RecipeEdit
           <tbody className="divide-y divide-gray-100 bg-white">
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-gray-400 italic">ไม่พบ recipe</td>
+                <td colSpan={6} className="px-4 py-6 text-center text-gray-400 italic">ไม่พบ recipe</td>
               </tr>
             )}
             {filtered.map((r) => (
               <tr key={r.id} className="hover:bg-gray-50">
+                {/* image thumbnail */}
+                <td className="px-3 py-2">
+                  {r.image ? (
+                    <img
+                      src={r.image}
+                      alt={r.name}
+                      className="h-10 w-10 rounded object-contain bg-gray-50 border border-gray-100"
+                    />
+                  ) : (
+                    <div className="h-10 w-10 rounded bg-gray-100 border border-gray-100 flex items-center justify-center text-gray-300 text-xs">
+                      —
+                    </div>
+                  )}
+                </td>
                 <td className="px-4 py-2 font-medium text-gray-800">{r.name}</td>
-                <td className="px-4 py-2 text-gray-600 text-xs">{machineMap.get(r.machine_id) ?? '—'}</td>
+                <td className="px-4 py-2 text-gray-600 text-xs">{r.machine_id ? (machineMap.get(r.machine_id) ?? '—') : '—'}</td>
                 <td className="px-4 py-2 text-center text-gray-600 font-mono text-xs">{r.time_per_unit ?? '—'}</td>
                 <td className="px-4 py-2 text-xs">
                   <div className="flex flex-wrap gap-1 justify-center">

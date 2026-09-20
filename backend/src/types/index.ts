@@ -3,16 +3,22 @@
 export interface Recipe {
   id: string;
   name: string;
-  machine_id: string;
-  time_per_unit: string | null; // "HH:MM:SS" format; null = no processing time (raw/direct item)
-  ingredients: Record<string, number>; // item_id -> quantity
+  machine_id: string | null;     // null = ยังไม่กำหนดเครื่องจักร
+  time_per_unit: string | null;
+  ingredients: Record<string, number>;
+  image?: string;
 }
+
+/** Per-item image store: item_id → base64/URL image */
+export type StockImageMap = Record<string, string>;
 
 export interface Machine {
   machine_id: string;
   machine_name: string;
   floor_number: number;
   max_hours_limit: number; // event duration limit in hours
+  image?: string;           // URL or base64 image
+  occupation?: 'วิศวะกร' | 'หมอ' | 'เชฟ' | 'ไอดอล' | 'เกษตร' | 'ทุกอาชีพ';
 }
 
 export type StockMap = Record<string, number>; // item_id -> quantity

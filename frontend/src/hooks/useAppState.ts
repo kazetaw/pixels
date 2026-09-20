@@ -4,6 +4,7 @@ import {
   Recipe,
   Machine,
   StockMap,
+  StockImageMap,
   TargetItem,
   CalculateResponse,
 } from '../types';
@@ -15,6 +16,7 @@ export interface AppState {
   recipes: Recipe[];
   machines: Machine[];
   stocks: StockMap;
+  stockImages: StockImageMap;
 
   // Target items list
   targetItems: TargetItem[];
@@ -31,8 +33,8 @@ export interface AppState {
 
   // UI states
   loading: boolean;
-  initError: string | null;   // error on initial data load
-  calcError: string | null;   // error from calculation
+  initError: string | null;
+  calcError: string | null;
   saveStatus: SaveStatus;
   saveError: string | null;
 }
@@ -41,6 +43,7 @@ export function useAppState(): AppState {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [machines, setMachines] = useState<Machine[]>([]);
   const [stocks, setStocks] = useState<StockMap>({});
+  const [stockImages, setStockImages] = useState<StockImageMap>({});
   const [targetItems, setTargetItems] = useState<TargetItem[]>([]);
   const [calculationResult, setCalculationResult] = useState<CalculateResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -56,6 +59,7 @@ export function useAppState(): AppState {
         setRecipes(data.recipes);
         setMachines(data.machines);
         setStocks(data.stocks);
+        setStockImages(data.stockImages ?? {});
       })
       .catch((err: Error) => {
         setInitError(err.message ?? 'Failed to load application data');
@@ -106,6 +110,7 @@ export function useAppState(): AppState {
     recipes,
     machines,
     stocks,
+    stockImages,
     targetItems,
     addTargetItem,
     removeTargetItem,

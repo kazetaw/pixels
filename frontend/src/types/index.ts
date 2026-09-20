@@ -3,19 +3,28 @@
 export interface Recipe {
   id: string;
   name: string;
-  machine_id: string;
-  time_per_unit: string | null; // "HH:MM:SS" format; null = no processing time (raw/direct item)
-  ingredients: Record<string, number>; // item_id -> quantity
+  machine_id: string | null;     // null = ยังไม่กำหนดเครื่องจักร
+  time_per_unit: string | null;
+  ingredients: Record<string, number>;
+  image?: string;
 }
+
+/** Per-item image store: item_id → base64/URL image */
+export type StockImageMap = Record<string, string>;
 
 export interface Machine {
   machine_id: string;
   machine_name: string;
   floor_number: number;
-  max_hours_limit: number; // event duration limit in hours
+  max_hours_limit: number;
+  image?: string;
+  occupation?: 'วิศวะกร' | 'หมอ' | 'เชฟ' | 'ไอดอล' | 'เกษตร' | 'ทุกอาชีพ';
 }
 
 export type StockMap = Record<string, number>; // item_id -> quantity
+
+/** Per-item image store: item_id → base64/URL image */
+export type StockImageMap = Record<string, string>;
 
 export interface TargetItem {
   target_item_id: string;
@@ -46,6 +55,7 @@ export interface AppData {
   recipes: Recipe[];
   machines: Machine[];
   stocks: StockMap;
+  stockImages: StockImageMap;
 }
 
 // ── Production Planner types ──────────────────────────────────────────────────

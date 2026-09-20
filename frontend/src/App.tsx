@@ -85,7 +85,7 @@ export default function App() {
   const [view, setView] = useState<MainView>('calculator');
 
   const {
-    recipes, machines: _machines, stocks,
+    recipes, machines: _machines, stocks, stockImages,
     targetItems, addTargetItem, removeTargetItem,
     updateStock, saveStocks, runCalculation,
     calculationResult, loading,
@@ -212,6 +212,7 @@ export default function App() {
                 initialRecipes={recipes}
                 initialMachines={_machines}
                 initialStocks={stocks}
+                initialStockImages={stockImages}
               />
             </div>
           )}
@@ -223,7 +224,7 @@ export default function App() {
               <Text type="secondary" style={{ display: 'block', marginBottom: 20 }}>
                 กำหนดสูตรแต่ละชั้น ระยะเวลา Event และดูผลการผลิตพร้อมวัตถุดิบที่ต้องใช้
               </Text>
-              <ProductionPlanner recipes={recipes} stocks={stocks} />
+              <ProductionPlanner recipes={recipes} stocks={stocks} machines={_machines} />
             </div>
           )}
 

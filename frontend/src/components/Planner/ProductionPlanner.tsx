@@ -1,6 +1,6 @@
 // frontend/src/components/Planner/ProductionPlanner.tsx
-import { useState, useCallback } from 'react';
-import { Recipe, PlanRequest, PlanResponse, FloorAssignment } from '../../types';
+import { useState, useCallback, useMemo } from 'react';
+import { Recipe, Machine, PlanRequest, PlanResponse, FloorAssignment } from '../../types';
 import { runPlan } from '../../api/client';
 import { PlanSummary } from './PlanSummary';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
@@ -8,6 +8,7 @@ import { useLocalStorage } from '../../hooks/useLocalStorage';
 interface ProductionPlannerProps {
   recipes: Recipe[];
   stocks: Record<string, number>;
+  machines?: Machine[];
 }
 
 const TOTAL_FLOORS = 27;
@@ -15,8 +16,18 @@ const SLOTS_PER_FLOOR = 12;
 
 interface FloorRow {
   floor_number: number;
-  recipe_id: string; // '' = ไม่ได้กำหนด
+  occupation: string;  // '' = ไม่กรอง, or occupation value
+  recipe_id: string;   // '' = ไม่กำหนด
 }
+
+const OCCUPATION_COLOR: Record<string, string> = {
+  วิศวะกร: 'bg-blue-50 text-blue-700 border-blue-200',
+  หมอ:      'bg-green-50 text-green-700 border-green-200',
+  เชฟ:      'bg-orange-50 text-orange-700 border-orange-200',
+  ไอดอล:   'bg-pink-50 text-pink-700 border-pink-200',
+  เกษตร:   'bg-lime-50 text-lime-700 border-lime-200',
+  ทุกอาชีพ: 'bg-purple-50 text-purple-700 border-purple-200',
+};
 
 function Spinner() {
   return (
@@ -27,32 +38,89 @@ function Spinner() {
   );
 }
 
-export function ProductionPlanner({ recipes }: ProductionPlannerProps) {
+function parseTime(t: string | null): number {
+  if (!t) return 0;
+  const [h, m, s] = t.split(':').map(Number);
+  return h + m / 60 + s / 3600;
+}
+
+export function ProductionPlanner({ recipes, machines = [] }: ProductionPlannerProps) {
   // ── Event duration ──────────────────────────────────────────────────────────
-  const [eventDays, setEventDays] = useLocalStorage<number>('planner_event_days', 30);
-  const [eventHours, setEventHoursVal] = useLocalStorage<number>('planner_event_hours', 0);
+  const [eventDays, setEventDays]       = useLocalStorage<number>('planner_event_days', 30);
+  const [eventHours, setEventHoursVal]  = useLocalStorage<number>('planner_event_hours', 0);
   const [eventMinutes, setEventMinutes] = useLocalStorage<number>('planner_event_minutes', 0);
 
-  // ── Floor assignments (27 rows) ─────────────────────────────────────────────
+  // ── Floor assignments ───────────────────────────────────────────────────────
   const [floors, setFloors] = useLocalStorage<FloorRow[]>(
     'planner_floors',
-    Array.from({ length: TOTAL_FLOORS }, (_, i) => ({ floor_number: i + 1, recipe_id: '' }))
+    Array.from({ length: TOTAL_FLOORS }, (_, i) => ({
+      floor_number: i + 1,
+      occupation: '',
+      recipe_id: '',
+    }))
   );
 
   // ── Result / loading / error ────────────────────────────────────────────────
-  const [result, setResult] = useState<PlanResponse | null>(null);
+  const [result, setResult]   = useState<PlanResponse | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError]     = useState<string | null>(null);
+
+  // ── Derived data ────────────────────────────────────────────────────────────
+  // map machine_id → occupation
+  const machineOccupationMap = useMemo(
+    () => new Map(machines.map((m) => [m.machine_id, m.occupation ?? ''])),
+    [machines]
+  );
+
+  // available occupations from machines that have recipes
+  const recipeMachineIds = useMemo(() => new Set(recipes.map((r) => r.machine_id)), [recipes]);
+  const availableOccupations = useMemo(() => {
+    const occs = new Set<string>();
+    machines.forEach((m) => {
+      if (recipeMachineIds.has(m.machine_id) && m.occupation) occs.add(m.occupation);
+    });
+    return Array.from(occs).sort((a, b) => a.localeCompare(b, 'th'));
+  }, [machines, recipeMachineIds]);
+
+  const hasOccupations = availableOccupations.length > 0;
+
+  // recipes with time only
+  const recipesWithTime = useMemo(
+    () => recipes.filter((r) => r.time_per_unit !== null),
+    [recipes]
+  );
+
+  // get filtered recipes for a floor given its occupation
+  const getFilteredRecipes = useCallback(
+    (occupation: string): Recipe[] => {
+      if (!hasOccupations || occupation === '') return recipesWithTime;
+      return recipesWithTime.filter((r) => {
+        const occ = machineOccupationMap.get(r.machine_id) ?? '';
+        return occ === occupation;
+      }).sort((a, b) => a.name.localeCompare(b.name, 'th'));
+    },
+    [hasOccupations, recipesWithTime, machineOccupationMap]
+  );
 
   // ── Handlers ────────────────────────────────────────────────────────────────
+  const setFloorOccupation = useCallback((floorNum: number, occ: string) => {
+    setFloors((prev) =>
+      prev.map((f) =>
+        f.floor_number === floorNum
+          ? { ...f, occupation: occ, recipe_id: '' } // reset recipe when occupation changes
+          : f
+      )
+    );
+  }, []);
+
   const setFloorRecipe = useCallback((floorNum: number, recipeId: string) => {
     setFloors((prev) =>
-      prev.map((f) => (f.floor_number === floorNum ? { ...f, recipe_id: recipeId } : f))
+      prev.map((f) => f.floor_number === floorNum ? { ...f, recipe_id: recipeId } : f)
     );
   }, []);
 
   const clearAll = useCallback(() => {
-    setFloors((prev) => prev.map((f) => ({ ...f, recipe_id: '' })));
+    setFloors((prev) => prev.map((f) => ({ ...f, occupation: '', recipe_id: '' })));
     setResult(null);
     setError(null);
   }, []);
@@ -86,94 +154,119 @@ export function ProductionPlanner({ recipes }: ProductionPlannerProps) {
     }
   }, [floors, eventDays, eventHours, eventMinutes]);
 
-  // ── Group recipes by machine name for display ───────────────────────────────
-  const recipesWithTime = recipes.filter((r) => r.time_per_unit !== null);
-
-  // helper: parse "HH:MM:SS" to decimal hours (frontend-side for preview only)
-  const parseTime = (t: string | null): number => {
-    if (!t) return 0;
-    const [h, m, s] = t.split(':').map(Number);
-    return h + m / 60 + s / 3600;
-  };
   const totalEventHours = eventDays * 24 + eventHours + eventMinutes / 60;
   const assignedCount = floors.filter((f) => f.recipe_id !== '').length;
 
   return (
     <div className="flex gap-6 h-full">
       {/* ── Left: config panel ── */}
-      <div className="w-80 flex-shrink-0 flex flex-col gap-5 overflow-y-auto pr-1">
+      <div className="w-96 flex-shrink-0 flex flex-col gap-4 overflow-y-auto pr-1">
 
         {/* Event duration */}
         <section className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 space-y-3">
-          <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">⏱ ระยะเวลา Event</h3>
+          <h3 className="text-sm font-semibold text-gray-700">ระยะเวลา Event</h3>
           <div className="grid grid-cols-3 gap-2">
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">วัน</label>
-              <input
-                type="number" min={0} value={eventDays}
-                onChange={(e) => setEventDays(Math.max(0, Number(e.target.value)))}
-                className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm text-center focus:border-blue-500 focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">ชั่วโมง</label>
-              <input
-                type="number" min={0} max={23} value={eventHours}
-                onChange={(e) => setEventHoursVal(Math.max(0, Number(e.target.value)))}
-                className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm text-center focus:border-blue-500 focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">นาที</label>
-              <input
-                type="number" min={0} max={59} value={eventMinutes}
-                onChange={(e) => setEventMinutes(Math.max(0, Number(e.target.value)))}
-                className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm text-center focus:border-blue-500 focus:outline-none"
-              />
-            </div>
+            {[
+              { label: 'วัน', value: eventDays, max: 365, setter: setEventDays },
+              { label: 'ชั่วโมง', value: eventHours, max: 23, setter: setEventHoursVal },
+              { label: 'นาที', value: eventMinutes, max: 59, setter: setEventMinutes },
+            ].map(({ label, value, max, setter }) => (
+              <div key={label}>
+                <label className="text-xs text-gray-500 mb-1 block">{label}</label>
+                <input
+                  type="number" min={0} max={max} value={value}
+                  onChange={(e) => setter(Math.max(0, Math.min(max, Number(e.target.value))))}
+                  className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm text-center focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+            ))}
           </div>
-          <p className="text-xs text-indigo-600 font-medium">
-            รวม {totalEventHours.toFixed(2)} ชั่วโมง
+          <p className="text-xs text-blue-600 font-medium">
+            รวม {totalEventHours % 1 === 0 ? totalEventHours : totalEventHours.toFixed(2)} ชั่วโมง
           </p>
         </section>
 
         {/* Floor assignment */}
-        <section className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 space-y-2 flex-1 overflow-y-auto">
-          <div className="flex items-center justify-between mb-1">
-            <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">🏭 กำหนดชั้น</h3>
-            <button onClick={clearAll} className="text-xs text-gray-400 hover:text-red-500">ล้างทั้งหมด</button>
+        <section className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-700">กำหนดชั้น</h3>
+            <button onClick={clearAll} className="text-xs text-gray-400 hover:text-red-500">
+              ล้างทั้งหมด
+            </button>
           </div>
-          <p className="text-xs text-gray-400 mb-2">
+          <p className="text-xs text-gray-400">
             {assignedCount}/{TOTAL_FLOORS} ชั้น · {SLOTS_PER_FLOOR} เครื่อง/ชั้น
           </p>
 
-          <div className="space-y-1 max-h-[50vh] overflow-y-auto pr-1">
+          {/* Column headers */}
+          <div className={`grid gap-1 text-xs text-gray-400 font-medium px-1 ${hasOccupations ? 'grid-cols-[2rem_5rem_1fr_3rem]' : 'grid-cols-[2rem_1fr_3rem]'}`}>
+            <span className="text-center">ชั้น</span>
+            {hasOccupations && <span>อาชีพ</span>}
+            <span>สูตร</span>
+            <span className="text-right">ชิ้น</span>
+          </div>
+
+          {/* Floor rows */}
+          <div className="space-y-1 max-h-[52vh] overflow-y-auto pr-1">
             {floors.map((f) => {
+              const filteredRecipes = getFilteredRecipes(f.occupation);
               const selectedRecipe = recipes.find((r) => r.id === f.recipe_id);
+              const previewCount = selectedRecipe
+                ? Math.floor(totalEventHours / parseTime(selectedRecipe.time_per_unit)) * SLOTS_PER_FLOOR
+                : 0;
+              const occColor = f.occupation ? (OCCUPATION_COLOR[f.occupation] ?? 'bg-gray-50 text-gray-600 border-gray-200') : '';
+
               return (
-                <div key={f.floor_number} className="flex items-center gap-2">
-                  <span className="w-8 text-xs font-semibold text-gray-500 text-center flex-shrink-0">
+                <div
+                  key={f.floor_number}
+                  className={`grid gap-1 items-center ${hasOccupations ? 'grid-cols-[2rem_5rem_1fr_3rem]' : 'grid-cols-[2rem_1fr_3rem]'}`}
+                >
+                  {/* ชั้น badge */}
+                  <span className="text-xs font-semibold text-gray-500 text-center w-8 flex-shrink-0">
                     {f.floor_number}
                   </span>
+
+                  {/* Occupation dropdown */}
+                  {hasOccupations && (
+                    <select
+                      value={f.occupation}
+                      onChange={(e) => setFloorOccupation(f.floor_number, e.target.value)}
+                      className={`rounded border text-xs px-1.5 py-1.5 focus:outline-none focus:border-blue-400 truncate ${
+                        f.occupation
+                          ? `${occColor} border font-medium`
+                          : 'border-gray-200 bg-white text-gray-400'
+                      }`}
+                    >
+                      <option value="">— อาชีพ —</option>
+                      {availableOccupations.map((occ) => (
+                        <option key={occ} value={occ}>{occ}</option>
+                      ))}
+                    </select>
+                  )}
+
+                  {/* Recipe dropdown */}
                   <select
                     value={f.recipe_id}
                     onChange={(e) => setFloorRecipe(f.floor_number, e.target.value)}
-                    className={`flex-1 rounded border text-xs px-2 py-1.5 focus:outline-none focus:border-blue-500 ${
-                      f.recipe_id ? 'border-blue-300 bg-blue-50 text-blue-800' : 'border-gray-200 bg-white text-gray-400'
-                    }`}
+                    disabled={hasOccupations && f.occupation === '' && filteredRecipes.length === recipesWithTime.length}
+                    className={`rounded border text-xs px-1.5 py-1.5 focus:outline-none focus:border-blue-400 ${
+                      f.recipe_id
+                        ? 'border-blue-300 bg-blue-50 text-blue-800'
+                        : 'border-gray-200 bg-white text-gray-400'
+                    } disabled:opacity-50`}
                   >
-                    <option value="">— ไม่กำหนด —</option>
-                    {recipesWithTime.map((r) => (
+                    <option value="">— เลือกสูตร —</option>
+                    {filteredRecipes.map((r) => (
                       <option key={r.id} value={r.id}>
                         {r.name} ({r.time_per_unit})
                       </option>
                     ))}
                   </select>
-                  {selectedRecipe && (
-                    <span className="text-xs text-gray-400 w-10 text-right flex-shrink-0">
-                      ×{Math.floor(totalEventHours / (parseTime(selectedRecipe.time_per_unit ?? null))) * SLOTS_PER_FLOOR}
-                    </span>
-                  )}
+
+                  {/* Preview count */}
+                  <span className="text-xs text-gray-400 text-right tabular-nums">
+                    {f.recipe_id ? `×${previewCount.toLocaleString()}` : ''}
+                  </span>
                 </div>
               );
             })}
@@ -195,7 +288,7 @@ export function ProductionPlanner({ recipes }: ProductionPlannerProps) {
                 <Spinner /> กำลังคำนวณ…
               </span>
             ) : (
-              '📊 คำนวณแผนการผลิต'
+              'คำนวณแผนการผลิต'
             )}
           </button>
         </div>
@@ -205,9 +298,8 @@ export function ProductionPlanner({ recipes }: ProductionPlannerProps) {
       <div className="flex-1 overflow-y-auto">
         {!result && !loading && !error && (
           <div className="flex flex-col items-center justify-center h-64 text-center rounded-lg border-2 border-dashed border-gray-200 bg-white">
-            <span className="text-4xl mb-3">🏗️</span>
             <p className="text-sm font-semibold text-gray-600">ยังไม่มีผลการวางแผน</p>
-            <p className="text-xs text-gray-400 mt-1">กำหนดชั้นและ Recipe แล้วกดคำนวณ</p>
+            <p className="text-xs text-gray-400 mt-1">กำหนดชั้นและสูตรการผลิต แล้วกดคำนวณ</p>
           </div>
         )}
         {loading && (
@@ -220,5 +312,3 @@ export function ProductionPlanner({ recipes }: ProductionPlannerProps) {
     </div>
   );
 }
-
-// This line intentionally left blank — parseTime helper added above.

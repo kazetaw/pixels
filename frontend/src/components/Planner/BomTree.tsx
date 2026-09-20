@@ -1,5 +1,6 @@
 // frontend/src/components/Planner/BomTree.tsx
 import { useState } from 'react';
+import { RightOutlined, DownOutlined, TagOutlined, InboxOutlined } from '@ant-design/icons';
 import { BomTreeNode } from '../../types';
 
 interface BomTreeProps {
@@ -23,12 +24,14 @@ export function BomTree({ node, depth = 0 }: BomTreeProps) {
       >
         {/* expand/collapse icon */}
         <span className="w-4 text-center text-xs text-gray-400 flex-shrink-0">
-          {hasChildren ? (open ? '▾' : '▸') : '·'}
+          {hasChildren
+            ? (open ? <DownOutlined style={{ fontSize: 10 }} /> : <RightOutlined style={{ fontSize: 10 }} />)
+            : null}
         </span>
 
         {/* item icon */}
-        <span className="text-sm flex-shrink-0">
-          {node.is_raw ? '🔹' : '📦'}
+        <span className="text-sm flex-shrink-0" style={{ color: node.is_raw ? '#52c41a' : '#1677ff' }}>
+          {node.is_raw ? <TagOutlined /> : <InboxOutlined />}
         </span>
 
         {/* name + qty */}

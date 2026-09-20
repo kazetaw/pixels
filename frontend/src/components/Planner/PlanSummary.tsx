@@ -1,5 +1,10 @@
 // frontend/src/components/Planner/PlanSummary.tsx
 import { useState } from 'react';
+import {
+  WarningOutlined, CheckOutlined, RightOutlined, DownOutlined,
+  ApartmentOutlined, SwapOutlined, InboxOutlined,
+} from '@ant-design/icons';
+import { Tag, Alert } from 'antd';
 import { PlanResponse, FloorPlanResult } from '../../types';
 import { BomTree } from './BomTree';
 
@@ -45,7 +50,7 @@ function FloorCard({ fr }: { fr: FloorPlanResult }) {
           onClick={() => setShowTree((v) => !v)}
           className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
         >
-          {showTree ? '▾' : '▸'} ดู BOM Tree
+          {showTree ? <DownOutlined style={{ fontSize: 10 }} /> : <RightOutlined style={{ fontSize: 10 }} />} ดู BOM Tree
         </button>
         {showTree && (
           <div className="mt-2 border border-gray-100 rounded-md py-1">
@@ -83,22 +88,30 @@ export function PlanSummary({ result }: PlanSummaryProps) {
           <p className="text-lg font-bold text-indigo-800">{totalOutput.toLocaleString()} ชิ้น</p>
         </div>
         {insufficientRaw > 0 && (
-          <div className="flex items-center gap-2 rounded-md bg-red-100 border border-red-300 px-3 py-1 self-center">
-            <span className="text-red-600 text-sm font-bold">⚠</span>
-            <span className="text-sm text-red-700">วัตถุดิบดิบไม่พอ {insufficientRaw} รายการ</span>
-          </div>
+          <Alert
+            type="error"
+            message={`วัตถุดิบดิบไม่พอ ${insufficientRaw} รายการ`}
+            showIcon
+            icon={<WarningOutlined />}
+            style={{ alignSelf: 'center' }}
+          />
         )}
         {insufficientInter > 0 && (
-          <div className="flex items-center gap-2 rounded-md bg-orange-100 border border-orange-300 px-3 py-1 self-center">
-            <span className="text-orange-600 text-sm font-bold">⚠</span>
-            <span className="text-sm text-orange-700">วัตถุดิบกลางไม่พอ {insufficientInter} รายการ</span>
-          </div>
+          <Alert
+            type="warning"
+            message={`วัตถุดิบกลางไม่พอ ${insufficientInter} รายการ`}
+            showIcon
+            icon={<WarningOutlined />}
+            style={{ alignSelf: 'center' }}
+          />
         )}
       </div>
 
       {/* ── Floor plan results ── */}
       <section>
-        <h3 className="text-base font-bold text-gray-800 mb-3">🏭 แผนการผลิตแต่ละชั้น</h3>
+        <h3 className="text-base font-bold text-gray-800 mb-3 flex items-center gap-2">
+          <ApartmentOutlined /> แผนการผลิตแต่ละชั้น
+        </h3>
         <div className="grid grid-cols-1 gap-3">
           {floor_results.map((fr) => (
             <FloorCard key={`${fr.floor_number}-${fr.recipe_id}`} fr={fr} />
@@ -109,7 +122,9 @@ export function PlanSummary({ result }: PlanSummaryProps) {
       {/* ── Intermediate supply validation ── */}
       {intermediate_supply.length > 0 && (
         <section>
-          <h3 className="text-base font-bold text-gray-800 mb-3">🔄 วัตถุดิบกลาง (Intermediate)</h3>
+          <h3 className="text-base font-bold text-gray-800 mb-3 flex items-center gap-2">
+            <SwapOutlined /> วัตถุดิบกลาง (Intermediate)
+          </h3>
           <div className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
             <table className="min-w-full divide-y divide-gray-200 text-sm">
               <thead className="bg-gray-50">
@@ -131,7 +146,7 @@ export function PlanSummary({ result }: PlanSummaryProps) {
                     <td className="px-4 py-2 text-right text-gray-600">{item.needed.toLocaleString()}</td>
                     <td className="px-4 py-2 text-right text-gray-600">{item.produced.toLocaleString()}</td>
                     <td className={`px-4 py-2 text-right font-semibold ${item.sufficient ? 'text-gray-400' : 'text-orange-600'}`}>
-                      {item.shortfall > 0 ? `-${item.shortfall.toLocaleString()}` : '✓'}
+                      {item.shortfall > 0 ? `-${item.shortfall.toLocaleString()}` : <CheckOutlined />}
                     </td>
                   </tr>
                 ))}
@@ -143,7 +158,9 @@ export function PlanSummary({ result }: PlanSummaryProps) {
 
       {/* ── Raw material summary ── */}
       <section>
-        <h3 className="text-base font-bold text-gray-800 mb-3">📦 วัตถุดิบดิบรวมทั้งหมด</h3>
+        <h3 className="text-base font-bold text-gray-800 mb-3 flex items-center gap-2">
+          <InboxOutlined /> วัตถุดิบดิบรวมทั้งหมด
+        </h3>
         <div className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
           <table className="min-w-full divide-y divide-gray-200 text-sm">
             <thead className="bg-gray-50">
@@ -162,7 +179,7 @@ export function PlanSummary({ result }: PlanSummaryProps) {
                     <span className={`inline-block h-3 w-3 rounded-full ${r.sufficient ? 'bg-green-500' : 'bg-red-500'}`} />
                   </td>
                   <td className="px-4 py-2 font-medium text-gray-800">
-                    {!r.sufficient && <span className="mr-1 text-red-500">⚠</span>}
+                    {!r.sufficient && <WarningOutlined style={{ color: '#ff4d4f', marginRight: 6 }} />}
                     {r.item_name}
                   </td>
                   <td className="px-4 py-2 text-right text-gray-600">{r.total_needed.toLocaleString()}</td>

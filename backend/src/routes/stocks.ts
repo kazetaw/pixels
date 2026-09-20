@@ -1,36 +1,64 @@
 import { Router, Request, Response } from 'express';
-import { writeStocks } from '../services/fileStore';
-import { StockMap } from '../types';
+import { writeStocks, writeStockImages, readStockImages } from '../services/fileStore';
+import { StockMap, StockImageMap } from '../types';
 
 const router = Router();
 
 /**
  * POST /api/stocks
- * Overwrites stocks.json with the provided stock map.
- * Body: StockMap (key-value object of item_id -> quantity)
- * Requirements: 3.1, 3.2, 3.3
+ * Body: { stocks: StockMap, images?: StockImageMap }
+ * Overwrites stocks.json (and optionally stock_images.json).
  */
 router.post('/api/stocks', async (req: Request, res: Response) => {
   const body = req.body;
 
-  // Validate: must be a non-null, non-array object
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
-    return res.status(400).json({ error: 'Request body must be a stocks map object (key-value pairs of item_id to quantity)' });
+    return res.status(400).json({ error: 'Request body must be an object' });
   }
 
-  // Validate: all values must be numbers
-  for (const [key, value] of Object.entries(body)) {
+  // Support both legacy format { key: qty, ... } and new format { stocks: {...}, images: {...} }
+  let stockMap: StockMap;
+  let imageMap: StockImageMap | undefined;
+
+  if (body.stocks !== undefined) {
+    // New format
+    stockMap = body.stocks as StockMap;
+    imageMap = body.images as StockImageMap | undefined;
+  } else {
+    // Legacy format — plain StockMap
+    stockMap = body as StockMap;
+  }
+
+  // Validate stock values are numbers
+  for (const [key, value] of Object.entries(stockMap)) {
     if (typeof value !== 'number') {
-      return res.status(400).json({ error: `Invalid value for item "${key}": expected a number, got ${typeof value}` });
+      return res.status(400).json({ error: `Invalid value for item "${key}": expected a number` });
     }
   }
 
   try {
-    await writeStocks(body as StockMap);
+    if (imageMap) {
+      await Promise.all([writeStocks(stockMap), writeStockImages(imageMap)]);
+    } else {
+      await writeStocks(stockMap);
+    }
     res.json({ ok: true });
   } catch (err) {
     console.error('POST /api/stocks error:', err);
     res.status(500).json({ error: 'Failed to write stocks file' });
+  }
+});
+
+/**
+ * GET /api/stock-images
+ * Returns the current stock image map.
+ */
+router.get('/api/stock-images', async (_req: Request, res: Response) => {
+  try {
+    res.json(await readStockImages());
+  } catch (err) {
+    console.error('GET /api/stock-images error:', err);
+    res.status(500).json({ error: 'Failed to read stock images' });
   }
 });
 
