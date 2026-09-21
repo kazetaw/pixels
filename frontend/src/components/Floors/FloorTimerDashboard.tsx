@@ -6,6 +6,10 @@ import type { FloorDisplayStatus, FloorTimer, Machine, Recipe } from '../../type
 
 const FLOAT_GRACE_SECONDS = 15 * 60;
 const professions = ['วิศวะกร', 'หมอ', 'เชฟ', 'ไอดอล', 'เกษตร'];
+const professionImages: Record<string, string> = {
+  'วิศวะกร': '/occupations/engineer.png', 'หมอ': '/occupations/doctor.png',
+  'เชฟ': '/occupations/chef.png', 'ไอดอล': '/occupations/idol.png', 'เกษตร': '/occupations/farmer.png',
+};
 
 type DisplayFloor = FloorTimer & { displayStatus: FloorDisplayStatus; remaining: number };
 
@@ -32,6 +36,10 @@ function recipeSeconds(recipe?: Recipe) {
   return h * 3600 + m * 60 + s;
 }
 
+function ProfessionOption({ profession }: { profession: string }) {
+  return <span className="profession-select-option"><img src={professionImages[profession]} alt="" /><span>{profession}</span></span>;
+}
+
 const statusMeta: Record<FloorDisplayStatus, { label: string; color: string }> = {
   idle: { label: 'ว่าง', color: 'default' },
   running: { label: 'ทำงาน', color: 'blue' },
@@ -52,7 +60,7 @@ export function FloorTimerDashboard() {
   const [addOpen, setAddOpen] = useState(false);
   const [timerForm] = Form.useForm<{ hours: number; minutes: number; seconds: number }>();
   const [floorForm] = Form.useForm<{ floor_number: number; profession?: string }>();
-  const [configForm] = Form.useForm<{ machine_id?: string; recipe_id?: string }>();
+  const [configForm] = Form.useForm<{ profession?: string; machine_id?: string; recipe_id?: string }>();
   const [messageApi, contextHolder] = message.useMessage();
 
   const load = useCallback(async () => {
@@ -103,7 +111,7 @@ export function FloorTimerDashboard() {
   };
 
   const openConfig = (floor: FloorTimer) => {
-    configForm.setFieldsValue({ machine_id: floor.machine_id ?? undefined, recipe_id: floor.recipe_id ?? undefined });
+    configForm.setFieldsValue({ profession: floor.profession, machine_id: floor.machine_id ?? undefined, recipe_id: floor.recipe_id ?? undefined });
     setConfiguring(floor);
   };
 
@@ -111,14 +119,13 @@ export function FloorTimerDashboard() {
     const values = await configForm.validateFields();
     if (!configuring) return;
     await patchFloor(configuring.floor_number, {
-      machine_id: values.machine_id ?? null, recipe_id: values.recipe_id ?? null,
+      profession: values.profession, machine_id: values.machine_id ?? null, recipe_id: values.recipe_id ?? null,
     }, 'บันทึกเครื่องและสูตรแล้ว');
     setConfiguring(null);
   };
 
-  const configMachines = useMemo(() => !configuring ? [] : machines.filter((machine) =>
-    !configuring.profession || machine.occupation === configuring.profession,
-  ), [configuring, machines]);
+  const chosenProfession = Form.useWatch('profession', configForm);
+  const configMachines = useMemo(() => machines.filter((machine) => machine.occupation === chosenProfession), [machines, chosenProfession]);
   const chosenMachineId = Form.useWatch('machine_id', configForm);
   const configRecipes = useMemo(() => recipes.filter((recipe) => recipe.machine_id === chosenMachineId), [recipes, chosenMachineId]);
 
@@ -137,6 +144,12 @@ export function FloorTimerDashboard() {
     finally { setSaving(false); }
   };
 
+  const openAddFloor = () => {
+    const nextFloor = floors.length ? Math.max(...floors.map((floor) => floor.floor_number)) + 1 : 1;
+    floorForm.setFieldsValue({ floor_number: nextFloor, profession: undefined });
+    setAddOpen(true);
+  };
+
   return <div className="floor-dashboard">
     {contextHolder}
     {error && <Alert type="error" showIcon message="โหลดข้อมูลชั้นไม่สำเร็จ" description={error} action={<Button size="small" onClick={() => void load()}>ลองอีกครั้ง</Button>} />}
@@ -144,11 +157,11 @@ export function FloorTimerDashboard() {
       <div className="floor-dashboard__legend">
         {(Object.keys(statusMeta) as FloorDisplayStatus[]).map((status) => <span key={status}><i className={`floor-dot floor-dot--${status}`} />{statusMeta[status].label} <b>{counts[status]}</b></span>)}
       </div>
-      <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddOpen(true)}>เพิ่มชั้น</Button>
+      <Button type="primary" icon={<PlusOutlined />} onClick={openAddFloor}>เพิ่มชั้น</Button>
     </div>
 
     {loading ? <div className="floor-dashboard__loading"><Spin /><span>กำลังโหลดสถานะชั้น…</span></div> : displayFloors.length === 0 ? (
-      <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="ยังไม่มีชั้นในระบบ"><Button type="primary" onClick={() => setAddOpen(true)}>เพิ่มชั้นแรก</Button></Empty>
+      <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="ยังไม่มีชั้นในระบบ"><Button type="primary" onClick={openAddFloor}>เพิ่มชั้นแรก</Button></Empty>
     ) : <div className="floor-dashboard__grid">
       {displayFloors.map((floor) => {
         const meta = statusMeta[floor.displayStatus];
@@ -187,12 +200,21 @@ export function FloorTimerDashboard() {
     </Modal>
 
     <Modal open={!!configuring} onCancel={() => setConfiguring(null)} onOk={() => void saveConfig()} okText="บันทึกการตั้งค่า" okButtonProps={{ loading: saving }} cancelText="ยกเลิก" title={`ตั้งค่าเครื่องและสูตร — ชั้น ${configuring?.floor_number ?? ''}`}>
-      <p className="floor-modal-note">{configuring?.profession ? `แสดงเฉพาะเครื่องอาชีพ ${configuring.profession} แล้ว` : 'เลือกอาชีพให้ชั้นก่อน เพื่อกรองเครื่องที่เลือกได้'}</p>
+      <p className="floor-modal-note">เปลี่ยนอาชีพได้จากตรงนี้ โดยเครื่องและสูตรเดิมจะถูกล้างเพื่อให้เลือกใหม่อย่างถูกต้อง</p>
       <Form form={configForm} layout="vertical">
+        <Form.Item label="อาชีพประจำชั้น" name="profession" rules={[{ required: true, message: 'เลือกอาชีพ' }]}>
+          <Select
+            placeholder="เลือกอาชีพ" optionLabelProp="label"
+            options={professions.map((profession) => ({ value: profession, label: profession, children: <ProfessionOption profession={profession} /> }))}
+            optionRender={(option) => option.data.children}
+            onChange={() => configForm.setFieldsValue({ machine_id: undefined, recipe_id: undefined })}
+          />
+        </Form.Item>
         <Form.Item label="เครื่องจักร" name="machine_id" rules={[{ required: true, message: 'เลือกเครื่องจักร' }]}>
           <Select
             showSearch
-            placeholder="เลือกเครื่องจักร"
+            disabled={!chosenProfession}
+            placeholder={chosenProfession ? 'เลือกเครื่องจักร' : 'เลือกอาชีพก่อน'}
             optionLabelProp="label"
             options={configMachines.map((machine) => ({
               value: machine.machine_id,
@@ -211,7 +233,9 @@ export function FloorTimerDashboard() {
 
     <Modal open={addOpen} onCancel={() => setAddOpen(false)} onOk={() => void addFloor()} okText="เพิ่มชั้น" okButtonProps={{ loading: saving }} cancelText="ยกเลิก" title="เพิ่มชั้นใหม่">
       <Form form={floorForm} layout="vertical"><Form.Item label="หมายเลขชั้น" name="floor_number" rules={[{ required: true, message: 'กรอกหมายเลขชั้น' }]}><InputNumber min={1} precision={0} style={{ width: '100%' }} /></Form.Item>
-        <Form.Item label="อาชีพ" name="profession"><Select allowClear placeholder="เลือกอาชีพ (ไม่บังคับ)" options={professions.map((value) => ({ value }))} /></Form.Item>
+        <Form.Item label="อาชีพ" name="profession" rules={[{ required: true, message: 'เลือกอาชีพประจำชั้น' }]}>
+          <Select placeholder="เลือกอาชีพ" optionLabelProp="label" options={professions.map((profession) => ({ value: profession, label: profession, children: <ProfessionOption profession={profession} /> }))} optionRender={(option) => option.data.children} />
+        </Form.Item>
       </Form>
     </Modal>
   </div>;
