@@ -1,4 +1,10 @@
 import { useState } from 'react';
+import {
+  Input, InputNumber, Select, Button, Tag, Space, Popconfirm, Modal, Form,
+} from 'antd';
+import {
+  PlusOutlined, DeleteOutlined, SearchOutlined, EditOutlined,
+} from '@ant-design/icons';
 import { Recipe, Machine, StockMap } from '../../types';
 import { createRecipe, updateRecipe, deleteRecipe } from '../../api/client';
 import { TimeInput } from '../shared/TimeInput';
@@ -21,43 +27,27 @@ interface IngEditorProps {
 }
 
 function IngredientEditor({ ingredients, recipes, stocks, onChange }: IngEditorProps) {
-  const [query, setQuery] = useState('');
-  const [qty, setQty] = useState('1');
-  const [showSugg, setShowSugg] = useState(false);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [qty, setQty] = useState<number>(1);
 
-  // Build suggestion list: recipes first, then raw materials
-  const recipeOptions = recipes.map((r) => ({ key: r.id, label: r.name, type: 'recipe' as const }));
+  const recipeOptions = recipes.map((r) => ({
+    label: r.name, value: r.id, type: 'recipe' as const,
+  }));
   const recipeIds = new Set(recipes.map((r) => r.id));
   const rawOptions = Object.keys(stocks)
     .filter((k) => !recipeIds.has(k))
-    .map((k) => ({ key: k, label: k, type: 'raw' as const }));
-  const allOptions = [...recipeOptions, ...rawOptions];
+    .map((k) => ({ label: k, value: k, type: 'raw' as const }));
 
-  const suggestions = query.trim()
-    ? allOptions.filter((o) => o.label.toLowerCase().includes(query.toLowerCase()))
-    : allOptions;
-
-  const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const effectiveKey = selectedKey ?? (query.trim() || null);
-
-  const handleSelect = (opt: typeof allOptions[0]) => {
-    setSelectedKey(opt.key);
-    setQuery(opt.label);
-    setShowSugg(false);
-  };
-
-  const handleQueryChange = (v: string) => {
-    setQuery(v);
-    setSelectedKey(null);
-    setShowSugg(true);
-  };
+  const allOptions = [
+    { label: '── สินค้า (Recipe) ──', options: recipeOptions },
+    { label: '── วัตถุดิบดิบ ──', options: rawOptions },
+  ];
 
   const add = () => {
-    const k = (effectiveKey ?? '').trim();
-    const q = Number(qty);
-    if (!k || q <= 0) return;
-    onChange({ ...ingredients, [k]: q });
-    setQuery(''); setQty('1'); setSelectedKey(null); setShowSugg(false);
+    if (!selectedKey || qty <= 0) return;
+    onChange({ ...ingredients, [selectedKey]: qty });
+    setSelectedKey(null);
+    setQty(1);
   };
 
   const remove = (k: string) => {
@@ -70,84 +60,70 @@ function IngredientEditor({ ingredients, recipes, stocks, onChange }: IngEditorP
   const getLabel = (k: string) => recipeMap.get(k) ?? k;
 
   return (
-    <div className="space-y-2">
-      <div className="max-h-44 overflow-y-auto space-y-1 border border-gray-200 rounded-md p-2 bg-gray-50">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {/* Ingredient list */}
+      <div style={{
+        maxHeight: 160, overflowY: 'auto',
+        border: '1px solid #e2e8f0', borderRadius: 6,
+        padding: 8, background: '#f8fafc',
+        display: 'flex', flexDirection: 'column', gap: 4,
+      }}>
         {Object.keys(ingredients).length === 0 && (
-          <p className="text-xs text-gray-400 italic">ยังไม่มี ingredient</p>
+          <p style={{ fontSize: 12, color: '#94a3b8', fontStyle: 'italic', margin: 0 }}>ยังไม่มี ingredient</p>
         )}
         {Object.entries(ingredients).map(([k, v]) => {
           const isRecipe = recipeIds.has(k);
           return (
-            <div key={k} className="flex items-center gap-2 text-xs">
-              <span className="flex-1 truncate">
-                <span className={`rounded px-1.5 py-0.5 ${isRecipe ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
-                  {isRecipe ? '📦' : '🔹'} {getLabel(k)}
-                </span>
+            <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Tag color={isRecipe ? 'blue' : 'green'} style={{ margin: 0, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {getLabel(k)}
+              </Tag>
+              <span style={{ fontSize: 12, color: '#374151', fontWeight: 600, marginLeft: 'auto', flexShrink: 0 }}>
+                ×{v}
               </span>
-              <span className="font-semibold text-gray-700 w-8 text-right flex-shrink-0">×{v}</span>
-              <button onClick={() => remove(k)} className="text-red-400 hover:text-red-600 font-bold flex-shrink-0">✕</button>
+              <Button
+                type="text" size="small" danger
+                icon={<DeleteOutlined />}
+                onClick={() => remove(k)}
+                style={{ flexShrink: 0 }}
+              />
             </div>
           );
         })}
       </div>
 
-      <div className="flex gap-2 items-center relative">
-        <div className="flex-1 relative">
-          <input
-            value={query}
-            onChange={(e) => handleQueryChange(e.target.value)}
-            onFocus={() => setShowSugg(true)}
-            onBlur={() => setTimeout(() => setShowSugg(false), 150)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') setShowSugg(false);
-              if (e.key === 'Escape') setShowSugg(false);
-            }}
-            placeholder="พิมพ์หรือเลือกวัตถุดิบ / สินค้า…"
-            className="w-full rounded border border-gray-300 px-2 py-1.5 text-xs focus:outline-none focus:border-blue-400"
-          />
-          {showSugg && suggestions.length > 0 && (
-            <ul className="absolute z-50 top-full left-0 right-0 mt-0.5 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto text-xs">
-              {suggestions.map((o) => (
-                <li
-                  key={o.key}
-                  onMouseDown={() => handleSelect(o)}
-                  className="flex items-center gap-2 px-3 py-1.5 hover:bg-indigo-50 cursor-pointer"
-                >
-                  <span className={`rounded px-1.5 py-0.5 text-xs flex-shrink-0 ${
-                    o.type === 'recipe' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'
-                  }`}>
-                    {o.type === 'recipe' ? '📦' : '🔹'}
-                  </span>
-                  <span className="flex-1 truncate">{o.label}</span>
-                </li>
-              ))}
-              {query.trim() && !allOptions.some((o) => o.label === query.trim()) && (
-                <li
-                  onMouseDown={() => { setSelectedKey(null); setShowSugg(false); }}
-                  className="flex items-center gap-2 px-3 py-1.5 hover:bg-yellow-50 cursor-pointer text-yellow-700 border-t border-gray-100"
-                >
-                  ✏️ ใช้ "<strong>{query.trim()}</strong>" (พิมพ์เอง)
-                </li>
-              )}
-            </ul>
-          )}
-        </div>
-        <input
-          type="number" min={1} value={qty}
-          onChange={(e) => setQty(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && add()}
-          placeholder="จำนวน"
-          className="w-16 rounded border border-gray-300 px-2 py-1.5 text-xs text-center focus:outline-none focus:border-blue-400"
+      {/* Add row */}
+      <Space.Compact style={{ width: '100%' }}>
+        <Select
+          value={selectedKey}
+          onChange={setSelectedKey}
+          placeholder="เลือกวัตถุดิบหรือสินค้า…"
+          showSearch
+          style={{ flex: 1 }}
+          size="small"
+          options={allOptions}
+          filterOption={(input, opt) =>
+            (opt?.label as string ?? '').toLowerCase().includes(input.toLowerCase())
+          }
+          allowClear
         />
-        <button
+        <InputNumber
+          min={1}
+          value={qty}
+          onChange={(v) => setQty(v ?? 1)}
+          style={{ width: 70 }}
+          size="small"
+        />
+        <Button
+          type="primary"
+          size="small"
+          icon={<PlusOutlined />}
           onClick={add}
-          disabled={!effectiveKey || Number(qty) <= 0}
-          className="rounded bg-blue-500 text-white px-3 py-1.5 text-xs hover:bg-blue-600 disabled:opacity-40"
+          disabled={!selectedKey || qty <= 0}
         >
           เพิ่ม
-        </button>
-      </div>
-      <p className="text-xs text-gray-400">📦 สินค้า (Recipe)  🔹 วัตถุดิบดิบ (Stock)</p>
+        </Button>
+      </Space.Compact>
     </div>
   );
 }
@@ -163,13 +139,12 @@ interface RecipeFormProps {
 }
 
 function RecipeForm({ initial, recipes, machines, stocks, onSave, onCancel }: RecipeFormProps) {
-  const [name, setName] = useState(initial?.name ?? '');
-  const [machineId, setMachineId] = useState(initial?.machine_id ?? '');
+  const [form] = Form.useForm();
   const [filterOcc, setFilterOcc] = useState<string>(() => {
     if (!initial?.machine_id) return '';
-    const m = machines.find((m) => m.machine_id === initial.machine_id);
-    return m?.occupation ?? '';
+    return machines.find((m) => m.machine_id === initial.machine_id)?.occupation ?? '';
   });
+  const [machineId, setMachineId] = useState(initial?.machine_id ?? '');
   const [showMachineDropdown, setShowMachineDropdown] = useState(false);
   const [timePerUnit, setTimePerUnit] = useState<string | null>(initial?.time_per_unit ?? null);
   const [ingredients, setIngredients] = useState<Record<string, number>>(initial?.ingredients ?? {});
@@ -178,193 +153,182 @@ function RecipeForm({ initial, recipes, machines, stocks, onSave, onCancel }: Re
   const [err, setErr] = useState('');
 
   const handleSave = async () => {
-    if (!name.trim()) { setErr('กรุณากรอกชื่อ'); return; }
-    const normalizedName = name.trim().normalize('NFKC').toLocaleLowerCase('th');
-    const recipeIds = new Set(recipes.map((recipe) => recipe.id));
-    const conflict = [
-      ...recipes.filter((recipe) => recipe.id !== initial?.id).map((recipe) => recipe.name),
-      ...machines.map((machine) => machine.machine_name),
-      ...Object.keys(stocks).filter((key) => !recipeIds.has(key)),
-    ].find((otherName) => otherName.trim().normalize('NFKC').toLocaleLowerCase('th') === normalizedName);
-    if (conflict) { setErr(`ชื่อนี้ซ้ำกับ "${conflict}" กรุณาใช้ชื่ออื่น`); return; }
-    setSaving(true); setErr('');
     try {
+      const values = await form.validateFields();
+      const normalizedName = values.name.trim().normalize('NFKC').toLocaleLowerCase('th');
+      const recipeIds = new Set(recipes.map((r) => r.id));
+      const conflict = [
+        ...recipes.filter((r) => r.id !== initial?.id).map((r) => r.name),
+        ...machines.map((m) => m.machine_name),
+        ...Object.keys(stocks).filter((k) => !recipeIds.has(k)),
+      ].find((n) => n.trim().normalize('NFKC').toLocaleLowerCase('th') === normalizedName);
+      if (conflict) {
+        form.setFields([{ name: 'name', errors: [`ชื่อนี้ซ้ำกับ "${conflict}"`] }]);
+        return;
+      }
+      setSaving(true); setErr('');
       await onSave({
-        name: name.trim(),
+        name: values.name.trim(),
         machine_id: machineId || null,
         time_per_unit: timePerUnit || null,
         ingredients,
         image: image || undefined,
       });
     } catch (e: unknown) {
+      if ((e as { errorFields?: unknown }).errorFields) return; // AntD validation
       setErr((e as Error).message);
     } finally {
       setSaving(false);
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 p-6 space-y-4 max-h-[90vh] overflow-y-auto">
-        <h3 className="text-lg font-bold text-gray-800">
-          {initial ? '✏️ แก้ไข Recipe' : '➕ เพิ่ม Recipe ใหม่'}
-        </h3>
+  const occupations = Array.from(
+    new Set(machines.map((m) => m.occupation).filter(Boolean) as string[])
+  ).sort((a, b) => a.localeCompare(b, 'th'));
 
+  const filteredMachines = machines
+    .filter((m) => filterOcc === '' || m.occupation === filterOcc)
+    .sort((a, b) => a.floor_number - b.floor_number);
+
+  const selectedMachine = machines.find((m) => m.machine_id === machineId);
+
+  return (
+    <Modal
+      open
+      title={initial ? 'แก้ไข Recipe' : 'เพิ่ม Recipe ใหม่'}
+      onCancel={onCancel}
+      onOk={handleSave}
+      okText={saving ? 'กำลังบันทึก…' : 'บันทึก'}
+      cancelText="ยกเลิก"
+      confirmLoading={saving}
+      width={560}
+      destroyOnClose
+    >
+      <Form form={form} layout="vertical" style={{ marginTop: 8 }}
+        initialValues={{ name: initial?.name ?? '' }}
+      >
         {/* Name */}
-        <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">ชื่อสินค้า *</label>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-            placeholder="เช่น ช็อคโกแลตนม"
-          />
-        </div>
+        <Form.Item name="name" label="ชื่อสินค้า"
+          rules={[{ required: true, message: 'กรุณากรอกชื่อ' }]}
+        >
+          <Input placeholder="เช่น ช็อคโกแลตนม" autoFocus />
+        </Form.Item>
 
         {/* Image */}
-        <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">รูปสินค้า</label>
-          <ImagePicker value={image} onChange={setImage} folder="recipes" itemId={initial?.id} />
-        </div>
+        <Form.Item label="รูปสินค้า">
+          <ImagePicker value={image} onChange={setImage} folder="recipes" itemId={initial?.id} size={56} variant="button" />
+        </Form.Item>
 
-        {/* Machine — กรองด้วยอาชีพ */}
-        <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">เครื่องจักร *</label>
-          {(() => {
-            const occupations = Array.from(
-              new Set(machines.map((m) => m.occupation).filter(Boolean) as string[])
-            ).sort((a, b) => a.localeCompare(b, 'th'));
-            return occupations.length > 0 ? (
-              <div className="flex gap-2 mb-2 flex-wrap">
+        {/* Machine */}
+        <Form.Item label="เครื่องจักร">
+          {/* Occupation filter chips */}
+          {occupations.length > 0 && (
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+              {['', ...occupations].map((occ) => (
                 <button
+                  key={occ || '__all__'}
                   type="button"
-                  onClick={() => { setFilterOcc(''); setMachineId(''); }}
-                  className={`rounded-full px-3 py-0.5 text-xs border transition-colors ${
-                    filterOcc === ''
-                      ? 'bg-gray-700 text-white border-gray-700'
-                      : 'bg-gray-50 text-gray-500 border-gray-200 hover:border-gray-400'
-                  }`}
+                  onClick={() => { setFilterOcc(occ); setMachineId(''); }}
+                  style={{
+                    borderRadius: 99, padding: '2px 10px', fontSize: 12, cursor: 'pointer',
+                    border: '1px solid',
+                    background: filterOcc === occ ? '#2563eb' : '#f8fafc',
+                    color: filterOcc === occ ? '#fff' : '#64748b',
+                    borderColor: filterOcc === occ ? '#2563eb' : '#e2e8f0',
+                  }}
                 >
-                  ทั้งหมด
+                  {occ || 'ทั้งหมด'}
                 </button>
-                {occupations.map((occ) => (
-                  <button
-                    key={occ}
-                    type="button"
-                    onClick={() => { setFilterOcc(occ); setMachineId(''); }}
-                    className={`rounded-full px-3 py-0.5 text-xs border transition-colors ${
-                      filterOcc === occ
-                        ? 'bg-indigo-600 text-white border-indigo-600'
-                        : 'bg-gray-50 text-gray-500 border-gray-200 hover:border-gray-400'
-                    }`}
-                  >
-                    {occ}
-                  </button>
-                ))}
-              </div>
-            ) : null;
-          })()}
-          {/* Custom machine picker with image */}
-          {(() => {
-            const filteredMachines = machines
-              .filter((m) => filterOcc === '' || m.occupation === filterOcc)
-              .sort((a, b) => a.floor_number - b.floor_number);
-            const selectedMachine = machines.find((m) => m.machine_id === machineId);
-            return (
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setShowMachineDropdown((v) => !v)}
-                  onBlur={() => setTimeout(() => setShowMachineDropdown(false), 150)}
-                  className="w-full flex items-center gap-2 rounded-md border border-gray-300 px-3 py-2 text-sm bg-white focus:border-blue-500 focus:outline-none text-left"
-                >
-                  {selectedMachine ? (
-                    <>
-                      {selectedMachine.image && (
-                        <img src={selectedMachine.image} alt="" className="h-8 w-8 rounded object-contain bg-gray-50 border border-gray-100 flex-shrink-0" />
-                      )}
-                      <span className="flex-1 truncate">ชั้น {selectedMachine.floor_number} — {selectedMachine.machine_name}</span>
-                    </>
-                  ) : (
-                    <span className="text-gray-400 flex-1">— เลือกเครื่อง —</span>
+              ))}
+            </div>
+          )}
+          {/* Machine dropdown */}
+          <div style={{ position: 'relative' }}>
+            <button
+              type="button"
+              onClick={() => setShowMachineDropdown((v) => !v)}
+              onBlur={() => setTimeout(() => setShowMachineDropdown(false), 150)}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                borderRadius: 6, border: '1px solid #e2e8f0', padding: '6px 10px',
+                background: '#fff', cursor: 'pointer', fontSize: 13, textAlign: 'left',
+              }}
+            >
+              {selectedMachine ? (
+                <>
+                  {selectedMachine.image && (
+                    <img src={selectedMachine.image} alt="" style={{ width: 28, height: 28, borderRadius: 4, objectFit: 'contain', flexShrink: 0 }} />
                   )}
-                  <span className="text-gray-400 flex-shrink-0">▾</span>
-                </button>
-                {showMachineDropdown && (
-                  <ul className="absolute z-50 top-full left-0 right-0 mt-0.5 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                    <li
-                      onMouseDown={() => { setMachineId(''); setShowMachineDropdown(false); }}
-                      className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer text-gray-400 text-sm border-b border-gray-100"
-                    >
-                      — เลือกเครื่อง —
-                    </li>
-                    {filteredMachines.map((m) => (
-                      <li
-                        key={m.machine_id}
-                        onMouseDown={() => { setMachineId(m.machine_id); setShowMachineDropdown(false); }}
-                        className={`flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-indigo-50 ${machineId === m.machine_id ? 'bg-indigo-50' : ''}`}
-                      >
-                        {m.image ? (
-                          <img src={m.image} alt="" className="h-10 w-10 rounded object-contain bg-white border border-gray-100 flex-shrink-0" />
-                        ) : (
-                          <div className="h-10 w-10 rounded bg-gray-100 flex-shrink-0" />
-                        )}
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-gray-800 truncate">{m.machine_name}</p>
-                          <p className="text-xs text-gray-400">ชั้น {m.floor_number}{m.occupation ? ` · ${m.occupation}` : ''}</p>
-                        </div>
-                        {machineId === m.machine_id && <span className="ml-auto text-indigo-500 flex-shrink-0">✓</span>}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            );
-          })()}
-        </div>
+                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    ชั้น {selectedMachine.floor_number} — {selectedMachine.machine_name}
+                  </span>
+                </>
+              ) : (
+                <span style={{ color: '#94a3b8', flex: 1 }}>— เลือกเครื่อง —</span>
+              )}
+              <span style={{ color: '#94a3b8' }}>▾</span>
+            </button>
+            {showMachineDropdown && (
+              <ul style={{
+                position: 'absolute', zIndex: 1000, top: '100%', left: 0, right: 0,
+                background: '#fff', border: '1px solid #e2e8f0', borderRadius: 6,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.08)', maxHeight: 240, overflowY: 'auto',
+                listStyle: 'none', margin: '2px 0 0', padding: 0,
+              }}>
+                <li
+                  onMouseDown={() => { setMachineId(''); setShowMachineDropdown(false); }}
+                  style={{ padding: '8px 12px', cursor: 'pointer', color: '#94a3b8', fontSize: 13, borderBottom: '1px solid #f1f5f9' }}
+                >
+                  — เลือกเครื่อง —
+                </li>
+                {filteredMachines.map((m) => (
+                  <li
+                    key={m.machine_id}
+                    onMouseDown={() => { setMachineId(m.machine_id); setShowMachineDropdown(false); }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '6px 12px', cursor: 'pointer', fontSize: 13,
+                      background: machineId === m.machine_id ? '#eff6ff' : undefined,
+                    }}
+                  >
+                    {m.image
+                      ? <img src={m.image} alt="" style={{ width: 36, height: 36, borderRadius: 4, objectFit: 'contain', flexShrink: 0 }} />
+                      : <div style={{ width: 36, height: 36, borderRadius: 4, background: '#f1f5f9', flexShrink: 0 }} />
+                    }
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.machine_name}</div>
+                      <div style={{ fontSize: 11, color: '#94a3b8' }}>ชั้น {m.floor_number}{m.occupation ? ` · ${m.occupation}` : ''}</div>
+                    </div>
+                    {machineId === m.machine_id && <span style={{ marginLeft: 'auto', color: '#2563eb', flexShrink: 0 }}>✓</span>}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </Form.Item>
 
         {/* Time per unit */}
-        <div>
-          <TimeInput
-            label="เวลาผลิตต่อชิ้น"
-            value={timePerUnit}
-            onChange={setTimePerUnit}
-            allowNull
-          />
-        </div>
+        <Form.Item label="เวลาผลิตต่อชิ้น">
+          <TimeInput value={timePerUnit} onChange={setTimePerUnit} allowNull />
+        </Form.Item>
 
         {/* Ingredients */}
-        <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">วัตถุดิบ (Ingredients)</label>
+        <Form.Item label="วัตถุดิบ (Ingredients)">
           <IngredientEditor
             ingredients={ingredients}
             recipes={recipes.filter((r) => r.id !== initial?.id)}
             stocks={stocks}
             onChange={setIngredients}
           />
-        </div>
+        </Form.Item>
 
         {err && (
-          <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">{err}</p>
+          <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 6, padding: '8px 12px', fontSize: 13, color: '#dc2626' }}>
+            {err}
+          </div>
         )}
-
-        <div className="flex gap-2 pt-1">
-          <button
-            onClick={onCancel}
-            className="flex-1 rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-          >
-            ยกเลิก
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex-1 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
-          >
-            {saving ? 'กำลังบันทึก…' : '💾 บันทึก'}
-          </button>
-        </div>
-      </div>
-    </div>
+      </Form>
+    </Modal>
   );
 }
 
@@ -426,40 +390,43 @@ export function RecipeEditor({ recipes, machines, stocks, onChange }: RecipeEdit
   return (
     <div className="space-y-3">
       {/* Toolbar */}
-      <div className="flex gap-2 flex-wrap">
-        <input
+      <Space wrap>
+        <Input
+          prefix={<SearchOutlined />}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="ค้นหาชื่อ recipe…"
-          className="flex-1 min-w-[140px] rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+          style={{ width: 200 }}
+          allowClear
         />
-        <select
-          value={filterMachine}
-          onChange={(e) => setFilterMachine(e.target.value)}
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm bg-white focus:border-blue-500 focus:outline-none"
-        >
-          <option value="">ทุกเครื่องจักร</option>
-          {machineOptions.map((m) => (
-            <option key={m.machine_id} value={m.machine_id}>{m.machine_name}</option>
-          ))}
-        </select>
+        <Select
+          value={filterMachine || undefined}
+          onChange={(v) => setFilterMachine(v ?? '')}
+          placeholder="ทุกเครื่องจักร"
+          allowClear
+          style={{ width: 160 }}
+          options={[
+            ...machineOptions.map((m) => ({ label: m.machine_name, value: m.machine_id })),
+          ]}
+        />
         {occupationOptions.length > 0 && (
-          <select
-            value={filterOcc}
-            onChange={(e) => setFilterOcc(e.target.value)}
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm bg-white focus:border-blue-500 focus:outline-none"
-          >
-            <option value="">ทุกอาชีพ</option>
-            {occupationOptions.map((o) => <option key={o} value={o}>{o}</option>)}
-          </select>
+          <Select
+            value={filterOcc || undefined}
+            onChange={(v) => setFilterOcc(v ?? '')}
+            placeholder="ทุกอาชีพ"
+            allowClear
+            style={{ width: 130 }}
+            options={occupationOptions.map((o) => ({ label: o, value: o }))}
+          />
         )}
-        <button
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
           onClick={() => setShowForm(true)}
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
         >
-          + เพิ่ม Recipe
-        </button>
-      </div>
+          เพิ่ม Recipe
+        </Button>
+      </Space>
 
       {/* Table */}
       <div className="rounded-lg border border-gray-200 overflow-hidden max-h-[60vh] overflow-y-auto">
@@ -512,21 +479,24 @@ export function RecipeEditor({ recipes, machines, stocks, onChange }: RecipeEdit
                   </div>
                 </td>
                 <td className="px-4 py-2 text-center">
-                  <div className="flex gap-2 justify-center">
-                    <button
+                  <Space>
+                    <Button
+                      type="link" size="small"
+                      icon={<EditOutlined />}
                       onClick={() => setEditing(r)}
-                      className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                    />
+                    <Popconfirm
+                      title="ลบ recipe นี้?"
+                      okText="ลบ" cancelText="ยกเลิก" okType="danger"
+                      onConfirm={() => handleDelete(r.id)}
                     >
-                      แก้ไข
-                    </button>
-                    <button
-                      onClick={() => handleDelete(r.id)}
-                      disabled={deleting === r.id}
-                      className="text-xs text-red-500 hover:text-red-700 font-medium disabled:opacity-50"
-                    >
-                      {deleting === r.id ? '…' : 'ลบ'}
-                    </button>
-                  </div>
+                      <Button
+                        type="link" size="small" danger
+                        icon={<DeleteOutlined />}
+                        loading={deleting === r.id}
+                      />
+                    </Popconfirm>
+                  </Space>
                 </td>
               </tr>
             ))}

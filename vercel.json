@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "buildCommand": "npm run build:frontend",
+  "buildCommand": "yarn build:frontend",
   "outputDirectory": "frontend/dist",
-  "installCommand": "npm install && npm install --prefix frontend",
+  "installCommand": "yarn install && yarn --cwd frontend install",
   "framework": null,
   "rewrites": [
     { "source": "/api/upload-image", "destination": "/api/upload-image" },

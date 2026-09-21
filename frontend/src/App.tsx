@@ -1,13 +1,14 @@
 import { useState } from 'react';
-import { Layout, Menu, Alert, Spin, Empty, Button, message, Skeleton, Drawer } from 'antd';
+import { Layout, Menu, Alert, Spin, Empty, Button, message, Skeleton, Drawer, Divider } from 'antd';
 import {
-  CalculatorOutlined,
   BarChartOutlined,
   DatabaseOutlined,
   SaveOutlined,
   PlayCircleOutlined,
   LoadingOutlined,
   MenuOutlined,
+  InboxOutlined,
+  ArrowLeftOutlined,
 } from '@ant-design/icons';
 import { useAppState } from './hooks/useAppState';
 import { TargetItemForm }       from './components/Sidebar/TargetItemForm';
@@ -17,16 +18,17 @@ import { ShoppingListTable }    from './components/MainPanel/ShoppingListTable';
 import { MachineWorkloadTable } from './components/MainPanel/MachineWorkloadTable';
 import { ProductionPlanner }    from './components/Planner/ProductionPlanner';
 import { DataEditor }           from './components/DataEditor/DataEditor';
+import { StockInventory }       from './components/Inventory/StockInventory';
 import type { SaveStatus }      from './hooks/useAppState';
 
 const { Sider, Content } = Layout;
 
-type MainView = 'calculator' | 'planner' | 'data';
+type MainView = 'planner' | 'data' | 'inventory';
 
 const NAV_ITEMS = [
-  { key: 'calculator', icon: <CalculatorOutlined />, label: 'คำนวณ BOM' },
   { key: 'planner',    icon: <BarChartOutlined />,   label: 'วางแผนการผลิต' },
   { key: 'data',       icon: <DatabaseOutlined />,   label: 'จัดการข้อมูล' },
+  { key: 'inventory',  icon: <InboxOutlined />,      label: 'คลังสต็อก' },
 ];
 
 const SIDER_W = 200; // px — ลดจาก 240 เพราะชื่อเมนูสั้น
@@ -87,34 +89,10 @@ function PageHead({ title, sub }: { title: string; sub?: string }) {
 function SidebarContent({
   view,
   setView,
-  recipes,
-  stocks,
-  stockImages,
-  targetItems,
-  addTargetItem,
-  removeTargetItem,
-  updateStock,
-  saveStocks,
-  runCalculation,
-  loading,
-  saveStatus,
-  saveError,
   onNavClick,
 }: {
   view: MainView;
   setView: (v: MainView) => void;
-  recipes: ReturnType<typeof useAppState>['recipes'];
-  stocks: ReturnType<typeof useAppState>['stocks'];
-  stockImages: ReturnType<typeof useAppState>['stockImages'];
-  targetItems: ReturnType<typeof useAppState>['targetItems'];
-  addTargetItem: ReturnType<typeof useAppState>['addTargetItem'];
-  removeTargetItem: ReturnType<typeof useAppState>['removeTargetItem'];
-  updateStock: ReturnType<typeof useAppState>['updateStock'];
-  saveStocks: ReturnType<typeof useAppState>['saveStocks'];
-  runCalculation: ReturnType<typeof useAppState>['runCalculation'];
-  loading: boolean;
-  saveStatus: SaveStatus;
-  saveError: string | null;
   onNavClick?: () => void; // close drawer on mobile
 }) {
   return (
@@ -134,56 +112,78 @@ function SidebarContent({
         style={{ borderRight: 0, paddingTop: 6, fontSize: 13, flexShrink: 0 }}
       />
 
-      {/* BOM inputs — only on calculator view */}
-      {view === 'calculator' && (
-        <>
-          <div style={{
-            flex: 1, overflowY: 'auto',
-            padding: '10px 14px',
-            display: 'flex', flexDirection: 'column', gap: 12,
-            borderTop: '1px solid #e2e8f0',
-          }}>
-            <TargetItemForm recipes={recipes} onAdd={addTargetItem} />
-
-            {targetItems.length > 0 && (
-              <div>
-                <div style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8', letterSpacing: '0.05em', marginBottom: 5 }}>
-                  รายการเป้าหมาย
-                </div>
-                <TargetItemList items={targetItems} recipes={recipes} onRemove={removeTargetItem} />
-              </div>
-            )}
-
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8', letterSpacing: '0.05em', marginBottom: 5 }}>
-                สต็อกปัจจุบัน
-              </div>
-              {recipes.length === 0
-                ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    {[1,2,3,4].map(i => (
-                      <Skeleton.Input key={i} active size="small" block style={{ height: 26, borderRadius: 4 }} />
-                    ))}
-                  </div>
-                )
-                : <StockEditor recipes={recipes} stocks={stocks} stockImages={stockImages} onUpdate={updateStock} />
-              }
-            </div>
-          </div>
-
-          <div style={{ padding: '10px 14px', borderTop: '1px solid #e2e8f0', flexShrink: 0 }}>
-            <SidebarActions
-              onSave={saveStocks}
-              onCalculate={runCalculation}
-              saveStatus={saveStatus}
-              saveError={saveError}
-              loading={loading}
-              canCalculate={targetItems.length > 0}
-            />
-          </div>
-        </>
-      )}
     </div>
+  );
+}
+
+function BomWorkspace({
+  onBack, recipes, stocks, stockImages, targetItems, addTargetItem, removeTargetItem,
+  updateStock, saveStocks, runCalculation, calculationResult, loading, initError,
+  calcError, saveStatus, saveError,
+}: {
+  onBack: () => void;
+  recipes: ReturnType<typeof useAppState>['recipes'];
+  stocks: ReturnType<typeof useAppState>['stocks'];
+  stockImages: ReturnType<typeof useAppState>['stockImages'];
+  targetItems: ReturnType<typeof useAppState>['targetItems'];
+  addTargetItem: ReturnType<typeof useAppState>['addTargetItem'];
+  removeTargetItem: ReturnType<typeof useAppState>['removeTargetItem'];
+  updateStock: ReturnType<typeof useAppState>['updateStock'];
+  saveStocks: ReturnType<typeof useAppState>['saveStocks'];
+  runCalculation: ReturnType<typeof useAppState>['runCalculation'];
+  calculationResult: ReturnType<typeof useAppState>['calculationResult'];
+  loading: boolean;
+  initError: string | null;
+  calcError: string | null;
+  saveStatus: SaveStatus;
+  saveError: string | null;
+}) {
+  return (
+    <main className="bom-workspace">
+      <header className="bom-workspace__header">
+        <Button type="text" icon={<ArrowLeftOutlined />} onClick={onBack}>กลับไปหน้าหลัก</Button>
+        <div>
+          <h1>ผลการคำนวณ BOM</h1>
+          <p>กำหนดเป้าหมาย ตรวจสต็อก และสรุปทรัพยากรที่ต้องใช้ในพื้นที่เดียว</p>
+        </div>
+      </header>
+
+      {initError && <Alert type="error" message="โหลดข้อมูลไม่สำเร็จ" description={initError} showIcon />}
+      {calcError && <Alert type="warning" message="เกิดข้อผิดพลาดในการคำนวณ" description={calcError} showIcon />}
+
+      <section className="bom-workspace__controls">
+        <div className="bom-workspace__targets">
+          <h2>รายการที่ต้องการผลิต</h2>
+          <TargetItemForm recipes={recipes} onAdd={addTargetItem} />
+          {targetItems.length > 0 ? (
+            <div style={{ marginTop: 14 }}><TargetItemList items={targetItems} recipes={recipes} onRemove={removeTargetItem} /></div>
+          ) : <p className="bom-workspace__hint">เพิ่มรายการและจำนวนที่ต้องการผลิตก่อนคำนวณ</p>}
+        </div>
+        <div className="bom-workspace__actions">
+          <h2>คำนวณทรัพยากร</h2>
+          <p>บันทึกสต็อกล่าสุดก่อน แล้วระบบจะคำนวณวัตถุดิบและชั่วโมงเครื่องจักรให้</p>
+          <SidebarActions onSave={saveStocks} onCalculate={runCalculation} saveStatus={saveStatus} saveError={saveError} loading={loading} canCalculate={targetItems.length > 0} />
+        </div>
+      </section>
+
+      <section className="bom-workspace__stock">
+        <div><h2>สต็อกปัจจุบัน</h2><p>แก้ไขจำนวนที่มีอยู่เพื่อให้ผลลัพธ์สะท้อนคลังจริง</p></div>
+        <Divider style={{ margin: '14px 0' }} />
+        {recipes.length === 0 ? <Skeleton active paragraph={{ rows: 5 }} /> : <StockEditor recipes={recipes} stocks={stocks} stockImages={stockImages} onUpdate={updateStock} />}
+      </section>
+
+      <section className="bom-workspace__results" aria-live="polite">
+        <div className="bom-workspace__results-heading"><h2>สรุปผลการคำนวณ</h2>{calculationResult && <span>อ้างอิง {targetItems.length} รายการเป้าหมาย</span>}</div>
+        {loading && <div className="bom-workspace__loading"><Spin indicator={<LoadingOutlined style={{ fontSize: 32, color: '#2563eb' }} spin />} /><p>กำลังคำนวณ…</p></div>}
+        {!loading && calculationResult && (
+          <div className="bom-workspace__result-grid">
+            <section><div className="result-label">รายการที่ต้องจัดหา <span>{calculationResult.shopping_list.length} รายการ</span></div><ShoppingListTable entries={calculationResult.shopping_list} stocks={stocks} stockImages={stockImages} /></section>
+            <section><div className="result-label">ภาระงานเครื่องจักร <span>{calculationResult.machine_workloads.length} เครื่อง</span></div><MachineWorkloadTable entries={calculationResult.machine_workloads} /></section>
+          </div>
+        )}
+        {!loading && !calculationResult && !initError && !calcError && <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="ผลลัพธ์จะแสดงที่นี่หลังจากกดคำนวณ" style={{ padding: '56px 0' }} />}
+      </section>
+    </main>
   );
 }
 
@@ -191,6 +191,7 @@ function SidebarContent({
 export default function App() {
   const [view, setView] = useState<MainView>('data');
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [bomOpen, setBomOpen] = useState(false);
 
   const {
     recipes, machines: _machines, stocks, stockImages,
@@ -200,12 +201,15 @@ export default function App() {
     initError, calcError, saveStatus, saveError,
   } = useAppState();
 
-  const sidebarProps = {
-    view, setView, recipes, stocks, stockImages,
-    targetItems, addTargetItem, removeTargetItem,
-    updateStock, saveStocks, runCalculation,
-    loading, saveStatus, saveError,
-  };
+  const sidebarProps = { view, setView };
+
+  if (bomOpen) {
+    return <BomWorkspace onBack={() => setBomOpen(false)} {...{
+      recipes, stocks, stockImages, targetItems, addTargetItem, removeTargetItem,
+      updateStock, saveStocks, runCalculation, calculationResult, loading, initError,
+      calcError, saveStatus, saveError,
+    }} />;
+  }
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -261,8 +265,8 @@ export default function App() {
         <Content style={{ minHeight: '100vh', background: '#f8fafc', overflowY: 'auto' }}>
 
           {view === 'data' && (
-            <div className="page-content">
-              <PageHead title="จัดการข้อมูล" sub="เพิ่ม แก้ไข หรือลบสูตรการผลิต เครื่องจักร และสต็อกวัตถุดิบ" />
+          <div className="page-content">
+              <div className="page-head-with-action"><PageHead title="จัดการข้อมูล" sub="เพิ่ม แก้ไข หรือลบสูตรการผลิต เครื่องจักร และสต็อกวัตถุดิบ" /><Button type="primary" onClick={() => setBomOpen(true)}>เปิดหน้าคำนวณ BOM</Button></div>
               <DataEditor
                 initialRecipes={recipes}
                 initialMachines={_machines}
@@ -279,50 +283,17 @@ export default function App() {
             </div>
           )}
 
-          {view === 'calculator' && (
-            <div style={{ maxWidth: 900, margin: '0 auto', padding: '28px 24px' }}>
-              <PageHead title="ผลการคำนวณ BOM" sub="เพิ่มไอเทมเป้าหมาย ตั้งค่าสต็อก แล้วกดคำนวณ" />
-
-              {initError && (
-                <Alert type="error" message="โหลดข้อมูลไม่สำเร็จ" description={initError} showIcon style={{ marginBottom: 16 }} />
-              )}
-              {calcError && (
-                <Alert type="warning" message="เกิดข้อผิดพลาดในการคำนวณ" description={calcError} showIcon style={{ marginBottom: 16 }} />
-              )}
-
-              {loading && (
-                <div style={{ textAlign: 'center', padding: '80px 0' }}>
-                  <Spin indicator={<LoadingOutlined style={{ fontSize: 32, color: '#2563eb' }} spin />} />
-                  <div style={{ fontSize: 13, color: '#64748b', marginTop: 14 }}>กำลังคำนวณ…</div>
-                </div>
-              )}
-
-              {!loading && calculationResult && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
-                  <section>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 12 }}>
-                      <span style={{ fontSize: 15, fontWeight: 600, color: '#0f172a' }}>รายการที่ต้องจัดหา</span>
-                      <span style={{ fontSize: 12, color: '#94a3b8' }}>{calculationResult.shopping_list.length} รายการ</span>
-                    </div>
-                    <ShoppingListTable entries={calculationResult.shopping_list} stocks={stocks} stockImages={stockImages} />
-                  </section>
-                  <section>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 12 }}>
-                      <span style={{ fontSize: 15, fontWeight: 600, color: '#0f172a' }}>ภาระงานเครื่องจักร</span>
-                      <span style={{ fontSize: 12, color: '#94a3b8' }}>{calculationResult.machine_workloads.length} เครื่อง</span>
-                    </div>
-                    <MachineWorkloadTable entries={calculationResult.machine_workloads} />
-                  </section>
-                </div>
-              )}
-
-              {!loading && !calculationResult && !initError && !calcError && (
-                <Empty
-                  image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  description={<span style={{ fontSize: 13, color: '#94a3b8' }}>เพิ่มไอเทมเป้าหมายทางซ้าย แล้วกดคำนวณ</span>}
-                  style={{ padding: '80px 0' }}
-                />
-              )}
+          {view === 'inventory' && (
+            <div className="page-content">
+              <PageHead
+                title="คลังสต็อก"
+                sub="รายการวัตถุดิบและสินค้าที่มีอยู่ในคลังตอนนี้"
+              />
+              <StockInventory
+                stocks={stocks}
+                stockImages={stockImages}
+                recipes={recipes}
+              />
             </div>
           )}
 

@@ -1,6 +1,6 @@
 // frontend/src/components/Planner/ProductionPlanner.tsx
 import { useState, useCallback, useMemo } from 'react';
-import { Spin, Empty } from 'antd';
+import { Spin, Empty, Select } from 'antd';
 import { LoadingOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import { Recipe, Machine, PlanRequest, PlanResponse, FloorAssignment } from '../../types';
 import { runPlan } from '../../api/client';
@@ -22,14 +22,6 @@ interface FloorRow {
   recipe_id: string;   // '' = ไม่กำหนด
 }
 
-const OCCUPATION_COLOR: Record<string, string> = {
-  วิศวะกร: 'bg-blue-50 text-blue-700 border-blue-200',
-  หมอ:      'bg-green-50 text-green-700 border-green-200',
-  เชฟ:      'bg-orange-50 text-orange-700 border-orange-200',
-  ไอดอล:   'bg-pink-50 text-pink-700 border-pink-200',
-  เกษตร:   'bg-lime-50 text-lime-700 border-lime-200',
-  ทุกอาชีพ: 'bg-purple-50 text-purple-700 border-purple-200',
-};
 
 function parseTime(t: string | null): number {
   if (!t) return 0;
@@ -207,7 +199,6 @@ export function ProductionPlanner({ recipes, machines = [] }: ProductionPlannerP
               const previewCount = selectedRecipe
                 ? Math.floor(totalEventHours / parseTime(selectedRecipe.time_per_unit)) * SLOTS_PER_FLOOR
                 : 0;
-              const occColor = f.occupation ? (OCCUPATION_COLOR[f.occupation] ?? 'bg-gray-50 text-gray-600 border-gray-200') : '';
 
               return (
                 <div
@@ -221,40 +212,34 @@ export function ProductionPlanner({ recipes, machines = [] }: ProductionPlannerP
 
                   {/* Occupation dropdown */}
                   {hasOccupations && (
-                    <select
-                      value={f.occupation}
-                      onChange={(e) => setFloorOccupation(f.floor_number, e.target.value)}
-                      className={`rounded border text-xs px-1.5 py-1.5 focus:outline-none focus:border-blue-400 truncate ${
-                        f.occupation
-                          ? `${occColor} border font-medium`
-                          : 'border-gray-200 bg-white text-gray-400'
-                      }`}
-                    >
-                      <option value="">— อาชีพ —</option>
-                      {availableOccupations.map((occ) => (
-                        <option key={occ} value={occ}>{occ}</option>
-                      ))}
-                    </select>
+                    <Select
+                      value={f.occupation || undefined}
+                      onChange={(v) => setFloorOccupation(f.floor_number, v ?? '')}
+                      placeholder="อาชีพ"
+                      allowClear
+                      size="small"
+                      style={{ width: 110 }}
+                      options={availableOccupations.map((occ) => ({ label: occ, value: occ }))}
+                    />
                   )}
 
                   {/* Recipe dropdown */}
-                  <select
-                    value={f.recipe_id}
-                    onChange={(e) => setFloorRecipe(f.floor_number, e.target.value)}
-                    disabled={hasOccupations && f.occupation === '' && filteredRecipes.length === recipesWithTime.length}
-                    className={`rounded border text-xs px-1.5 py-1.5 focus:outline-none focus:border-blue-400 ${
-                      f.recipe_id
-                        ? 'border-blue-300 bg-blue-50 text-blue-800'
-                        : 'border-gray-200 bg-white text-gray-400'
-                    } disabled:opacity-50`}
-                  >
-                    <option value="">— เลือกสูตร —</option>
-                    {filteredRecipes.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.name} ({r.time_per_unit})
-                      </option>
-                    ))}
-                  </select>
+                  <Select
+                    value={f.recipe_id || undefined}
+                    onChange={(v) => setFloorRecipe(f.floor_number, v ?? '')}
+                    placeholder="เลือกสูตร"
+                    allowClear
+                    showSearch
+                    size="small"
+                    style={{ flex: 1 }}
+                    options={filteredRecipes.map((r) => ({
+                      label: `${r.name} (${r.time_per_unit})`,
+                      value: r.id,
+                    }))}
+                    filterOption={(input, opt) =>
+                      (opt?.label as string ?? '').toLowerCase().includes(input.toLowerCase())
+                    }
+                  />
 
                   {/* Preview count */}
                   <span className="text-xs text-gray-400 text-right tabular-nums">
