@@ -9,7 +9,7 @@
  */
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import type { Recipe, Machine, StockMap, StockImageMap } from './types.js';
+import type { Recipe, Machine, StockMap, StockImageMap, FloorTimer } from './types.js';
 
 // ── Singleton ─────────────────────────────────────────────────────────────────
 let _client: SupabaseClient | null = null;
@@ -320,4 +320,42 @@ export async function upsertStockImage(itemId: string, imageUrl: string): Promis
     .from('stock_images')
     .upsert({ item_id: itemId, image_url: imageUrl }, { onConflict: 'item_id' });
   if (error) throw new Error(`upsertStockImage: ${error.message}`);
+}
+
+// ── Floor timers ─────────────────────────────────────────────────────────────
+
+export async function readFloorTimers(): Promise<FloorTimer[]> {
+  const db = getSupabase();
+  const { data, error } = await db
+    .from('floor_timers')
+    .select('floor_number, profession, machine_id, recipe_id, status, start_time, estimated_duration_seconds, completed_at')
+    .order('floor_number', { ascending: true });
+  if (error) throw new Error(`readFloorTimers: ${error.message}`);
+  return (data ?? []) as FloorTimer[];
+}
+
+export async function createFloorTimer(floorNumber: number, profession?: string): Promise<FloorTimer> {
+  const db = getSupabase();
+  const { data, error } = await db
+    .from('floor_timers')
+    .insert({ floor_number: floorNumber, profession: profession || null })
+    .select('floor_number, profession, machine_id, recipe_id, status, start_time, estimated_duration_seconds, completed_at')
+    .single();
+  if (error) throw new Error(`createFloorTimer: ${error.message}`);
+  return data as FloorTimer;
+}
+
+export async function updateFloorTimer(
+  floorNumber: number,
+  patch: Partial<Pick<FloorTimer, 'profession' | 'machine_id' | 'recipe_id' | 'status' | 'start_time' | 'estimated_duration_seconds' | 'completed_at'>>,
+): Promise<FloorTimer> {
+  const db = getSupabase();
+  const { data, error } = await db
+    .from('floor_timers')
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq('floor_number', floorNumber)
+    .select('floor_number, profession, machine_id, recipe_id, status, start_time, estimated_duration_seconds, completed_at')
+    .single();
+  if (error) throw new Error(`updateFloorTimer: ${error.message}`);
+  return data as FloorTimer;
 }
