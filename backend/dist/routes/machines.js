@@ -30,10 +30,7 @@ function computeMaxHours(machines, recipes) {
 /** GET /api/machines — list all, with max_hours_limit computed from recipes */
 router.get('/api/machines', async (_req, res) => {
     try {
-        const [machines, recipes, stocks] = await Promise.all([(0, fileStore_1.readMachines)(), (0, fileStore_1.readRecipes)(), (0, fileStore_1.readStocks)()]);
-        const conflict = (0, names_1.findNameConflict)(body.machine_name, { recipes, machines, stocks });
-        if (conflict)
-            return res.status(409).json({ error: (0, names_1.duplicateNameError)(conflict) });
+        const [machines, recipes] = await Promise.all([(0, fileStore_1.readMachines)(), (0, fileStore_1.readRecipes)()]);
         res.json(computeMaxHours(machines, recipes));
     }
     catch {
@@ -49,6 +46,9 @@ router.post('/api/machines', async (req, res) => {
         return res.status(400).json({ error: 'floor_number must be a positive number' });
     try {
         const [machines, recipes, stocks] = await Promise.all([(0, fileStore_1.readMachines)(), (0, fileStore_1.readRecipes)(), (0, fileStore_1.readStocks)()]);
+        const conflict = (0, names_1.findNameConflict)(body.machine_name, { recipes, machines, stocks });
+        if (conflict)
+            return res.status(409).json({ error: (0, names_1.duplicateNameError)(conflict) });
         const newMachine = {
             machine_id: (0, crypto_1.randomUUID)(),
             machine_name: body.machine_name.trim(),
@@ -73,7 +73,7 @@ router.put('/api/machines/:id', async (req, res) => {
     const { id } = req.params;
     const body = req.body;
     try {
-        const [machines, recipes] = await Promise.all([(0, fileStore_1.readMachines)(), (0, fileStore_1.readRecipes)()]);
+        const [machines, recipes, stocks] = await Promise.all([(0, fileStore_1.readMachines)(), (0, fileStore_1.readRecipes)(), (0, fileStore_1.readStocks)()]);
         const idx = machines.findIndex((m) => m.machine_id === id);
         if (idx === -1)
             return res.status(404).json({ error: `Machine "${id}" not found` });

@@ -1,7 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.parseTimeToHours = parseTimeToHours;
-exports.hoursToTimeString = hoursToTimeString;
+exports.hoursToTimeString = exports.parseTimeToHours = void 0;
 /**
  * Parse a "HH:MM:SS" string to decimal hours.
  * e.g. "07:05:53" → 7.0980555...
@@ -18,6 +17,7 @@ function parseTimeToHours(time) {
         return 0;
     return h + m / 60 + s / 3600;
 }
+exports.parseTimeToHours = parseTimeToHours;
 /**
  * Convert decimal hours back to "HH:MM:SS" string.
  * e.g. 7.0980555 → "07:05:53"
@@ -29,3 +29,4 @@ function hoursToTimeString(hours) {
     const s = totalSeconds % 60;
     return [h, m, s].map((v) => String(v).padStart(2, '0')).join(':');
 }
+exports.hoursToTimeString = hoursToTimeString;

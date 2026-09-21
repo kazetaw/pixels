@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.calculate = calculate;
+exports.calculate = void 0;
 const time_1 = require("../utils/time");
 /**
  * Convert a snake_case identifier to Title Case.
@@ -123,3 +123,4 @@ function calculate(targets, recipes, machines, stocks) {
     }
     return { shopping_list, machine_workloads };
 }
+exports.calculate = calculate;

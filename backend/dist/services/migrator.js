@@ -13,7 +13,7 @@
  * Idempotent: running multiple times produces the same result.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.runMigration = runMigration;
+exports.runMigration = void 0;
 const fileStore_1 = require("./fileStore");
 async function runMigration() {
     const [recipes, stocks] = await Promise.all([(0, fileStore_1.readRecipes)(), (0, fileStore_1.readStocks)()]);
@@ -82,3 +82,4 @@ async function runMigration() {
     }
     return { stocksFixed, ingredientsFixed, totalChanges };
 }
+exports.runMigration = runMigration;

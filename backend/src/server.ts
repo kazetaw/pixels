@@ -7,6 +7,7 @@ import planRouter from './routes/plan';
 import recipesRouter from './routes/recipes';
 import diagnoseRouter from './routes/diagnose';
 import machinesRouter from './routes/machines';
+import budgetsRouter from './routes/budgets';
 import { runMigration } from './services/migrator';
 
 const app = express();
@@ -26,6 +27,7 @@ app.use(planRouter);
 app.use(recipesRouter);
 app.use(diagnoseRouter);
 app.use(machinesRouter);
+app.use(budgetsRouter);
 
 // Health check
 app.get('/health', (_req, res) => {

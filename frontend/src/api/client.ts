@@ -1,4 +1,4 @@
-import { AppData, StockMap, StockImageMap, TargetItem, CalculateResponse, PlanRequest, PlanResponse, Recipe, FloorTimer } from '../types';
+import { AppData, Budget, StockMap, StockImageMap, StockPurchase, TargetItem, CalculateResponse, PlanRequest, PlanResponse, Recipe, FloorTimer } from '../types';
 
 /**
  * Helper to handle fetch responses — throws with server error message on non-OK status.
@@ -28,6 +28,23 @@ export async function saveStocks(stocks: StockMap, images?: StockImageMap): Prom
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(images !== undefined ? { stocks, images } : stocks),
+  }));
+}
+
+export async function fetchBudgetData(): Promise<{ budgets: Budget[]; purchases: StockPurchase[] }> {
+  return handleResponse(await fetch('/api/budgets'));
+}
+
+export async function saveBudget(currency: Budget['currency'], limit_amount: number): Promise<Budget> {
+  return handleResponse(await fetch('/api/budgets', {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ currency, limit_amount }),
+  }));
+}
+
+export async function createStockPurchase(input: Omit<StockPurchase, 'id' | 'purchased_at'>): Promise<StockPurchase> {
+  return handleResponse(await fetch('/api/purchases', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input),
   }));
 }
 

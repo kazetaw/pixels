@@ -26,6 +26,23 @@ export interface Machine {
 export type StockMap = Record<string, number>;      // item_id → quantity
 export type StockImageMap = Record<string, string>; // item_id → URL
 
+export type Currency = 'THB' | 'G';
+
+export interface Budget {
+  currency: Currency;
+  limit_amount: number;
+}
+
+export interface StockPurchase {
+  id: string;
+  item_id: string;
+  quantity: number;
+  total_amount: number;
+  currency: Currency;
+  source?: string;
+  purchased_at: string;
+}
+
 export interface TargetItem {
   target_item_id: string;
   target_quantity: number;

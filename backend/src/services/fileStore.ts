@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import { Recipe, Machine, StockMap, StockImageMap } from '../types';
+import { Budget, Recipe, Machine, StockMap, StockImageMap, StockPurchase } from '../types';
 
 // Data directory is at backend/data/ relative to this file's location (src/services/)
 const DATA_DIR = path.resolve(__dirname, '../../data');
@@ -9,6 +9,8 @@ const RECIPES_PATH = path.join(DATA_DIR, 'recipes.json');
 const MACHINES_PATH = path.join(DATA_DIR, 'machines.json');
 const STOCKS_PATH = path.join(DATA_DIR, 'stocks.json');
 const STOCK_IMAGES_PATH = path.join(DATA_DIR, 'stock_images.json');
+const BUDGETS_PATH = path.join(DATA_DIR, 'budgets.json');
+const PURCHASES_PATH = path.join(DATA_DIR, 'stock_purchases.json');
 
 /**
  * Read all recipes from recipes.json.
@@ -74,6 +76,34 @@ export async function writeStocks(stocks: StockMap): Promise<void> {
  */
 export async function writeStockImages(images: StockImageMap): Promise<void> {
   await fs.writeFile(STOCK_IMAGES_PATH, JSON.stringify(images, null, 2), 'utf-8');
+}
+
+export async function readBudgets(): Promise<Budget[]> {
+  try {
+    const raw = await fs.readFile(BUDGETS_PATH, 'utf-8');
+    return raw.trim() ? JSON.parse(raw) as Budget[] : [];
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    throw err;
+  }
+}
+
+export async function writeBudgets(budgets: Budget[]): Promise<void> {
+  await fs.writeFile(BUDGETS_PATH, JSON.stringify(budgets, null, 2), 'utf-8');
+}
+
+export async function readStockPurchases(): Promise<StockPurchase[]> {
+  try {
+    const raw = await fs.readFile(PURCHASES_PATH, 'utf-8');
+    return raw.trim() ? JSON.parse(raw) as StockPurchase[] : [];
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    throw err;
+  }
+}
+
+export async function writeStockPurchases(purchases: StockPurchase[]): Promise<void> {
+  await fs.writeFile(PURCHASES_PATH, JSON.stringify(purchases, null, 2), 'utf-8');
 }
 
 /**
