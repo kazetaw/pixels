@@ -216,7 +216,7 @@ function RecipeForm({ initial, recipes, machines, stocks, onSave, onCancel }: Re
 
         {/* Image */}
         <Form.Item label="รูปสินค้า">
-          <ImagePicker value={image} onChange={setImage} folder="recipes" itemId={initial?.id} size={56} variant="button" />
+          <ImagePicker value={image} onChange={setImage} folder="recipes" itemId={initial?.id} size={56} variant="recipe" />
         </Form.Item>
 
         {/* Machine */}
@@ -380,6 +380,17 @@ export function RecipeEditor({ recipes, machines, stocks, onChange }: RecipeEdit
     onChange();
   };
 
+  const handleTableImageChange = async (recipe: Recipe, image: string | undefined) => {
+    await updateRecipe(recipe.id, {
+      name: recipe.name,
+      machine_id: recipe.machine_id,
+      time_per_unit: recipe.time_per_unit,
+      ingredients: recipe.ingredients,
+      image,
+    });
+    onChange();
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm('ต้องการลบ recipe นี้ใช่ไหม?')) return;
     setDeleting(id);
@@ -451,17 +462,13 @@ export function RecipeEditor({ recipes, machines, stocks, onChange }: RecipeEdit
               <tr key={r.id} className="hover:bg-gray-50">
                 {/* image thumbnail */}
                 <td className="px-3 py-2">
-                  {r.image ? (
-                    <img
-                      src={r.image}
-                      alt={r.name}
-                      className="h-10 w-10 rounded object-contain bg-gray-50 border border-gray-100"
-                    />
-                  ) : (
-                    <div className="h-10 w-10 rounded bg-gray-100 border border-gray-100 flex items-center justify-center text-gray-300 text-xs">
-                      —
-                    </div>
-                  )}
+                  <ImagePicker
+                    value={r.image}
+                    onChange={(image) => { void handleTableImageChange(r, image); }}
+                    folder="recipes"
+                    itemId={r.id}
+                    variant="table"
+                  />
                 </td>
                 <td className="px-4 py-2 font-medium text-gray-800">{r.name}</td>
                 <td className="px-4 py-2 text-gray-600 text-xs">{r.machine_id ? (machineMap.get(r.machine_id) ?? '—') : '—'}</td>
