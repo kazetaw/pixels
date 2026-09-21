@@ -12,6 +12,24 @@ export interface Recipe {
 /** Per-item image store: item_id → base64/URL image */
 export type StockImageMap = Record<string, string>;
 
+export type Currency = 'THB' | 'G';
+
+export interface Budget {
+  currency: Currency;
+  limit_amount: number;
+}
+
+export interface StockPurchase {
+  id: string;
+  item_id: string;
+  quantity: number;
+  total_amount: number;
+  currency: Currency;
+  source?: string;
+  contributor?: string;  // ผู้ให้งบ / ผู้จ่ายเงิน
+  purchased_at: string;
+}
+
 export interface Machine {
   machine_id: string;
   machine_name: string;

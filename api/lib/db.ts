@@ -9,7 +9,7 @@
  */
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import type { Recipe, Machine, StockMap, StockImageMap, FloorTimer } from './types.js';
+import type { Budget, Currency, Recipe, Machine, StockMap, StockImageMap, StockPurchase, FloorTimer } from './types.js';
 
 // ── Singleton ─────────────────────────────────────────────────────────────────
 let _client: SupabaseClient | null = null;
@@ -320,6 +320,72 @@ export async function upsertStockImage(itemId: string, imageUrl: string): Promis
     .from('stock_images')
     .upsert({ item_id: itemId, image_url: imageUrl }, { onConflict: 'item_id' });
   if (error) throw new Error(`upsertStockImage: ${error.message}`);
+}
+
+// ── Budgets and purchases ───────────────────────────────────────────────────
+
+export async function readBudgets(): Promise<Budget[]> {
+  const db = getSupabase();
+  const { data, error } = await db
+    .from('budgets')
+    .select('currency, limit_amount')
+    .order('currency', { ascending: true });
+  if (error) throw new Error(`readBudgets: ${error.message}`);
+  return (data ?? []).map((row) => ({
+    currency: row.currency as Currency,
+    limit_amount: Number(row.limit_amount),
+  }));
+}
+
+export async function saveBudget(currency: Currency, limitAmount: number): Promise<Budget> {
+  const db = getSupabase();
+  const { data, error } = await db
+    .from('budgets')
+    .upsert({ currency, limit_amount: limitAmount, updated_at: new Date().toISOString() }, { onConflict: 'currency' })
+    .select('currency, limit_amount')
+    .single();
+  if (error) throw new Error(`saveBudget: ${error.message}`);
+  return { currency: data.currency as Currency, limit_amount: Number(data.limit_amount) };
+}
+
+export async function readStockPurchases(limit = 100): Promise<StockPurchase[]> {
+  const db = getSupabase();
+  const { data, error } = await db
+    .from('stock_purchases')
+    .select('id, item_id, quantity, total_amount, currency, source, purchased_at')
+    .order('purchased_at', { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(`readStockPurchases: ${error.message}`);
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    item_id: row.item_id,
+    quantity: row.quantity,
+    total_amount: Number(row.total_amount),
+    currency: row.currency as Currency,
+    source: row.source ?? undefined,
+    purchased_at: row.purchased_at,
+  }));
+}
+
+export async function createStockPurchase(input: Omit<StockPurchase, 'id' | 'purchased_at'>): Promise<StockPurchase> {
+  const db = getSupabase();
+  const { data, error } = await db.rpc('record_stock_purchase', {
+    p_item_id: input.item_id,
+    p_quantity: input.quantity,
+    p_total_amount: input.total_amount,
+    p_currency: input.currency,
+    p_source: input.source ?? null,
+  });
+  if (error) throw new Error(`createStockPurchase: ${error.message}`);
+  return {
+    id: data.id,
+    item_id: data.item_id,
+    quantity: data.quantity,
+    total_amount: Number(data.total_amount),
+    currency: data.currency as Currency,
+    source: data.source ?? undefined,
+    purchased_at: data.purchased_at,
+  };
 }
 
 // ── Floor timers ─────────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.enrichMachines = enrichMachines;
+exports.enrichMachines = void 0;
 const express_1 = require("express");
 const fileStore_1 = require("../services/fileStore");
 const time_1 = require("../utils/time");
@@ -21,6 +21,7 @@ function enrichMachines(machines, recipes) {
         max_hours_limit: maxHoursMap.get(m.machine_id) ?? 0,
     }));
 }
+exports.enrichMachines = enrichMachines;
 /**
  * GET /api/data
  * Returns all recipes, machines (with computed max_hours_limit), and stocks.

@@ -15,6 +15,7 @@ import {
   insertMachine, updateMachine as dbUpdateMachine, deleteMachine as dbDeleteMachine,
   insertRecipe, updateRecipe as dbUpdateRecipe, deleteRecipe as dbDeleteRecipe,
   writeStocks, writeStockImages, getSupabase, readFloorTimers, createFloorTimer, updateFloorTimer,
+  readBudgets, saveBudget, readStockPurchases, createStockPurchase,
 } from './lib/db.js';
 import { parseTimeToHours } from './lib/time.js';
 import { findNameConflict, duplicateNameError, normalizeName } from './lib/names.js';
@@ -24,6 +25,7 @@ import type {
   TargetItem, PlanRequest, PlanResponse,
   FloorPlanResult, BomTreeNode, RawMaterialEntry, IntermediateSupplyEntry,
   FloorTimer,
+  Budget, Currency, StockPurchase,
 } from './lib/types.js';
 import { randomUUID } from 'crypto';
 import { Readable } from 'stream';
@@ -363,6 +365,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (segments[0] === 'stock-images' && method === 'GET') {
     try { return res.json(await readStockImages()); }
     catch (e) { return res.status(500).json({ error: (e as Error).message }); }
+  }
+
+  // ── Budgets and purchases ──────────────────────────────────────────────────
+  if (segments[0] === 'budgets') {
+    if (method === 'GET') {
+      try {
+        const [budgets, purchases] = await Promise.all([readBudgets(), readStockPurchases()]);
+        return res.json({ budgets, purchases });
+      } catch (e) { return res.status(500).json({ error: (e as Error).message }); }
+    }
+    if (method === 'PUT') {
+      const body = req.body as Partial<Budget>;
+      if ((body.currency !== 'THB' && body.currency !== 'G') || typeof body.limit_amount !== 'number' || body.limit_amount < 0)
+        return res.status(400).json({ error: 'currency must be THB or G and limit_amount must be non-negative' });
+      try { return res.json(await saveBudget(body.currency, body.limit_amount)); }
+      catch (e) { return res.status(500).json({ error: (e as Error).message }); }
+    }
+  }
+
+  if (segments[0] === 'purchases' && method === 'POST') {
+    const body = req.body as Partial<StockPurchase>;
+    if (!body.item_id?.trim() || typeof body.quantity !== 'number' || !Number.isInteger(body.quantity) || body.quantity <= 0 || typeof body.total_amount !== 'number' || body.total_amount < 0 || (body.currency !== 'THB' && body.currency !== 'G'))
+      return res.status(400).json({ error: 'item_id, a positive integer quantity, non-negative total_amount, and THB or G currency are required' });
+    try {
+      const quantity = body.quantity as number;
+      const totalAmount = body.total_amount as number;
+      const currency = body.currency as Currency;
+      const purchase = await createStockPurchase({
+        item_id: body.item_id.trim(), quantity, total_amount: totalAmount,
+        currency, source: body.source?.trim() || undefined,
+      });
+      return res.status(201).json(purchase);
+    } catch (e) { return res.status(500).json({ error: (e as Error).message }); }
   }
 
   // ── POST /api/calculate ──────────────────────────────────────────────────────

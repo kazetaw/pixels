@@ -1,8 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.normalizeName = normalizeName;
-exports.findNameConflict = findNameConflict;
-exports.duplicateNameError = duplicateNameError;
+exports.duplicateNameError = exports.findNameConflict = exports.normalizeName = void 0;
 /**
  * Names are compared without surrounding whitespace or case differences.
  * IDs that belong to recipes are stock references, not raw-material names.
@@ -10,6 +8,7 @@ exports.duplicateNameError = duplicateNameError;
 function normalizeName(name) {
     return name.trim().normalize('NFKC').toLocaleLowerCase('th');
 }
+exports.normalizeName = normalizeName;
 function findNameConflict(candidate, { recipes, machines, stocks, excludeRecipeId, excludeMachineId }) {
     const normalized = normalizeName(candidate);
     if (!normalized)
@@ -25,6 +24,8 @@ function findNameConflict(candidate, { recipes, machines, stocks, excludeRecipeI
     if (stockName)
         return { type: 'วัตถุดิบ', name: stockName };
 }
+exports.findNameConflict = findNameConflict;
 function duplicateNameError(conflict) {
     return `ชื่อนี้ซ้ำกับ${conflict.type} "${conflict.name}" กรุณาใช้ชื่ออื่น`;
 }
+exports.duplicateNameError = duplicateNameError;
