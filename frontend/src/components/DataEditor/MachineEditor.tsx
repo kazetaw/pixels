@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  Table, Button, Input, Select, Modal, Form, InputNumber,
+  Table, Button, Input, Modal, Form, InputNumber,
   Space, Tag, Avatar, Typography, Tooltip, message,
 } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons';
@@ -8,31 +8,14 @@ import type { ColumnsType } from 'antd/es/table';
 import { Machine, Recipe, StockMap } from '../../types';
 import { createMachine, updateMachine, deleteMachine } from '../../api/client';
 import { ImagePicker } from '../shared/ImagePicker';
+import {
+  OccupationSelect,
+  OCCUPATION_IMAGE,
+  OCCUPATION_COLOR,
+  type Occupation,
+} from '../shared/OccupationSelect';
 
 const { Text } = Typography;
-
-// Valid occupation values
-type Occupation = 'วิศวะกร' | 'หมอ' | 'เชฟ' | 'ไอดอล' | 'เกษตร' | 'ทุกอาชีพ';
-
-const OCCUPATIONS: Occupation[] = ['วิศวะกร', 'หมอ', 'เชฟ', 'ไอดอล', 'เกษตร', 'ทุกอาชีพ'];
-
-const OCCUPATION_IMAGE: Record<Occupation, string> = {
-  วิศวะกร: '/occupations/engineer.png',
-  หมอ:      '/occupations/doctor.png',
-  เชฟ:      '/occupations/chef.png',
-  ไอดอล:   '/occupations/idol.png',
-  เกษตร:   '/occupations/farmer.png',
-  ทุกอาชีพ: '/occupations/all.png',
-};
-
-const OCCUPATION_COLOR: Record<Occupation, string> = {
-  วิศวะกร: 'blue',
-  หมอ:      'green',
-  เชฟ:      'orange',
-  ไอดอล:   'pink',
-  เกษตร:   'lime',
-  ทุกอาชีพ: 'purple',
-};
 
 function OccupationBadge({ occ }: { occ: Occupation }) {
   return (
@@ -142,16 +125,7 @@ function MachineFormModal({ open, initial, machines, recipes, stocks, onSave, on
         </Form.Item>
 
         <Form.Item name="occupation" label="อาชีพ">
-          <Select placeholder="เลือกอาชีพ (ไม่บังคับ)" allowClear>
-            {OCCUPATIONS.map((occ) => (
-              <Select.Option key={occ} value={occ}>
-                <Space size={4}>
-                  <Avatar src={OCCUPATION_IMAGE[occ]} size={16} />
-                  {occ}
-                </Space>
-              </Select.Option>
-            ))}
-          </Select>
+          <OccupationSelect placeholder="เลือกอาชีพ (ไม่บังคับ)" allowClear style={{ width: '100%' }} />
         </Form.Item>
 
         {/* รูปภาพ — อัปโหลดผ่าน Supabase Storage */}
@@ -316,17 +290,13 @@ export function MachineEditor({ machines, recipes, stocks, onChange }: MachineEd
           style={{ width: 200 }}
           allowClear
         />
-        <Select
+        <OccupationSelect
           value={filterOcc || undefined}
-          onChange={(v) => setFilterOcc(v ?? '')}
+          onChange={(v) => setFilterOcc((v as string) ?? '')}
           placeholder="ทุกอาชีพ"
           allowClear
-          style={{ width: 140 }}
-        >
-          {OCCUPATIONS.map((o) => (
-            <Select.Option key={o} value={o}>{o}</Select.Option>
-          ))}
-        </Select>
+          style={{ width: 160 }}
+        />
         <Button
           type="primary"
           icon={<PlusOutlined />}

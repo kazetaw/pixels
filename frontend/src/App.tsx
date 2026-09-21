@@ -8,6 +8,7 @@ import {
   PlayCircleOutlined,
   LoadingOutlined,
   MenuOutlined,
+  InboxOutlined,
 } from '@ant-design/icons';
 import { useAppState } from './hooks/useAppState';
 import { TargetItemForm }       from './components/Sidebar/TargetItemForm';
@@ -17,16 +18,18 @@ import { ShoppingListTable }    from './components/MainPanel/ShoppingListTable';
 import { MachineWorkloadTable } from './components/MainPanel/MachineWorkloadTable';
 import { ProductionPlanner }    from './components/Planner/ProductionPlanner';
 import { DataEditor }           from './components/DataEditor/DataEditor';
+import { StockInventory }       from './components/Inventory/StockInventory';
 import type { SaveStatus }      from './hooks/useAppState';
 
 const { Sider, Content } = Layout;
 
-type MainView = 'calculator' | 'planner' | 'data';
+type MainView = 'calculator' | 'planner' | 'data' | 'inventory';
 
 const NAV_ITEMS = [
   { key: 'calculator', icon: <CalculatorOutlined />, label: 'คำนวณ BOM' },
   { key: 'planner',    icon: <BarChartOutlined />,   label: 'วางแผนการผลิต' },
   { key: 'data',       icon: <DatabaseOutlined />,   label: 'จัดการข้อมูล' },
+  { key: 'inventory',  icon: <InboxOutlined />,      label: 'คลังสต็อก' },
 ];
 
 const SIDER_W = 200; // px — ลดจาก 240 เพราะชื่อเมนูสั้น
@@ -276,6 +279,20 @@ export default function App() {
             <div className="page-content">
               <PageHead title="วางแผนการผลิต" sub="กำหนดสูตรแต่ละชั้น ระยะเวลา Event และดูผลการผลิตพร้อมวัตถุดิบที่ต้องใช้" />
               <ProductionPlanner recipes={recipes} stocks={stocks} machines={_machines} />
+            </div>
+          )}
+
+          {view === 'inventory' && (
+            <div className="page-content">
+              <PageHead
+                title="คลังสต็อก"
+                sub="รายการวัตถุดิบและสินค้าที่มีอยู่ในคลังตอนนี้"
+              />
+              <StockInventory
+                stocks={stocks}
+                stockImages={stockImages}
+                recipes={recipes}
+              />
             </div>
           )}
 
