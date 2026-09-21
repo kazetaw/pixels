@@ -1,7 +1,17 @@
 import { useState, useMemo } from 'react';
+import {
+  Table, Button, Input, InputNumber, Select, Modal, Form,
+  Popconfirm, Tag, Space, message, Typography,
+} from 'antd';
+import {
+  PlusOutlined, DeleteOutlined, SearchOutlined, SaveOutlined,
+} from '@ant-design/icons';
+import type { ColumnsType } from 'antd/es/table';
 import { StockMap, StockImageMap, Recipe, Machine } from '../../types';
 import { saveStocks } from '../../api/client';
 import { ImagePicker } from '../shared/ImagePicker';
+
+const { Text } = Typography;
 
 interface StockEditorFullProps {
   stocks: StockMap;
@@ -11,7 +21,6 @@ interface StockEditorFullProps {
   onSaved: (newStocks: StockMap, newImages: StockImageMap) => void;
 }
 
-// ── derive all known item names ───────────────────────────────────────────────
 function buildItemNames(recipes: Recipe[]): Map<string, string> {
   const m = new Map<string, string>();
   for (const r of recipes) {
@@ -23,18 +32,160 @@ function buildItemNames(recipes: Recipe[]): Map<string, string> {
   return m;
 }
 
-// ── main component ────────────────────────────────────────────────────────────
+// ── Add Item Modal ────────────────────────────────────────────────────────────
+interface AddModalProps {
+  open: boolean;
+  recipes: Recipe[];
+  machines: Machine[];
+  existingKeys: string[];
+  onAdd: (key: string, qty: number, image?: string) => void;
+  onClose: () => void;
+}
+
+function AddItemModal({ open, recipes, machines, existingKeys, onAdd, onClose }: AddModalProps) {
+  const [form] = Form.useForm();
+  const [mode, setMode] = useState<'raw' | 'recipe'>('raw');
+  const [image, setImage] = useState<string | undefined>();
+  const [adding, setAdding] = useState(false);
+
+  const recipeOptions = recipes
+    .filter((r) => !existingKeys.includes(r.id))
+    .sort((a, b) => a.name.localeCompare(b.name, 'th'))
+    .map((r) => ({ label: r.name, value: r.id }));
+
+  const handleOk = async () => {
+    try {
+      const values = await form.validateFields();
+      setAdding(true);
+
+      let key = '';
+      if (mode === 'recipe') {
+        key = values.recipe_id;
+      } else {
+        key = values.raw_name.trim();
+        // duplicate check
+        const norm = key.normalize('NFKC').toLocaleLowerCase('th');
+        const recipeIds = new Set(recipes.map((r) => r.id));
+        const conflict = [
+          ...recipes.map((r) => r.name),
+          ...machines.map((m) => m.machine_name),
+          ...existingKeys.filter((k) => !recipeIds.has(k)),
+        ].find((n) => n.trim().normalize('NFKC').toLocaleLowerCase('th') === norm);
+        if (conflict) {
+          form.setFields([{ name: 'raw_name', errors: [`ชื่อนี้ซ้ำกับ "${conflict}"`] }]);
+          setAdding(false);
+          return;
+        }
+      }
+
+      onAdd(key, values.qty ?? 0, image);
+      form.resetFields();
+      setImage(undefined);
+      setMode('raw');
+      onClose();
+    } catch {
+      // validation
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const handleClose = () => {
+    form.resetFields();
+    setImage(undefined);
+    setMode('raw');
+    onClose();
+  };
+
+  return (
+    <Modal
+      open={open}
+      title="เพิ่มรายการสต็อก"
+      okText="เพิ่ม"
+      cancelText="ยกเลิก"
+      onOk={handleOk}
+      onCancel={handleClose}
+      confirmLoading={adding}
+      destroyOnClose
+    >
+      <Form form={form} layout="vertical" style={{ marginTop: 12 }}>
+        {/* Mode selector */}
+        <Form.Item label="ประเภทรายการ">
+          <Select
+            value={mode}
+            onChange={(v) => { setMode(v); form.resetFields(['raw_name', 'recipe_id']); }}
+            options={[
+              { label: 'วัตถุดิบดิบ (พิมพ์ชื่อเอง)', value: 'raw' },
+              { label: 'สินค้าจาก Recipe', value: 'recipe' },
+            ]}
+          />
+        </Form.Item>
+
+        {/* Raw material name */}
+        {mode === 'raw' && (
+          <Form.Item
+            name="raw_name"
+            label="ชื่อวัตถุดิบ"
+            rules={[{ required: true, message: 'กรุณากรอกชื่อ' }]}
+          >
+            <Input placeholder="เช่น แร่เหล็ก, ใบไม้สีเขียว" autoFocus />
+          </Form.Item>
+        )}
+
+        {/* Recipe picker */}
+        {mode === 'recipe' && (
+          <Form.Item
+            name="recipe_id"
+            label="Recipe"
+            rules={[{ required: true, message: 'กรุณาเลือก recipe' }]}
+          >
+            <Select
+              showSearch
+              placeholder="ค้นหา recipe…"
+              options={recipeOptions}
+              filterOption={(input, opt) =>
+                (opt?.label as string ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+            />
+          </Form.Item>
+        )}
+
+        {/* Quantity */}
+        <Form.Item name="qty" label="จำนวนเริ่มต้น" initialValue={0}>
+          <InputNumber min={0} style={{ width: '100%' }} />
+        </Form.Item>
+
+        {/* Image */}
+        <Form.Item label="รูปภาพ (ไม่บังคับ)">
+          <ImagePicker
+            value={image}
+            onChange={setImage}
+            folder="stocks"
+            size={48}
+            variant="button"
+          />
+        </Form.Item>
+      </Form>
+    </Modal>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+interface RowData {
+  key: string;
+  name: string;
+  isRecipe: boolean;
+  qty: number;
+  image?: string;
+}
+
 export function StockEditorFull({ stocks, stockImages, recipes, machines, onSaved }: StockEditorFullProps) {
   const [local, setLocal] = useState<StockMap>({ ...stocks });
   const [localImages, setLocalImages] = useState<StockImageMap>({ ...stockImages });
   const [search, setSearch] = useState('');
-  const [newKey, setNewKey] = useState('');
-  const [newQty, setNewQty] = useState('');
-  const [newImage, setNewImage] = useState<string | undefined>(undefined);
-  const [useRecipe, setUseRecipe] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [err, setErr] = useState('');
+  const [msgApi, msgCtx] = message.useMessage();
 
   const nameMap = useMemo(() => buildItemNames(recipes), [recipes]);
 
@@ -47,14 +198,24 @@ export function StockEditorFull({ stocks, stockImages, recipes, machines, onSave
     });
   }, [local, nameMap]);
 
-  const filtered = allKeys.filter((k) => {
-    const name = nameMap.get(k) ?? k;
-    return name.toLowerCase().includes(search.toLowerCase()) || k.toLowerCase().includes(search.toLowerCase());
-  });
+  const tableData: RowData[] = allKeys
+    .filter((k) => {
+      const name = nameMap.get(k) ?? k;
+      return (
+        name.toLowerCase().includes(search.toLowerCase()) ||
+        k.toLowerCase().includes(search.toLowerCase())
+      );
+    })
+    .map((k) => ({
+      key: k,
+      name: nameMap.get(k) ?? k,
+      isRecipe: recipes.some((r) => r.id === k),
+      qty: local[k] ?? 0,
+      image: localImages[k],
+    }));
 
-  const handleChange = (key: string, val: string) => {
-    setLocal((prev) => ({ ...prev, [key]: Number(val) }));
-    setSaved(false);
+  const handleQtyChange = (key: string, val: number | null) => {
+    setLocal((prev) => ({ ...prev, [key]: val ?? 0 }));
   };
 
   const handleImageChange = (key: string, img: string | undefined) => {
@@ -64,169 +225,153 @@ export function StockEditorFull({ stocks, stockImages, recipes, machines, onSave
       else delete next[key];
       return next;
     });
-    setSaved(false);
   };
 
   const handleDelete = (key: string) => {
     setLocal((prev) => { const n = { ...prev }; delete n[key]; return n; });
     setLocalImages((prev) => { const n = { ...prev }; delete n[key]; return n; });
-    setSaved(false);
   };
 
-  const handleAdd = () => {
-    const k = newKey.trim();
-    const q = Number(newQty);
-    if (!k) { setErr('กรุณากรอกชื่อหรือเลือก recipe'); return; }
-    if (!useRecipe) {
-      const normalizedName = k.normalize('NFKC').toLocaleLowerCase('th');
-      const recipeIds = new Set(recipes.map((recipe) => recipe.id));
-      const conflict = [
-        ...recipes.map((recipe) => recipe.name),
-        ...machines.map((machine) => machine.machine_name),
-        ...Object.keys(local).filter((key) => !recipeIds.has(key)),
-      ].find((otherName) => otherName.trim().normalize('NFKC').toLocaleLowerCase('th') === normalizedName);
-      if (conflict) { setErr(`ชื่อนี้ซ้ำกับ "${conflict}" กรุณาใช้ชื่ออื่น`); return; }
-    }
-    setLocal((prev) => ({ ...prev, [k]: q }));
-    if (newImage) setLocalImages((prev) => ({ ...prev, [k]: newImage }));
-    setNewKey(''); setNewQty(''); setNewImage(undefined); setErr(''); setSaved(false);
+  const handleAdd = (key: string, qty: number, image?: string) => {
+    setLocal((prev) => ({ ...prev, [key]: qty }));
+    if (image) setLocalImages((prev) => ({ ...prev, [key]: image }));
+    msgApi.success('เพิ่มรายการแล้ว');
   };
 
   const handleSave = async () => {
-    setSaving(true); setErr(''); setSaved(false);
+    setSaving(true);
     try {
       await saveStocks(local, localImages);
-      setSaved(true);
       onSaved(local, localImages);
-      setTimeout(() => setSaved(false), 3000);
+      msgApi.success('บันทึกสต็อกสำเร็จ');
     } catch (e: unknown) {
-      setErr((e as Error).message ?? 'บันทึกไม่สำเร็จ');
+      msgApi.error((e as Error).message ?? 'บันทึกไม่สำเร็จ');
     } finally {
       setSaving(false);
     }
   };
 
-  const recipeOptions = recipes
-    .filter((r) => !Object.prototype.hasOwnProperty.call(local, r.id))
-    .sort((a, b) => a.name.localeCompare(b.name, 'th'));
+  const columns: ColumnsType<RowData> = [
+    {
+      title: 'รูป',
+      dataIndex: 'image',
+      width: 64,
+      align: 'center',
+      render: (_, row) => (
+        <ImagePicker
+          value={row.image}
+          onChange={(v) => handleImageChange(row.key, v)}
+          folder="stocks"
+          itemId={row.key}
+          size={36}
+          variant="button"
+        />
+      ),
+    },
+    {
+      title: 'ชื่อรายการ',
+      dataIndex: 'name',
+      render: (name, row) => (
+        <Space direction="vertical" size={0}>
+          <Text strong style={{ fontSize: 13 }}>{name}</Text>
+          {row.isRecipe && (
+            <Tag color="blue" style={{ fontSize: 11, marginTop: 2 }}>สินค้ากึ่งสำเร็จรูป</Tag>
+          )}
+        </Space>
+      ),
+    },
+    {
+      title: 'จำนวนในสต็อก',
+      dataIndex: 'qty',
+      width: 140,
+      align: 'right',
+      render: (_, row) => (
+        <InputNumber
+          min={0}
+          value={local[row.key] ?? 0}
+          onChange={(v) => handleQtyChange(row.key, v)}
+          style={{ width: 100 }}
+          size="small"
+        />
+      ),
+    },
+    {
+      title: '',
+      width: 48,
+      align: 'center',
+      render: (_, row) => (
+        <Popconfirm
+          title="ลบรายการนี้?"
+          description="ต้องการลบออกจากสต็อกใช่ไหม"
+          okText="ลบ"
+          cancelText="ยกเลิก"
+          okType="danger"
+          onConfirm={() => handleDelete(row.key)}
+        >
+          <Button
+            type="text"
+            size="small"
+            danger
+            icon={<DeleteOutlined />}
+          />
+        </Popconfirm>
+      ),
+    },
+  ];
 
   return (
-    <div className="space-y-3">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {msgCtx}
+
       {/* Toolbar */}
-      <div className="flex gap-2">
-        <input value={search} onChange={(e) => setSearch(e.target.value)}
+      <Space wrap>
+        <Input
+          prefix={<SearchOutlined />}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
           placeholder="ค้นหารายการ…"
-          className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
-        <span className="text-xs text-gray-400 self-center whitespace-nowrap">{filtered.length} รายการ (เรียง ก-ฮ)</span>
-      </div>
+          style={{ width: 240 }}
+          allowClear
+        />
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          {tableData.length} รายการ
+        </Text>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={() => setAddOpen(true)}
+        >
+          เพิ่มรายการ
+        </Button>
+        <Button
+          icon={<SaveOutlined />}
+          loading={saving}
+          onClick={handleSave}
+        >
+          บันทึกสต็อก
+        </Button>
+      </Space>
 
-      {/* Stock table */}
-      <div className="rounded-lg border border-gray-200 overflow-hidden max-h-[55vh] overflow-y-auto">
-        <table className="min-w-full divide-y divide-gray-200 text-sm">
-          <thead className="bg-gray-50 sticky top-0 z-10">
-            <tr>
-              <th className="px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase w-14">รูป</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">ชื่อรายการ</th>
-              <th className="px-4 py-3 text-xs font-semibold text-gray-600 uppercase text-center w-32">จำนวนในสต็อก</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase w-16">ลบ</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100 bg-white">
-            {filtered.map((key) => {
-              const name = nameMap.get(key) ?? key;
-              const isRecipe = recipes.some((r) => r.id === key);
-              const img = localImages[key];
-              return (
-                <tr key={key} className="hover:bg-gray-50">
-                  {/* image cell */}
-                  <td className="px-3 py-2">
-                    <ImagePicker
-                      value={img}
-                      onChange={(v) => handleImageChange(key, v)}
-                      folder="stocks"
-                      itemId={key}
-                      size={40}
-                      variant="button"
-                    />
-                  </td>
-                  <td className="px-4 py-2">
-                    <p className="font-medium text-gray-800 text-sm">{name}</p>
-                    {isRecipe && <p className="text-xs text-blue-500">สินค้ากึ่งสำเร็จรูป</p>}
-                  </td>
-                  <td className="px-4 py-2">
-                    <input
-                      type="number" min={0}
-                      value={local[key] ?? 0}
-                      onChange={(e) => handleChange(key, e.target.value)}
-                      className="w-full rounded border border-gray-300 px-2 py-1 text-sm text-right focus:border-blue-500 focus:outline-none"
-                    />
-                  </td>
-                  <td className="px-4 py-2 text-center">
-                    <button onClick={() => handleDelete(key)}
-                      className="text-red-400 hover:text-red-600 text-base font-bold leading-none">✕</button>
-                  </td>
-                </tr>
-              );
-            })}
-            {filtered.length === 0 && (
-              <tr><td colSpan={4} className="px-4 py-6 text-center text-gray-400 italic">ไม่พบรายการ</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      {/* Table */}
+      <Table<RowData>
+        columns={columns}
+        dataSource={tableData}
+        rowKey="key"
+        pagination={{ pageSize: 20, showSizeChanger: false, showTotal: (t) => `ทั้งหมด ${t} รายการ` }}
+        size="small"
+        scroll={{ y: 480 }}
+        locale={{ emptyText: 'ไม่พบรายการ' }}
+      />
 
-      {/* Add row */}
-      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-2">
-        <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">➕ เพิ่มรายการใหม่</p>
-        <div className="flex gap-2 items-center flex-wrap">
-          <label className="flex items-center gap-1 text-xs text-gray-500 cursor-pointer">
-            <input type="checkbox" checked={useRecipe} onChange={(e) => { setUseRecipe(e.target.checked); setNewKey(''); }}
-              className="w-3 h-3" />
-            เลือกจาก Recipe
-          </label>
-          {useRecipe ? (
-            <select value={newKey} onChange={(e) => setNewKey(e.target.value)}
-              className="flex-1 min-w-[160px] rounded border border-gray-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none">
-              <option value="">— เลือก recipe —</option>
-              {recipeOptions.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-            </select>
-          ) : (
-            <input value={newKey} onChange={(e) => setNewKey(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-              placeholder="ชื่อวัตถุดิบดิบ"
-              className="flex-1 min-w-[160px] rounded border border-gray-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" />
-          )}
-          <input type="number" min={0} value={newQty} onChange={(e) => setNewQty(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-            placeholder="จำนวน"
-            className="w-24 rounded border border-gray-300 px-2 py-1.5 text-sm text-center focus:border-blue-500 focus:outline-none" />
-          <button onClick={handleAdd}
-            className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700">
-            เพิ่ม
-          </button>
-        </div>
-        {/* image for new item */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500">รูปรายการใหม่:</span>
-          <ImagePicker
-            value={newImage}
-            onChange={setNewImage}
-            folder="stocks"
-            size={40}
-            variant="button"
-          />
-        </div>
-        {err && <p className="text-xs text-red-600">{err}</p>}
-      </div>
-
-      {/* Save */}
-      <div className="flex items-center gap-3">
-        <button onClick={handleSave} disabled={saving}
-          className="rounded-md bg-green-600 px-5 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50 shadow-sm">
-          {saving ? 'กำลังบันทึก…' : '💾 บันทึกสต็อก'}
-        </button>
-        {saved && <span className="text-sm text-green-600 font-medium">✓ บันทึกสำเร็จ</span>}
-      </div>
+      {/* Add modal */}
+      <AddItemModal
+        open={addOpen}
+        recipes={recipes}
+        machines={machines}
+        existingKeys={Object.keys(local)}
+        onAdd={handleAdd}
+        onClose={() => setAddOpen(false)}
+      />
     </div>
   );
 }
