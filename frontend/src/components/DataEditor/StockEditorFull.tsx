@@ -263,8 +263,7 @@ export function StockEditorFull({ stocks, stockImages, recipes, machines, onSave
           onChange={(v) => handleImageChange(row.key, v)}
           folder="stocks"
           itemId={row.key}
-          size={36}
-          variant="button"
+          variant="table"
         />
       ),
     },
