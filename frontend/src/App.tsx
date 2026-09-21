@@ -9,6 +9,7 @@ import {
   MenuOutlined,
   InboxOutlined,
   ArrowLeftOutlined,
+  ClockCircleOutlined,
 } from '@ant-design/icons';
 import { useAppState } from './hooks/useAppState';
 import { TargetItemForm }       from './components/Sidebar/TargetItemForm';
@@ -19,16 +20,18 @@ import { MachineWorkloadTable } from './components/MainPanel/MachineWorkloadTabl
 import { ProductionPlanner }    from './components/Planner/ProductionPlanner';
 import { DataEditor }           from './components/DataEditor/DataEditor';
 import { StockInventory }       from './components/Inventory/StockInventory';
+import { FloorTimerDashboard }  from './components/Floors/FloorTimerDashboard';
 import type { SaveStatus }      from './hooks/useAppState';
 
 const { Sider, Content } = Layout;
 
-type MainView = 'planner' | 'data' | 'inventory';
+type MainView = 'planner' | 'data' | 'inventory' | 'floors';
 
 const NAV_ITEMS = [
   { key: 'planner',    icon: <BarChartOutlined />,   label: 'วางแผนการผลิต' },
   { key: 'data',       icon: <DatabaseOutlined />,   label: 'จัดการข้อมูล' },
   { key: 'inventory',  icon: <InboxOutlined />,      label: 'คลังสต็อก' },
+  { key: 'floors',     icon: <ClockCircleOutlined />, label: 'สถานะชั้น' },
 ];
 
 const SIDER_W = 200; // px — ลดจาก 240 เพราะชื่อเมนูสั้น
@@ -294,6 +297,13 @@ export default function App() {
                 stockImages={stockImages}
                 recipes={recipes}
               />
+            </div>
+          )}
+
+          {view === 'floors' && (
+            <div className="page-content floor-page-content">
+              <PageHead title="สถานะชั้นผลิต" sub="ติดตามเวลาทำงานของแต่ละชั้น และเริ่มรอบการผลิตใหม่ได้จากหน้านี้" />
+              <FloorTimerDashboard />
             </div>
           )}
 

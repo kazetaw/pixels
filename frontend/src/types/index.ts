@@ -53,6 +53,20 @@ export interface AppData {
   stockImages: StockImageMap;
 }
 
+// ── Factory floor timers ─────────────────────────────────────────────────────
+export type FloorDisplayStatus = 'idle' | 'running' | 'completed' | 'floating';
+
+export interface FloorTimer {
+  floor_number: number;
+  profession?: string;
+  machine_id: string | null;
+  recipe_id: string | null;
+  status: 'idle' | 'running';
+  start_time: string | null;
+  estimated_duration_seconds: number;
+  completed_at: string | null;
+}
+
 // ── Production Planner types ──────────────────────────────────────────────────
 
 export interface FloorAssignment {

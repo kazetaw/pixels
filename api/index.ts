@@ -14,7 +14,7 @@ import {
   readMachines, readRecipes, readStocks, readStockImages,
   insertMachine, updateMachine as dbUpdateMachine, deleteMachine as dbDeleteMachine,
   insertRecipe, updateRecipe as dbUpdateRecipe, deleteRecipe as dbDeleteRecipe,
-  writeStocks, writeStockImages, getSupabase,
+  writeStocks, writeStockImages, getSupabase, readFloorTimers, createFloorTimer, updateFloorTimer,
 } from './lib/db.js';
 import { parseTimeToHours } from './lib/time.js';
 import { findNameConflict, duplicateNameError, normalizeName } from './lib/names.js';
@@ -23,6 +23,7 @@ import type {
   Machine, Recipe, StockMap, StockImageMap,
   TargetItem, PlanRequest, PlanResponse,
   FloorPlanResult, BomTreeNode, RawMaterialEntry, IntermediateSupplyEntry,
+  FloorTimer,
 } from './lib/types.js';
 import { randomUUID } from 'crypto';
 import { Readable } from 'stream';
@@ -157,6 +158,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ]);
       return res.json({ recipes, machines: enrichMachines(machines, recipes), stocks, stockImages });
     } catch (e) { return res.status(500).json({ error: (e as Error).message }); }
+  }
+
+  // ── /api/floors — factory floor timers ─────────────────────────────────────
+  if (segments[0] === 'floors') {
+    const floorNumber = Number(segments[1]);
+
+    if (!segments[1] && method === 'GET') {
+      try { return res.json(await readFloorTimers()); }
+      catch (e) { return res.status(500).json({ error: (e as Error).message }); }
+    }
+
+    if (!segments[1] && method === 'POST') {
+      const body = req.body as Partial<FloorTimer>;
+      if (!Number.isInteger(body.floor_number) || (body.floor_number ?? 0) < 1)
+        return res.status(400).json({ error: 'floor_number must be a positive integer' });
+      try {
+        const existing = await readFloorTimers();
+        if (existing.some((floor) => floor.floor_number === body.floor_number))
+          return res.status(409).json({ error: `มีชั้น ${body.floor_number} อยู่ในระบบแล้ว — โปรดใช้หมายเลขชั้นอื่น` });
+        return res.status(201).json(await createFloorTimer(body.floor_number!, body.profession));
+      }
+      catch (e) { return res.status(500).json({ error: (e as Error).message }); }
+    }
+
+    if (Number.isInteger(floorNumber) && floorNumber >= 1 && method === 'PATCH') {
+      const body = req.body as Partial<FloorTimer>;
+      const allowed: Partial<FloorTimer> = {};
+      if (body.profession !== undefined) allowed.profession = body.profession;
+      if (body.machine_id === null || typeof body.machine_id === 'string') allowed.machine_id = body.machine_id;
+      if (body.recipe_id === null || typeof body.recipe_id === 'string') allowed.recipe_id = body.recipe_id;
+      if (body.status === 'idle' || body.status === 'running') allowed.status = body.status;
+      if (body.start_time === null || typeof body.start_time === 'string') allowed.start_time = body.start_time;
+      if (Number.isInteger(body.estimated_duration_seconds) && body.estimated_duration_seconds! >= 0)
+        allowed.estimated_duration_seconds = body.estimated_duration_seconds;
+      if (body.completed_at === null || typeof body.completed_at === 'string') allowed.completed_at = body.completed_at;
+      if (!Object.keys(allowed).length) return res.status(400).json({ error: 'No valid fields to update' });
+      try { return res.json(await updateFloorTimer(floorNumber, allowed)); }
+      catch (e) { return res.status(500).json({ error: (e as Error).message }); }
+    }
   }
 
   // ── /api/recipes ────────────────────────────────────────────────────────────

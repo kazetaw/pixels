@@ -1,4 +1,4 @@
-import { AppData, StockMap, StockImageMap, TargetItem, CalculateResponse, PlanRequest, PlanResponse, Recipe } from '../types';
+import { AppData, StockMap, StockImageMap, TargetItem, CalculateResponse, PlanRequest, PlanResponse, Recipe, FloorTimer } from '../types';
 
 /**
  * Helper to handle fetch responses — throws with server error message on non-OK status.
@@ -161,4 +161,23 @@ export async function uploadImage(
 
   const response = await fetch('/api/upload-image', { method: 'POST', body: form });
   return handleResponse<UploadImageResult>(response);
+}
+
+// ── Factory floor timers ─────────────────────────────────────────────────────
+
+export async function fetchFloorTimers(): Promise<FloorTimer[]> {
+  return handleResponse<FloorTimer[]>(await fetch('/api/floors'));
+}
+
+export async function createFloorTimer(floor_number: number, profession?: string): Promise<FloorTimer> {
+  return handleResponse<FloorTimer>(await fetch('/api/floors', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ floor_number, profession }),
+  }));
+}
+
+export async function updateFloorTimer(floorNumber: number, patch: Partial<FloorTimer>): Promise<FloorTimer> {
+  return handleResponse<FloorTimer>(await fetch(`/api/floors/${floorNumber}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch),
+  }));
 }
