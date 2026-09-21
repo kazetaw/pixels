@@ -4,6 +4,7 @@
   "outputDirectory": "frontend/dist",
   "installCommand": "npm install && npm install --prefix frontend",
   "framework": null,
+  "devCommand": "npm run dev --prefix frontend",
   "rewrites": [
     { "source": "/api/upload-image", "destination": "/api/upload-image" },
     { "source": "/api/:path*",       "destination": "/api/index" },
