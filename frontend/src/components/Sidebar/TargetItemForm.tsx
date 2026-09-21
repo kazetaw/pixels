@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { Select, InputNumber, Button } from 'antd';
+import { PlusOutlined } from '@ant-design/icons';
 import { Recipe, TargetItem } from '../../types';
 
 interface TargetItemFormProps {
@@ -8,57 +10,57 @@ interface TargetItemFormProps {
 
 export function TargetItemForm({ recipes, onAdd }: TargetItemFormProps) {
   const [selectedId, setSelectedId] = useState(recipes[0]?.id ?? '');
-  const [quantity, setQuantity] = useState<number | ''>('');
+  const [quantity, setQuantity] = useState<number | null>(null);
   const [showError, setShowError] = useState(false);
 
   const handleAdd = () => {
     if (!quantity || quantity <= 0) { setShowError(true); return; }
     if (!selectedId) return;
-    onAdd({ target_item_id: selectedId, target_quantity: Number(quantity) });
-    setQuantity('');
+    onAdd({ target_item_id: selectedId, target_quantity: quantity });
+    setQuantity(null);
     setShowError(false);
   };
 
+  const options = recipes.map((r) => ({ label: r.name, value: r.id }));
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <select
-        value={selectedId}
-        onChange={(e) => setSelectedId(e.target.value)}
-        style={{
-          width: '100%', borderRadius: 6, border: '1px solid #e2e8f0',
-          padding: '7px 10px', fontSize: 13, color: '#0f172a',
-          background: '#ffffff', outline: 'none',
-        }}
-      >
-        {recipes.map((r) => (
-          <option key={r.id} value={r.id}>{r.name}</option>
-        ))}
-      </select>
+      <Select
+        value={selectedId || undefined}
+        onChange={setSelectedId}
+        options={options}
+        showSearch
+        placeholder="เลือกสินค้า…"
+        filterOption={(input, opt) =>
+          (opt?.label as string ?? '').toLowerCase().includes(input.toLowerCase())
+        }
+        style={{ width: '100%' }}
+        size="small"
+      />
 
       <div style={{ display: 'flex', gap: 6 }}>
-        <input
-          type="number" min={1} value={quantity}
-          onChange={(e) => { setShowError(false); setQuantity(e.target.value === '' ? '' : Number(e.target.value)); }}
-          onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+        <InputNumber
+          min={1}
+          value={quantity}
+          onChange={(v) => { setShowError(false); setQuantity(v); }}
+          onPressEnter={handleAdd}
           placeholder="จำนวน"
-          style={{
-            width: 80, borderRadius: 6, border: '1px solid #e2e8f0',
-            padding: '7px 8px', fontSize: 13, textAlign: 'center', outline: 'none',
-          }}
+          style={{ flex: 1 }}
+          size="small"
         />
-        <button
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
           onClick={handleAdd}
-          disabled={!quantity || Number(quantity) <= 0}
-          style={{
-            flex: 1, borderRadius: 6, background: '#2563eb', color: '#fff',
-            border: 'none', fontSize: 13, fontWeight: 500, cursor: 'pointer',
-            padding: '7px 12px', opacity: (!quantity || Number(quantity) <= 0) ? 0.45 : 1,
-          }}
+          disabled={!quantity || quantity <= 0}
+          size="small"
         >
           เพิ่ม
-        </button>
+        </Button>
       </div>
-      {showError && <p style={{ fontSize: 11, color: '#ef4444', margin: 0 }}>กรุณากรอกจำนวนมากกว่า 0</p>}
+      {showError && (
+        <p style={{ fontSize: 11, color: '#ef4444', margin: 0 }}>กรุณากรอกจำนวนมากกว่า 0</p>
+      )}
     </div>
   );
 }
