@@ -109,8 +109,12 @@ create table if not exists stock_purchases (
   total_amount    numeric(14, 2) not null check (total_amount >= 0),
   currency        text not null check (currency in ('THB', 'G')),
   source          text,
+  contributor     text,
   purchased_at    timestamptz not null default now()
 );
+
+-- CREATE TABLE IF NOT EXISTS does not add columns to an existing table.
+alter table stock_purchases add column if not exists contributor text;
 
 create index if not exists stock_purchases_purchased_at_idx
   on stock_purchases (purchased_at desc);

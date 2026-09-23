@@ -58,9 +58,14 @@ export function BudgetDraft({ stocks, recipes, onStockChanged }: BudgetDraftProp
 
   const itemOptions = useMemo(() => {
     const recipeMap = new Map(recipes.map((recipe) => [recipe.id, recipe.name]));
-    return Array.from(new Set([...Object.keys(stocks), ...recipes.map((recipe) => recipe.id)]))
-      .sort((a, b) => itemName(a).localeCompare(itemName(b), 'th'))
-      .map((id) => ({ value: id, label: recipeMap.get(id) ?? id }));
+    const itemIds = new Set([
+      ...Object.keys(stocks),
+      ...recipes.map((recipe) => recipe.id),
+      ...recipes.flatMap((recipe) => Object.keys(recipe.ingredients)),
+    ]);
+    return Array.from(itemIds)
+      .map((id) => ({ value: id, label: recipeMap.get(id) ?? id }))
+      .sort((a, b) => a.label.localeCompare(b.label, 'th'));
   }, [recipes, stocks]);
 
   const spent = (target: Currency) => purchases.filter((purchase) => purchase.currency === target).reduce((sum, purchase) => sum + purchase.total_amount, 0);
@@ -129,15 +134,16 @@ export function BudgetDraft({ stocks, recipes, onStockChanged }: BudgetDraftProp
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.15fr) minmax(280px, .85fr)', gap: 16, alignItems: 'start' }}>
           <Card title="ซื้อเพื่อเติมสต็อก" size="small">
             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 110px', gap: 12, marginBottom: 12 }}>
-              <label><span className="budget-field-label">รายการ</span><Select showSearch value={itemId || undefined} onChange={setItemId} placeholder="เลือกรายการ" options={itemOptions} style={{ width: '100%' }} /></label>
+              <label><span className="budget-field-label">รายการ</span><Select showSearch optionFilterProp="label" value={itemId || undefined} onChange={setItemId} placeholder="ค้นหาวัตถุดิบหรือสินค้าแปรรูป" options={itemOptions} style={{ width: '100%' }} /></label>
               <label><span className="budget-field-label">จำนวนที่ซื้อ</span><InputNumber min={1} value={quantity} onChange={(value) => setQuantity(value ?? 1)} style={{ width: '100%' }} /></label>
             </div>
+            <Text type="secondary" style={{ display: 'block', fontSize: 12, marginBottom: 12 }}>เลือกซื้อได้ทั้งวัตถุดิบและสินค้าแปรรูปจากทุกสูตร แม้ยังไม่มีในสต็อก</Text>
             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 120px', gap: 12, marginBottom: 12 }}>
               <label><span className="budget-field-label">จ่ายทั้งหมด</span><InputNumber min={0} value={total} onChange={(value) => setTotal(value ?? 0)} style={{ width: '100%' }} /></label>
               <label><span className="budget-field-label">สกุลเงิน</span><Select value={currency} onChange={setCurrency} options={[{ value: 'THB', label: 'THB · บาท' }, { value: 'G', label: 'G · เหรียญเกม' }]} style={{ width: '100%' }} /></label>
             </div>
             <label style={{ display: 'block', marginBottom: 14 }}><span className="budget-field-label">แหล่งซื้อ / หมายเหตุ</span><Input value={source} onChange={(event) => setSource(event.target.value)} placeholder={currency === 'THB' ? 'เช่น ตลาด' : 'เช่น ร้านค้าในเกม'} /></label>
-            <label style={{ display: 'block', marginBottom: 14 }}><span className="budget-field-label">งบจาก (ผู้ให้งบ)</span><Input value={contributor} onChange={(event) => setContributor(event.target.value)} placeholder="เช่น แม่, กองกลาง, ส่วนตัว" /></label>
+            <label style={{ display: 'block', marginBottom: 14 }}><span className="budget-field-label">งบจาก (ผู้ให้งบ)</span><Input value={contributor} onChange={(event) => setContributor(event.target.value)} placeholder="เช่น แม่, กองกลาง, ส่วนตัว" /><Text type="secondary" style={{ fontSize: 12 }}>บันทึกพร้อมรายการซื้อเมื่อกดปุ่มด้านล่าง และแสดงในประวัติช่อง “งบจาก”</Text></label>
             <div className="budget-unit-cost"><Text type="secondary" style={{ fontSize: 12 }}>ต้นทุนต่อชิ้น</Text><Text strong>{displayMoney(unitCost, currency)} / ชิ้น</Text></div>
             <Button type="primary" icon={<ShoppingCartOutlined />} onClick={() => void addPurchase()} loading={buying} disabled={!itemId || quantity <= 0}>เพิ่มสต็อกและบันทึกรายจ่าย</Button>
           </Card>

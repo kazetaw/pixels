@@ -60,7 +60,7 @@ function explode(
   }
 
   // Step 5 – Accumulate machine hours (skip if time_per_unit is null)
-  if (recipe.time_per_unit !== null) {
+  if (recipe.time_per_unit !== null && recipe.machine_id !== null) {
     const hoursPerUnit = parseTimeToHours(recipe.time_per_unit);
     machineHoursMap.set(
       recipe.machine_id,

@@ -22,7 +22,7 @@ import { ProductionPlanner }    from './components/Planner/ProductionPlanner';
 import { DataEditor }           from './components/DataEditor/DataEditor';
 import { StockInventory }       from './components/Inventory/StockInventory';
 import { FloorTimerDashboard }  from './components/Floors/FloorTimerDashboard';
-import { BudgetDraft }          from './components/DataEditor/BudgetDraft';
+import { BudgetHistory }        from './components/DataEditor/BudgetHistory';
 import type { SaveStatus }      from './hooks/useAppState';
 
 const { Sider, Content } = Layout;
@@ -314,13 +314,9 @@ export default function App() {
             <div className="page-content">
               <PageHead
                 title="งบประมาณ"
-                sub="บันทึกการซื้อสต็อก ติดตามงบ THB และ G แยกจากกัน"
+                sub="สรุปยอดใช้จ่าย และประวัติการซื้อสต็อก — จัดการงบและบันทึกรายการซื้อได้ที่ จัดการข้อมูล"
               />
-              <BudgetDraft
-                stocks={stocks}
-                recipes={recipes}
-                onStockChanged={async () => { /* useAppState reloads on next fetch */ }}
-              />
+              <BudgetHistory recipes={recipes} />
             </div>
           )}
 

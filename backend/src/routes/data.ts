@@ -9,7 +9,7 @@ const router = Router();
 export function enrichMachines(machines: Machine[], recipes: Recipe[]): Machine[] {
   const maxHoursMap = new Map<string, number>();
   for (const recipe of recipes) {
-    if (!recipe.time_per_unit) continue;
+    if (!recipe.time_per_unit || !recipe.machine_id) continue;
     const h = parseTimeToHours(recipe.time_per_unit);
     const current = maxHoursMap.get(recipe.machine_id) ?? 0;
     if (h > current) maxHoursMap.set(recipe.machine_id, h);
