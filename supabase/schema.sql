@@ -178,3 +178,47 @@ $$;
 -- insert into storage.buckets (id, name, public)
 -- values ('images', 'images', true)
 -- on conflict do nothing;
+
+-- ────────────────────────────────────────────────────────────
+-- 6. budgets  (one row per currency, upserted)
+-- ────────────────────────────────────────────────────────────
+create table if not exists budgets (
+  currency     text    primary key check (currency in ('THB','G')),
+  limit_amount numeric not null default 0
+);
+
+-- ────────────────────────────────────────────────────────────
+-- 7. stock_purchases  (immutable purchase log)
+-- ────────────────────────────────────────────────────────────
+create table if not exists stock_purchases (
+  id           uuid        primary key default gen_random_uuid(),
+  item_id      text        not null,
+  quantity     integer     not null check (quantity > 0),
+  total_amount numeric     not null default 0,
+  currency     text        not null check (currency in ('THB','G')),
+  source       text,
+  contributor  text,
+  purchased_at timestamptz not null default now()
+);
+
+create index if not exists stock_purchases_currency_idx
+  on stock_purchases (currency);
+
+-- ────────────────────────────────────────────────────────────
+-- 8. floor_timers  (one row per factory floor)
+-- ────────────────────────────────────────────────────────────
+create table if not exists floor_timers (
+  floor_number                integer     primary key check (floor_number >= 1),
+  profession                  text,
+  machine_id                  uuid        references machines(machine_id) on delete set null,
+  recipe_id                   uuid        references recipes(id) on delete set null,
+  status                      text        not null default 'idle'
+                                          check (status in ('idle','running')),
+  start_time                  timestamptz,
+  estimated_duration_seconds  integer     not null default 0,
+  completed_at                timestamptz
+);
+
+alter table budgets          disable row level security;
+alter table stock_purchases  disable row level security;
+alter table floor_timers     disable row level security;

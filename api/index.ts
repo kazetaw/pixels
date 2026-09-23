@@ -14,8 +14,10 @@ import {
   readMachines, readRecipes, readStocks, readStockImages,
   insertMachine, updateMachine as dbUpdateMachine, deleteMachine as dbDeleteMachine,
   insertRecipe, updateRecipe as dbUpdateRecipe, deleteRecipe as dbDeleteRecipe,
-  writeStocks, writeStockImages, getSupabase, readFloorTimers, createFloorTimer, updateFloorTimer,
-  readBudgets, saveBudget, readStockPurchases, createStockPurchase,
+  writeStocks, writeStockImages, getSupabase,
+  readBudgets, upsertBudget,
+  readPurchases, insertPurchase,
+  readFloorTimers, insertFloorTimer, patchFloorTimer,
 } from './lib/db.js';
 import { parseTimeToHours } from './lib/time.js';
 import { findNameConflict, duplicateNameError, normalizeName } from './lib/names.js';
@@ -24,8 +26,6 @@ import type {
   Machine, Recipe, StockMap, StockImageMap,
   TargetItem, PlanRequest, PlanResponse,
   FloorPlanResult, BomTreeNode, RawMaterialEntry, IntermediateSupplyEntry,
-  FloorTimer,
-  Budget, Currency, StockPurchase,
 } from './lib/types.js';
 import { randomUUID } from 'crypto';
 import { Readable } from 'stream';
@@ -160,45 +160,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ]);
       return res.json({ recipes, machines: enrichMachines(machines, recipes), stocks, stockImages });
     } catch (e) { return res.status(500).json({ error: (e as Error).message }); }
-  }
-
-  // ── /api/floors — factory floor timers ─────────────────────────────────────
-  if (segments[0] === 'floors') {
-    const floorNumber = Number(segments[1]);
-
-    if (!segments[1] && method === 'GET') {
-      try { return res.json(await readFloorTimers()); }
-      catch (e) { return res.status(500).json({ error: (e as Error).message }); }
-    }
-
-    if (!segments[1] && method === 'POST') {
-      const body = req.body as Partial<FloorTimer>;
-      if (!Number.isInteger(body.floor_number) || (body.floor_number ?? 0) < 1)
-        return res.status(400).json({ error: 'floor_number must be a positive integer' });
-      try {
-        const existing = await readFloorTimers();
-        if (existing.some((floor) => floor.floor_number === body.floor_number))
-          return res.status(409).json({ error: `มีชั้น ${body.floor_number} อยู่ในระบบแล้ว — โปรดใช้หมายเลขชั้นอื่น` });
-        return res.status(201).json(await createFloorTimer(body.floor_number!, body.profession));
-      }
-      catch (e) { return res.status(500).json({ error: (e as Error).message }); }
-    }
-
-    if (Number.isInteger(floorNumber) && floorNumber >= 1 && method === 'PATCH') {
-      const body = req.body as Partial<FloorTimer>;
-      const allowed: Partial<FloorTimer> = {};
-      if (body.profession !== undefined) allowed.profession = body.profession;
-      if (body.machine_id === null || typeof body.machine_id === 'string') allowed.machine_id = body.machine_id;
-      if (body.recipe_id === null || typeof body.recipe_id === 'string') allowed.recipe_id = body.recipe_id;
-      if (body.status === 'idle' || body.status === 'running') allowed.status = body.status;
-      if (body.start_time === null || typeof body.start_time === 'string') allowed.start_time = body.start_time;
-      if (Number.isInteger(body.estimated_duration_seconds) && body.estimated_duration_seconds! >= 0)
-        allowed.estimated_duration_seconds = body.estimated_duration_seconds;
-      if (body.completed_at === null || typeof body.completed_at === 'string') allowed.completed_at = body.completed_at;
-      if (!Object.keys(allowed).length) return res.status(400).json({ error: 'No valid fields to update' });
-      try { return res.json(await updateFloorTimer(floorNumber, allowed)); }
-      catch (e) { return res.status(500).json({ error: (e as Error).message }); }
-    }
   }
 
   // ── /api/recipes ────────────────────────────────────────────────────────────
@@ -367,39 +328,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     catch (e) { return res.status(500).json({ error: (e as Error).message }); }
   }
 
-  // ── Budgets and purchases ──────────────────────────────────────────────────
-  if (segments[0] === 'budgets') {
-    if (method === 'GET') {
-      try {
-        const [budgets, purchases] = await Promise.all([readBudgets(), readStockPurchases()]);
-        return res.json({ budgets, purchases });
-      } catch (e) { return res.status(500).json({ error: (e as Error).message }); }
-    }
-    if (method === 'PUT') {
-      const body = req.body as Partial<Budget>;
-      if ((body.currency !== 'THB' && body.currency !== 'G') || typeof body.limit_amount !== 'number' || body.limit_amount < 0)
-        return res.status(400).json({ error: 'currency must be THB or G and limit_amount must be non-negative' });
-      try { return res.json(await saveBudget(body.currency, body.limit_amount)); }
-      catch (e) { return res.status(500).json({ error: (e as Error).message }); }
-    }
-  }
-
-  if (segments[0] === 'purchases' && method === 'POST') {
-    const body = req.body as Partial<StockPurchase>;
-    if (!body.item_id?.trim() || typeof body.quantity !== 'number' || !Number.isInteger(body.quantity) || body.quantity <= 0 || typeof body.total_amount !== 'number' || body.total_amount < 0 || (body.currency !== 'THB' && body.currency !== 'G'))
-      return res.status(400).json({ error: 'item_id, a positive integer quantity, non-negative total_amount, and THB or G currency are required' });
-    try {
-      const quantity = body.quantity as number;
-      const totalAmount = body.total_amount as number;
-      const currency = body.currency as Currency;
-      const purchase = await createStockPurchase({
-        item_id: body.item_id.trim(), quantity, total_amount: totalAmount,
-        currency, source: body.source?.trim() || undefined,
-      });
-      return res.status(201).json(purchase);
-    } catch (e) { return res.status(500).json({ error: (e as Error).message }); }
-  }
-
   // ── POST /api/calculate ──────────────────────────────────────────────────────
   if (segments[0] === 'calculate' && method === 'POST') {
     const body = req.body;
@@ -541,6 +469,93 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { data: urlData } = db.storage.from(bucket).getPublicUrl(storagePath);
       return res.json({ url: urlData.publicUrl, path: storagePath });
     } catch (e) { return res.status(500).json({ error: (e as Error).message }); }
+  }
+
+  // ── /api/budgets ─────────────────────────────────────────────────────────────
+  if (segments[0] === 'budgets') {
+    // GET /api/budgets — return budgets + last 100 purchases
+    if (method === 'GET') {
+      try {
+        const [budgets, purchases] = await Promise.all([readBudgets(), readPurchases()]);
+        return res.json({ budgets, purchases });
+      } catch (e) { return res.status(500).json({ error: (e as Error).message }); }
+    }
+    // PUT /api/budgets — upsert one budget limit
+    if (method === 'PUT') {
+      const body = req.body as { currency: 'THB' | 'G'; limit_amount: number };
+      if (!body.currency || !['THB','G'].includes(body.currency))
+        return res.status(400).json({ error: 'currency must be THB or G' });
+      if (typeof body.limit_amount !== 'number' || body.limit_amount < 0)
+        return res.status(400).json({ error: 'limit_amount must be a non-negative number' });
+      try {
+        const budget = await upsertBudget(body.currency, body.limit_amount);
+        return res.json(budget);
+      } catch (e) { return res.status(500).json({ error: (e as Error).message }); }
+    }
+  }
+
+  // ── /api/purchases ────────────────────────────────────────────────────────────
+  if (segments[0] === 'purchases') {
+    // GET /api/purchases
+    if (method === 'GET') {
+      try { return res.json(await readPurchases()); }
+      catch (e) { return res.status(500).json({ error: (e as Error).message }); }
+    }
+    // POST /api/purchases — log a purchase and increment stock
+    if (method === 'POST') {
+      const body = req.body as {
+        item_id: string; quantity: number; total_amount: number;
+        currency: 'THB' | 'G'; source?: string; contributor?: string;
+      };
+      if (!body.item_id?.trim()) return res.status(400).json({ error: 'item_id is required' });
+      if (typeof body.quantity !== 'number' || body.quantity <= 0)
+        return res.status(400).json({ error: 'quantity must be positive' });
+      if (!['THB','G'].includes(body.currency))
+        return res.status(400).json({ error: 'currency must be THB or G' });
+      try {
+        const purchase = await insertPurchase({
+          item_id: body.item_id.trim(),
+          quantity: body.quantity,
+          total_amount: body.total_amount ?? 0,
+          currency: body.currency,
+          source: body.source ?? null,
+          contributor: body.contributor ?? null,
+        });
+        return res.status(201).json(purchase);
+      } catch (e) { return res.status(500).json({ error: (e as Error).message }); }
+    }
+  }
+
+  // ── /api/floors ───────────────────────────────────────────────────────────────
+  if (segments[0] === 'floors') {
+    const floorNum = segments[1] ? parseInt(segments[1], 10) : NaN;
+
+    // GET /api/floors
+    if (!segments[1] && method === 'GET') {
+      try { return res.json(await readFloorTimers()); }
+      catch (e) { return res.status(500).json({ error: (e as Error).message }); }
+    }
+
+    // POST /api/floors — add new floor
+    if (!segments[1] && method === 'POST') {
+      const body = req.body as { floor_number: number; profession?: string };
+      if (typeof body.floor_number !== 'number' || body.floor_number < 1)
+        return res.status(400).json({ error: 'floor_number must be a positive integer' });
+      try {
+        const floor = await insertFloorTimer(body.floor_number, body.profession);
+        return res.status(201).json(floor);
+      } catch (e) { return res.status(500).json({ error: (e as Error).message }); }
+    }
+
+    // PATCH /api/floors/:number — update timer state
+    if (segments[1] && method === 'PATCH') {
+      if (isNaN(floorNum)) return res.status(400).json({ error: 'Invalid floor number' });
+      try {
+        const patch = req.body as Record<string, unknown>;
+        const updated = await patchFloorTimer(floorNum, patch);
+        return res.json(updated);
+      } catch (e) { return res.status(500).json({ error: (e as Error).message }); }
+    }
   }
 
   // ── 404 ──────────────────────────────────────────────────────────────────────

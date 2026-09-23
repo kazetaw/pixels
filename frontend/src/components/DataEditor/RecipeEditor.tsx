@@ -9,6 +9,7 @@ import { Recipe, Machine, StockMap } from '../../types';
 import { createRecipe, updateRecipe, deleteRecipe } from '../../api/client';
 import { TimeInput } from '../shared/TimeInput';
 import { ImagePicker } from '../shared/ImagePicker';
+import { OCCUPATION_IMAGE } from '../shared/OccupationSelect';
 
 interface RecipeEditorProps {
   recipes: Recipe[];
@@ -230,13 +231,21 @@ function RecipeForm({ initial, recipes, machines, stocks, onSave, onCancel }: Re
                   type="button"
                   onClick={() => { setFilterOcc(occ); setMachineId(''); }}
                   style={{
-                    borderRadius: 99, padding: '2px 10px', fontSize: 12, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    borderRadius: 99, padding: '3px 10px', fontSize: 12, cursor: 'pointer',
                     border: '1px solid',
                     background: filterOcc === occ ? '#2563eb' : '#f8fafc',
                     color: filterOcc === occ ? '#fff' : '#64748b',
                     borderColor: filterOcc === occ ? '#2563eb' : '#e2e8f0',
                   }}
                 >
+                  {occ && OCCUPATION_IMAGE[occ as keyof typeof OCCUPATION_IMAGE] && (
+                    <img
+                      src={OCCUPATION_IMAGE[occ as keyof typeof OCCUPATION_IMAGE]}
+                      alt=""
+                      style={{ width: 14, height: 14, borderRadius: 2, objectFit: 'contain', flexShrink: 0 }}
+                    />
+                  )}
                   {occ || 'ทั้งหมด'}
                 </button>
               ))}
@@ -293,7 +302,13 @@ function RecipeForm({ initial, recipes, machines, stocks, onSave, onCancel }: Re
                   >
                     {m.image
                       ? <img src={m.image} alt="" style={{ width: 36, height: 36, borderRadius: 4, objectFit: 'contain', flexShrink: 0 }} />
-                      : <div style={{ width: 36, height: 36, borderRadius: 4, background: '#f1f5f9', flexShrink: 0 }} />
+                      : (
+                        <div style={{ width: 36, height: 36, borderRadius: 4, background: '#f1f5f9', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          {m.occupation && OCCUPATION_IMAGE[m.occupation as keyof typeof OCCUPATION_IMAGE] && (
+                            <img src={OCCUPATION_IMAGE[m.occupation as keyof typeof OCCUPATION_IMAGE]} alt="" style={{ width: 22, height: 22, opacity: 0.5 }} />
+                          )}
+                        </div>
+                      )
                     }
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.machine_name}</div>

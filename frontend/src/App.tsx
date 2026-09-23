@@ -10,6 +10,7 @@ import {
   InboxOutlined,
   ArrowLeftOutlined,
   ClockCircleOutlined,
+  WalletOutlined,
 } from '@ant-design/icons';
 import { useAppState } from './hooks/useAppState';
 import { TargetItemForm }       from './components/Sidebar/TargetItemForm';
@@ -21,17 +22,19 @@ import { ProductionPlanner }    from './components/Planner/ProductionPlanner';
 import { DataEditor }           from './components/DataEditor/DataEditor';
 import { StockInventory }       from './components/Inventory/StockInventory';
 import { FloorTimerDashboard }  from './components/Floors/FloorTimerDashboard';
+import { BudgetDraft }          from './components/DataEditor/BudgetDraft';
 import type { SaveStatus }      from './hooks/useAppState';
 
 const { Sider, Content } = Layout;
 
-type MainView = 'planner' | 'data' | 'inventory' | 'floors';
+type MainView = 'planner' | 'data' | 'inventory' | 'floors' | 'budget';
 
 const NAV_ITEMS = [
-  { key: 'planner',    icon: <BarChartOutlined />,   label: 'วางแผนการผลิต' },
-  { key: 'data',       icon: <DatabaseOutlined />,   label: 'จัดการข้อมูล' },
-  { key: 'inventory',  icon: <InboxOutlined />,      label: 'คลังสต็อก' },
+  { key: 'planner',    icon: <BarChartOutlined />,    label: 'วางแผนการผลิต' },
+  { key: 'data',       icon: <DatabaseOutlined />,    label: 'จัดการข้อมูล' },
+  { key: 'inventory',  icon: <InboxOutlined />,       label: 'คลังสต็อก' },
   { key: 'floors',     icon: <ClockCircleOutlined />, label: 'สถานะชั้น' },
+  { key: 'budget',     icon: <WalletOutlined />,      label: 'งบประมาณ' },
 ];
 
 const SIDER_W = 200; // px — ลดจาก 240 เพราะชื่อเมนูสั้น
@@ -304,6 +307,20 @@ export default function App() {
             <div className="page-content floor-page-content">
               <PageHead title="สถานะชั้นผลิต" sub="ติดตามเวลาทำงานของแต่ละชั้น และเริ่มรอบการผลิตใหม่ได้จากหน้านี้" />
               <FloorTimerDashboard />
+            </div>
+          )}
+
+          {view === 'budget' && (
+            <div className="page-content">
+              <PageHead
+                title="งบประมาณ"
+                sub="บันทึกการซื้อสต็อก ติดตามงบ THB และ G แยกจากกัน"
+              />
+              <BudgetDraft
+                stocks={stocks}
+                recipes={recipes}
+                onStockChanged={async () => { /* useAppState reloads on next fetch */ }}
+              />
             </div>
           )}
 

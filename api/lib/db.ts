@@ -322,106 +322,137 @@ export async function upsertStockImage(itemId: string, imageUrl: string): Promis
   if (error) throw new Error(`upsertStockImage: ${error.message}`);
 }
 
-// ── Budgets and purchases ───────────────────────────────────────────────────
+// ── Budgets and purchases (see new implementations below) ────────────────────
 
-export async function readBudgets(): Promise<Budget[]> {
-  const db = getSupabase();
-  const { data, error } = await db
-    .from('budgets')
-    .select('currency, limit_amount')
-    .order('currency', { ascending: true });
-  if (error) throw new Error(`readBudgets: ${error.message}`);
-  return (data ?? []).map((row) => ({
-    currency: row.currency as Currency,
-    limit_amount: Number(row.limit_amount),
-  }));
+
+// ── Budgets ───────────────────────────────────────────────────────────────────
+
+export interface BudgetRow {
+  currency: 'THB' | 'G';
+  limit_amount: number;
 }
 
-export async function saveBudget(currency: Currency, limitAmount: number): Promise<Budget> {
+/** Read all budget rows (one per currency) */
+export async function readBudgets(): Promise<BudgetRow[]> {
+  const db = getSupabase();
+  const { data, error } = await db.from('budgets').select('currency, limit_amount');
+  if (error) throw new Error(`readBudgets: ${error.message}`);
+  return (data ?? []) as BudgetRow[];
+}
+
+/** Upsert a single budget limit */
+export async function upsertBudget(currency: 'THB' | 'G', limit_amount: number): Promise<BudgetRow> {
   const db = getSupabase();
   const { data, error } = await db
     .from('budgets')
-    .upsert({ currency, limit_amount: limitAmount, updated_at: new Date().toISOString() }, { onConflict: 'currency' })
+    .upsert({ currency, limit_amount }, { onConflict: 'currency' })
     .select('currency, limit_amount')
     .single();
-  if (error) throw new Error(`saveBudget: ${error.message}`);
-  return { currency: data.currency as Currency, limit_amount: Number(data.limit_amount) };
+  if (error) throw new Error(`upsertBudget: ${error.message}`);
+  return data as BudgetRow;
 }
 
-export async function readStockPurchases(limit = 100): Promise<StockPurchase[]> {
+// ── Stock Purchases ───────────────────────────────────────────────────────────
+
+export interface PurchaseRow {
+  id: string;
+  item_id: string;
+  quantity: number;
+  total_amount: number;
+  currency: 'THB' | 'G';
+  source?: string | null;
+  contributor?: string | null;
+  purchased_at: string;
+}
+
+/** Read last 100 purchases ordered by purchased_at desc */
+export async function readPurchases(): Promise<PurchaseRow[]> {
   const db = getSupabase();
   const { data, error } = await db
     .from('stock_purchases')
-    .select('id, item_id, quantity, total_amount, currency, source, purchased_at')
+    .select('id, item_id, quantity, total_amount, currency, source, contributor, purchased_at')
     .order('purchased_at', { ascending: false })
-    .limit(limit);
-  if (error) throw new Error(`readStockPurchases: ${error.message}`);
-  return (data ?? []).map((row) => ({
-    id: row.id,
-    item_id: row.item_id,
-    quantity: row.quantity,
-    total_amount: Number(row.total_amount),
-    currency: row.currency as Currency,
-    source: row.source ?? undefined,
-    purchased_at: row.purchased_at,
-  }));
+    .limit(100);
+  if (error) throw new Error(`readPurchases: ${error.message}`);
+  return (data ?? []) as PurchaseRow[];
 }
 
-export async function createStockPurchase(input: Omit<StockPurchase, 'id' | 'purchased_at'>): Promise<StockPurchase> {
+/** Insert a purchase and increment the corresponding stock item */
+export async function insertPurchase(p: Omit<PurchaseRow, 'id' | 'purchased_at'>): Promise<PurchaseRow> {
   const db = getSupabase();
-  const { data, error } = await db.rpc('record_stock_purchase', {
-    p_item_id: input.item_id,
-    p_quantity: input.quantity,
-    p_total_amount: input.total_amount,
-    p_currency: input.currency,
-    p_source: input.source ?? null,
-  });
-  if (error) throw new Error(`createStockPurchase: ${error.message}`);
-  return {
-    id: data.id,
-    item_id: data.item_id,
-    quantity: data.quantity,
-    total_amount: Number(data.total_amount),
-    currency: data.currency as Currency,
-    source: data.source ?? undefined,
-    purchased_at: data.purchased_at,
-  };
+  const { data, error } = await db
+    .from('stock_purchases')
+    .insert({
+      item_id:      p.item_id,
+      quantity:     p.quantity,
+      total_amount: p.total_amount,
+      currency:     p.currency,
+      source:       p.source ?? null,
+      contributor:  p.contributor ?? null,
+    })
+    .select('id, item_id, quantity, total_amount, currency, source, contributor, purchased_at')
+    .single();
+  if (error) throw new Error(`insertPurchase: ${error.message}`);
+
+  // Increment stock
+  const { data: existing } = await db
+    .from('stocks')
+    .select('quantity')
+    .eq('item_id', p.item_id)
+    .single();
+  await db.from('stocks').upsert(
+    { item_id: p.item_id, quantity: (existing?.quantity ?? 0) + p.quantity },
+    { onConflict: 'item_id' }
+  );
+
+  return data as PurchaseRow;
 }
 
-// ── Floor timers ─────────────────────────────────────────────────────────────
+// ── Floor Timers ──────────────────────────────────────────────────────────────
 
-export async function readFloorTimers(): Promise<FloorTimer[]> {
+export interface FloorTimerRow {
+  floor_number: number;
+  profession?: string | null;
+  machine_id?: string | null;
+  recipe_id?: string | null;
+  status: 'idle' | 'running';
+  start_time?: string | null;
+  estimated_duration_seconds: number;
+  completed_at?: string | null;
+}
+
+export async function readFloorTimers(): Promise<FloorTimerRow[]> {
   const db = getSupabase();
   const { data, error } = await db
     .from('floor_timers')
     .select('floor_number, profession, machine_id, recipe_id, status, start_time, estimated_duration_seconds, completed_at')
     .order('floor_number', { ascending: true });
   if (error) throw new Error(`readFloorTimers: ${error.message}`);
-  return (data ?? []) as FloorTimer[];
+  return (data ?? []) as FloorTimerRow[];
 }
 
-export async function createFloorTimer(floorNumber: number, profession?: string): Promise<FloorTimer> {
+export async function insertFloorTimer(floor_number: number, profession?: string): Promise<FloorTimerRow> {
   const db = getSupabase();
   const { data, error } = await db
     .from('floor_timers')
-    .insert({ floor_number: floorNumber, profession: profession || null })
+    .insert({ floor_number, profession: profession ?? null })
     .select('floor_number, profession, machine_id, recipe_id, status, start_time, estimated_duration_seconds, completed_at')
     .single();
-  if (error) throw new Error(`createFloorTimer: ${error.message}`);
-  return data as FloorTimer;
+  if (error) throw new Error(`insertFloorTimer: ${error.message}`);
+  return data as FloorTimerRow;
 }
 
-export async function updateFloorTimer(
-  floorNumber: number,
-  patch: Partial<Pick<FloorTimer, 'profession' | 'machine_id' | 'recipe_id' | 'status' | 'start_time' | 'estimated_duration_seconds' | 'completed_at'>>,
-): Promise<FloorTimer> {
+export async function patchFloorTimer(
+  floor_number: number,
+  patch: Partial<Omit<FloorTimerRow, 'floor_number'>>
+): Promise<FloorTimerRow> {
   const db = getSupabase();
   const { data, error } = await db
     .from('floor_timers')
-    .update({ ...patch, updated_at: new Date().toISOString() })
-    .eq('floor_number', floorNumber)
+    .update(patch)
+    .eq('floor_number', floor_number)
     .select('floor_number, profession, machine_id, recipe_id, status, start_time, estimated_duration_seconds, completed_at')
     .single();
-  if (error) throw new Error(`updateFloorTimer: ${error.message}`);
-  return data as FloorTimer;
+  if (error) throw new Error(`patchFloorTimer: ${error.message}`);
+  return data as FloorTimerRow;
 }
