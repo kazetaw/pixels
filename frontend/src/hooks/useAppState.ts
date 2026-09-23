@@ -7,6 +7,7 @@ import {
   StockImageMap,
   TargetItem,
   CalculateResponse,
+  AppData,
 } from '../types';
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
@@ -17,6 +18,7 @@ export interface AppState {
   machines: Machine[];
   stocks: StockMap;
   stockImages: StockImageMap;
+  applyData: (data: AppData) => void;
 
   // Target items list
   targetItems: TargetItem[];
@@ -52,6 +54,14 @@ export function useAppState(): AppState {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  const applyData = useCallback((data: AppData) => {
+    setRecipes(data.recipes);
+    setMachines(data.machines);
+    setStocks(data.stocks);
+    setStockImages(data.stockImages ?? {});
+    setCalculationResult(null);
+  }, []);
+
   // Load all data on mount
   useEffect(() => {
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
@@ -61,10 +71,7 @@ export function useAppState(): AppState {
       try {
         const data = await fetchAllData();
         if (cancelled) return;
-        setRecipes(data.recipes);
-        setMachines(data.machines);
-        setStocks(data.stocks);
-        setStockImages(data.stockImages ?? {});
+        applyData(data);
         setInitError(null);
       } catch (err: unknown) {
         if (cancelled) return;
@@ -79,7 +86,7 @@ export function useAppState(): AppState {
       cancelled = true;
       if (retryTimer) clearTimeout(retryTimer);
     };
-  }, []);
+  }, [applyData]);
 
   const addTargetItem = useCallback((item: TargetItem) => {
     setTargetItems((prev) => [...prev, item]);
@@ -126,6 +133,7 @@ export function useAppState(): AppState {
     machines,
     stocks,
     stockImages,
+    applyData,
     targetItems,
     addTargetItem,
     removeTargetItem,

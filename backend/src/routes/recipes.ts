@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { randomUUID } from 'crypto';
-import { readRecipes, writeRecipes, readStocks, writeStocks, readMachines } from '../services/fileStore';
+import { readRecipes, writeRecipes, readStocks, writeStocks, readMachines, readStockPurchases } from '../services/fileStore';
 import { Recipe, StockMap } from '../types';
 import { duplicateNameError, findNameConflict } from '../utils/names';
 
@@ -173,6 +173,11 @@ router.delete('/api/recipes/:id', async (req: Request, res: Response) => {
     const filtered = recipes.filter((r) => r.id !== id);
     if (filtered.length === recipes.length) {
       return res.status(404).json({ error: `Recipe "${id}" not found` });
+    }
+    const [stocks, purchases] = await Promise.all([readStocks(), readStockPurchases()]);
+    if (recipes.some((r) => r.id !== id && Object.prototype.hasOwnProperty.call(r.ingredients, id)) ||
+        Object.prototype.hasOwnProperty.call(stocks, id) || purchases.some((p) => p.item_id === id)) {
+      return res.status(409).json({ error: 'ลบไม่ได้: สินค้านี้ยังมีอยู่ในสูตรอื่น สต็อก หรือประวัติการซื้อ กรุณาแก้ไขสูตรเดิมแทนการลบแล้วสร้างใหม่' });
     }
     await writeRecipes(filtered);
     res.json({ ok: true });

@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Recipe, Machine, StockMap, StockImageMap } from '../../types';
+import { Recipe, Machine, StockMap, StockImageMap, AppData } from '../../types';
 import { fetchAllData } from '../../api/client';
 import { LockOutlined } from '@ant-design/icons';
 import { RecipeEditor } from './RecipeEditor';
@@ -12,11 +12,12 @@ interface DataEditorProps {
   initialMachines: Machine[];
   initialStocks: StockMap;
   initialStockImages: StockImageMap;
+  onDataChanged: (data: AppData) => void;
 }
 
 type DataTab = 'recipes' | 'machines' | 'stocks' | 'budget';
 
-export function DataEditor({ initialRecipes, initialMachines, initialStocks, initialStockImages }: DataEditorProps) {
+export function DataEditor({ initialRecipes, initialMachines, initialStocks, initialStockImages, onDataChanged }: DataEditorProps) {
   const [tab, setTab] = useState<DataTab>('recipes');
   const [recipes, setRecipes] = useState<Recipe[]>(initialRecipes);
   const [machines, setMachines] = useState<Machine[]>(initialMachines);
@@ -83,10 +84,11 @@ export function DataEditor({ initialRecipes, initialMachines, initialStocks, ini
       setMachines(data.machines);
       setStocks(data.stocks);
       setStockImages(data.stockImages ?? {});
+      onDataChanged(data);
     } finally {
       setReloading(false);
     }
-  }, []);
+  }, [onDataChanged]);
 
   const tabs: { key: DataTab; label: string }[] = [
     { key: 'recipes',  label: 'สูตรการผลิต' },
@@ -138,7 +140,11 @@ export function DataEditor({ initialRecipes, initialMachines, initialStocks, ini
           stockImages={stockImages}
           recipes={recipes}
           machines={machines}
-          onSaved={(newStocks, newImages) => { setStocks(newStocks); setStockImages(newImages); }}
+          onSaved={(newStocks, newImages) => {
+            setStocks(newStocks);
+            setStockImages(newImages);
+            onDataChanged({ recipes, machines, stocks: newStocks, stockImages: newImages });
+          }}
         />
       )}
 

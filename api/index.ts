@@ -220,6 +220,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       try {
         const recipes = await readRecipes();
         if (!recipes.some((r) => r.id === id)) return res.status(404).json({ error: `Recipe "${id}" not found` });
+        const [stocks, purchases] = await Promise.all([
+          readStocks(),
+          getSupabase().from('stock_purchases').select('id').eq('item_id', id).limit(1),
+        ]);
+        if (purchases.error) throw new Error(purchases.error.message);
+        if (recipes.some((r) => r.id !== id && Object.hasOwn(r.ingredients, id)) ||
+            Object.hasOwn(stocks, id) || (purchases.data?.length ?? 0) > 0) {
+          return res.status(409).json({ error: 'ลบไม่ได้: สินค้านี้ยังมีอยู่ในสูตรอื่น สต็อก หรือประวัติการซื้อ กรุณาแก้ไขสูตรเดิมแทนการลบแล้วสร้างใหม่' });
+        }
         await dbDeleteRecipe(id);
         return res.json({ ok: true });
       } catch (e) { return res.status(500).json({ error: (e as Error).message }); }

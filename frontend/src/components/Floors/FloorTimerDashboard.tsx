@@ -3,9 +3,10 @@ import { Alert, Button, Card, Empty, Form, InputNumber, Modal, Select, Spin, Tag
 import { ClockCircleOutlined, PauseCircleOutlined, PlayCircleOutlined, PlusOutlined, ReloadOutlined, SettingOutlined } from '@ant-design/icons';
 import { createFloorTimer, fetchAllData, fetchFloorTimers, updateFloorTimer } from '../../api/client';
 import type { FloorDisplayStatus, FloorTimer, Machine, Recipe } from '../../types';
+import { machinesForProfession } from './floorOptions';
 
 const FLOAT_GRACE_SECONDS = 15 * 60;
-const professions = ['วิศวะกร', 'หมอ', 'เชฟ', 'ไอดอล', 'เกษตร'];
+const professions = ['วิศวะกร', 'หมอ', 'เชฟ', 'ไอดอล', 'เกษตร', 'ทุกอาชีพ'];
 const professionImages: Record<string, string> = {
   'วิศวะกร': '/occupations/engineer.png', 'หมอ': '/occupations/doctor.png',
   'เชฟ': '/occupations/chef.png', 'ไอดอล': '/occupations/idol.png', 'เกษตร': '/occupations/farmer.png',
@@ -37,7 +38,7 @@ function recipeSeconds(recipe?: Recipe) {
 }
 
 function ProfessionOption({ profession }: { profession: string }) {
-  return <span className="profession-select-option"><img src={professionImages[profession]} alt="" /><span>{profession}</span></span>;
+  return <span className="profession-select-option">{professionImages[profession] && <img src={professionImages[profession]} alt="" />}<span>{profession}</span></span>;
 }
 
 const statusMeta: Record<FloorDisplayStatus, { label: string; color: string }> = {
@@ -125,7 +126,7 @@ export function FloorTimerDashboard() {
   };
 
   const chosenProfession = Form.useWatch('profession', configForm);
-  const configMachines = useMemo(() => machines.filter((machine) => machine.occupation === chosenProfession), [machines, chosenProfession]);
+  const configMachines = useMemo(() => machinesForProfession(machines, chosenProfession), [machines, chosenProfession]);
   const chosenMachineId = Form.useWatch('machine_id', configForm);
   const configRecipes = useMemo(() => recipes.filter((recipe) => recipe.machine_id === chosenMachineId), [recipes, chosenMachineId]);
 
@@ -213,9 +214,11 @@ export function FloorTimerDashboard() {
         <Form.Item label="เครื่องจักร" name="machine_id" rules={[{ required: true, message: 'เลือกเครื่องจักร' }]}>
           <Select
             showSearch
+            optionFilterProp="label"
             disabled={!chosenProfession}
             placeholder={chosenProfession ? 'เลือกเครื่องจักร' : 'เลือกอาชีพก่อน'}
             optionLabelProp="label"
+            labelRender={({ value }) => machines.find((machine) => machine.machine_id === value)?.machine_name ?? 'ไม่พบเครื่องจักรเดิม กรุณาเลือกใหม่'}
             options={configMachines.map((machine) => ({
               value: machine.machine_id,
               label: machine.machine_name,
@@ -226,7 +229,7 @@ export function FloorTimerDashboard() {
           />
         </Form.Item>
         <Form.Item label="สูตรการผลิต" name="recipe_id" rules={[{ required: true, message: 'เลือกสูตรการผลิต' }]}>
-          <Select showSearch disabled={!chosenMachineId} placeholder={chosenMachineId ? 'เลือกสูตรการผลิต' : 'เลือกเครื่องจักรก่อน'} options={configRecipes.map((recipe) => ({ value: recipe.id, label: `${recipe.name}${recipe.time_per_unit ? ` (${recipe.time_per_unit})` : ''}` }))} />
+          <Select showSearch optionFilterProp="label" labelRender={({ value }) => recipes.find((recipe) => recipe.id === value)?.name ?? 'ไม่พบสูตรเดิม กรุณาเลือกใหม่'} disabled={!chosenMachineId} placeholder={chosenMachineId ? 'เลือกสูตรการผลิต' : 'เลือกเครื่องจักรก่อน'} options={configRecipes.map((recipe) => ({ value: recipe.id, label: `${recipe.name}${recipe.time_per_unit ? ` (${recipe.time_per_unit})` : ''}` }))} />
         </Form.Item>
       </Form>
     </Modal>

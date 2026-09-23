@@ -200,7 +200,7 @@ export default function App() {
   const [bomOpen, setBomOpen] = useState(false);
 
   const {
-    recipes, machines: _machines, stocks, stockImages,
+    recipes, machines: _machines, stocks, stockImages, applyData,
     targetItems, addTargetItem, removeTargetItem,
     updateStock, saveStocks, runCalculation,
     calculationResult, loading,
@@ -278,6 +278,7 @@ export default function App() {
                 initialMachines={_machines}
                 initialStocks={stocks}
                 initialStockImages={stockImages}
+                onDataChanged={applyData}
               />
             </div>
           )}
