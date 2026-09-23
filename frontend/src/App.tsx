@@ -284,7 +284,7 @@ export default function App() {
           )}
 
           {view === 'planner' && (
-            <div className="page-content">
+            <div className="page-content planner-page-content">
               <PageHead title="วางแผนการผลิต" sub="กำหนดสูตรแต่ละชั้น ระยะเวลา Event และดูผลการผลิตพร้อมวัตถุดิบที่ต้องใช้" />
               <ProductionPlanner recipes={recipes} stocks={stocks} machines={_machines} />
             </div>

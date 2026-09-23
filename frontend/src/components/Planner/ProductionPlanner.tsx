@@ -1,290 +1,114 @@
-// frontend/src/components/Planner/ProductionPlanner.tsx
-import { useState, useCallback, useMemo } from 'react';
-import { Spin, Empty, Select } from 'antd';
-import { LoadingOutlined, PlayCircleOutlined } from '@ant-design/icons';
-import { Recipe, Machine, PlanRequest, PlanResponse, FloorAssignment } from '../../types';
+import { useState, useMemo } from 'react';
+import { Alert, Button, Popconfirm, Select } from 'antd';
+import { ArrowLeftOutlined, PlayCircleOutlined } from '@ant-design/icons';
+import type { Recipe, Machine, PlanRequest, PlanResponse } from '../../types';
 import { runPlan } from '../../api/client';
 import { PlanSummary } from './PlanSummary';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
+import { groupFloorRows, recipesForOccupation } from './planPresentation';
 
 interface ProductionPlannerProps {
   recipes: Recipe[];
   stocks: Record<string, number>;
   machines?: Machine[];
 }
-
+interface FloorRow { floor_number: number; occupation: string; recipe_id: string }
 const TOTAL_FLOORS = 27;
 const SLOTS_PER_FLOOR = 12;
 
-interface FloorRow {
-  floor_number: number;
-  occupation: string;  // '' = ไม่กรอง, or occupation value
-  recipe_id: string;   // '' = ไม่กำหนด
-}
-
-
-function parseTime(t: string | null): number {
-  if (!t) return 0;
-  const [h, m, s] = t.split(':').map(Number);
-  return h + m / 60 + s / 3600;
-}
-
-export function ProductionPlanner({ recipes, machines = [] }: ProductionPlannerProps) {
-  // ── Event duration ──────────────────────────────────────────────────────────
-  const [eventDays, setEventDays]       = useLocalStorage<number>('planner_event_days', 30);
-  const [eventHours, setEventHoursVal]  = useLocalStorage<number>('planner_event_hours', 0);
+export function ProductionPlanner({ recipes, stocks, machines = [] }: ProductionPlannerProps) {
+  const [eventDays, setEventDays] = useLocalStorage<number>('planner_event_days', 30);
+  const [eventHours, setEventHours] = useLocalStorage<number>('planner_event_hours', 0);
   const [eventMinutes, setEventMinutes] = useLocalStorage<number>('planner_event_minutes', 0);
-
-  // ── Floor assignments ───────────────────────────────────────────────────────
-  const [floors, setFloors] = useLocalStorage<FloorRow[]>(
-    'planner_floors',
-    Array.from({ length: TOTAL_FLOORS }, (_, i) => ({
-      floor_number: i + 1,
-      occupation: '',
-      recipe_id: '',
-    }))
-  );
-
-  // ── Result / loading / error ────────────────────────────────────────────────
-  const [result, setResult]   = useState<PlanResponse | null>(null);
+  const [floors, setFloors] = useLocalStorage<FloorRow[]>('planner_floors',
+    Array.from({ length: TOTAL_FLOORS }, (_, i) => ({ floor_number: i + 1, occupation: '', recipe_id: '' })));
+  const [result, setResult] = useState<{ data: PlanResponse; key: string } | null>(null);
+  const [view, setView] = useState<'configure' | 'summary'>('configure');
   const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const totalHours = eventDays * 24 + eventHours + eventMinutes / 60;
+  const assigned = floors.filter((floor) => floor.recipe_id);
+  const groups = groupFloorRows(floors);
+  const occupations = useMemo(() => ['ทุกอาชีพ', ...Array.from(new Set(machines.map((machine) => machine.occupation)
+    .filter((occupation): occupation is NonNullable<Machine['occupation']> => !!occupation && occupation !== 'ทุกอาชีพ')))
+    .sort((a, b) => a.localeCompare(b, 'th'))], [machines]);
+  const optionsByOccupation = useMemo(() => new Map(['', ...occupations].map((occupation) => [occupation,
+    recipesForOccupation(recipes, machines, occupation).map((recipe) => ({ value: recipe.id, label: recipe.name, time: recipe.time_per_unit })),
+  ])), [recipes, machines, occupations]);
+  const dataKey = useMemo(() => JSON.stringify([floors, eventDays, eventHours, eventMinutes, recipes, stocks]),
+    [floors, eventDays, eventHours, eventMinutes, recipes, stocks]);
+  const stale = !!result && result.key !== dataKey;
 
-  // ── Derived data ────────────────────────────────────────────────────────────
-  // map machine_id → occupation
-  const machineOccupationMap = useMemo(
-    () => new Map(machines.map((m) => [m.machine_id, m.occupation ?? ''])),
-    [machines]
-  );
-
-  // available occupations from machines that have recipes
-  const recipeMachineIds = useMemo(() => new Set(recipes.map((r) => r.machine_id)), [recipes]);
-  const availableOccupations = useMemo(() => {
-    const occs = new Set<string>();
-    machines.forEach((m) => {
-      if (recipeMachineIds.has(m.machine_id) && m.occupation) occs.add(m.occupation);
-    });
-    return Array.from(occs).sort((a, b) => a.localeCompare(b, 'th'));
-  }, [machines, recipeMachineIds]);
-
-  const hasOccupations = availableOccupations.length > 0;
-
-  // recipes with time only
-  const recipesWithTime = useMemo(
-    () => recipes.filter((r) => r.time_per_unit !== null),
-    [recipes]
-  );
-
-  // get filtered recipes for a floor given its occupation
-  const getFilteredRecipes = useCallback(
-    (occupation: string): Recipe[] => {
-      if (!hasOccupations || occupation === '') return recipesWithTime;
-      return recipesWithTime.filter((r) => {
-        const occ = machineOccupationMap.get(r.machine_id ?? '') ?? '';
-        return occ === occupation;
-      }).sort((a, b) => a.name.localeCompare(b.name, 'th'));
-    },
-    [hasOccupations, recipesWithTime, machineOccupationMap]
-  );
-
-  // ── Handlers ────────────────────────────────────────────────────────────────
-  const setFloorOccupation = useCallback((floorNum: number, occ: string) => {
-    setFloors((prev) =>
-      prev.map((f) =>
-        f.floor_number === floorNum
-          ? { ...f, occupation: occ, recipe_id: '' } // reset recipe when occupation changes
-          : f
-      )
-    );
-  }, []);
-
-  const setFloorRecipe = useCallback((floorNum: number, recipeId: string) => {
-    setFloors((prev) =>
-      prev.map((f) => f.floor_number === floorNum ? { ...f, recipe_id: recipeId } : f)
-    );
-  }, []);
-
-  const clearAll = useCallback(() => {
-    setFloors((prev) => prev.map((f) => ({ ...f, occupation: '', recipe_id: '' })));
-    setResult(null);
+  const changeFloor = (number: number, patch: Partial<FloorRow>) => {
+    setFloors((current) => current.map((floor) => floor.floor_number === number ? { ...floor, ...patch } : floor));
     setError(null);
-  }, []);
-
-  const handleCalculate = useCallback(async () => {
-    const assigned = floors.filter((f) => f.recipe_id !== '');
-    if (assigned.length === 0) {
-      setError('กรุณากำหนด Recipe ให้อย่างน้อย 1 ชั้น');
-      return;
+  };
+  const calculate = async () => {
+    if (!assigned.length) { setError('เลือกสูตรอย่างน้อย 1 ชั้นก่อนคำนวณ'); return; }
+    if (!Number.isFinite(totalHours) || eventDays < 1 || totalHours <= 0) {
+      setError('กำหนดระยะเวลา Event อย่างน้อย 1 วัน'); return;
     }
-    setLoading(true);
-    setError(null);
-    setResult(null);
+    const valid = new Set(recipesForOccupation(recipes, machines, '').map((recipe) => recipe.id));
+    const invalid = assigned.filter((floor) => !valid.has(floor.recipe_id));
+    if (invalid.length) { setError(`กรุณาเลือกสูตรที่มีเวลาผลิตใหม่สำหรับชั้น ${invalid.map((floor) => floor.floor_number).join(', ')}`); return; }
+    setLoading(true); setError(null);
     try {
-      const body: PlanRequest = {
-        event_days: eventDays,
-        event_hours: eventHours,
-        event_minutes: eventMinutes,
-        slots_per_floor: SLOTS_PER_FLOOR,
-        floor_assignments: assigned.map((f): FloorAssignment => ({
-          floor_number: f.floor_number,
-          recipe_id: f.recipe_id,
-        })),
-      };
-      const res = await runPlan(body);
-      setResult(res);
-    } catch (err: unknown) {
-      setError((err as Error).message ?? 'คำนวณไม่สำเร็จ');
-    } finally {
-      setLoading(false);
-    }
-  }, [floors, eventDays, eventHours, eventMinutes]);
+      const request: PlanRequest = { event_days: eventDays, event_hours: eventHours, event_minutes: eventMinutes,
+        slots_per_floor: SLOTS_PER_FLOOR, floor_assignments: assigned.map(({ floor_number, recipe_id }) => ({ floor_number, recipe_id })) };
+      const data = await runPlan(request);
+      setResult({ data, key: dataKey });
+      setView('summary');
+    } catch (err) { setError((err as Error).message || 'คำนวณไม่สำเร็จ กรุณาลองอีกครั้ง'); }
+    finally { setLoading(false); }
+  };
 
-  const totalEventHours = eventDays * 24 + eventHours + eventMinutes / 60;
-  const assignedCount = floors.filter((f) => f.recipe_id !== '').length;
-
-  return (
-    <div className="planner-layout">
-      {/* ── Left: config panel ── */}
-      <div className="planner-config flex flex-col gap-4">
-
-        {/* Event duration */}
-        <section className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 space-y-3">
-          <h3 className="text-sm font-semibold text-gray-700">ระยะเวลา Event</h3>
-          <div className="grid grid-cols-3 gap-2">
-            {[
-              { label: 'วัน', value: eventDays, max: 365, setter: setEventDays },
-              { label: 'ชั่วโมง', value: eventHours, max: 23, setter: setEventHoursVal },
-              { label: 'นาที', value: eventMinutes, max: 59, setter: setEventMinutes },
-            ].map(({ label, value, max, setter }) => (
-              <div key={label}>
-                <label className="text-xs text-gray-500 mb-1 block">{label}</label>
-                <input
-                  type="number" min={0} max={max} value={value}
-                  onChange={(e) => setter(Math.max(0, Math.min(max, Number(e.target.value))))}
-                  className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm text-center focus:border-blue-500 focus:outline-none"
-                />
-              </div>
-            ))}
-          </div>
-          <p className="text-xs text-blue-600 font-medium">
-            รวม {totalEventHours % 1 === 0 ? totalEventHours : totalEventHours.toFixed(2)} ชั่วโมง
-          </p>
-        </section>
-
-        {/* Floor assignment */}
-        <section className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 flex flex-col gap-2">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-gray-700">กำหนดชั้น</h3>
-            <button onClick={clearAll} className="text-xs text-gray-400 hover:text-red-500">
-              ล้างทั้งหมด
-            </button>
-          </div>
-          <p className="text-xs text-gray-400">
-            {assignedCount}/{TOTAL_FLOORS} ชั้น · {SLOTS_PER_FLOOR} เครื่อง/ชั้น
-          </p>
-
-          {/* Column headers */}
-          <div className="planner-floor-heading text-xs text-gray-400 font-medium">
-            <span className="text-center">ชั้น</span>
-            <span>{hasOccupations ? 'อาชีพ / สูตรการผลิต' : 'สูตรการผลิต'}</span>
-            <span className="text-right">ชิ้น</span>
-          </div>
-
-          {/* Floor rows */}
-          <div className="planner-floor-list">
-            {floors.map((f) => {
-              const filteredRecipes = getFilteredRecipes(f.occupation);
-              const selectedRecipe = recipes.find((r) => r.id === f.recipe_id);
-              const previewCount = selectedRecipe
-                ? Math.floor(totalEventHours / parseTime(selectedRecipe.time_per_unit)) * SLOTS_PER_FLOOR
-                : 0;
-
-              return (
-                <div
-                  key={f.floor_number}
-                  className={`planner-floor-row${hasOccupations ? ' planner-floor-row--with-occupation' : ''}`}
-                >
-                  {/* ชั้น badge */}
-                  <span className="text-xs font-semibold text-gray-500 text-center w-8 flex-shrink-0">
-                    {f.floor_number}
-                  </span>
-
-                  {/* Occupation dropdown */}
-                  {hasOccupations && (
-                    <Select
-                      value={f.occupation || undefined}
-                      onChange={(v) => setFloorOccupation(f.floor_number, v ?? '')}
-                      aria-label={`อาชีพชั้น ${f.floor_number}`}
-                      placeholder="อาชีพ"
-                      allowClear
-                      className="planner-floor-occupation"
-                      options={availableOccupations.map((occ) => ({ label: occ, value: occ }))}
-                    />
-                  )}
-
-                  {/* Recipe dropdown */}
-                  <Select
-                    value={f.recipe_id || undefined}
-                    onChange={(v) => setFloorRecipe(f.floor_number, v ?? '')}
-                    aria-label={`สูตรชั้น ${f.floor_number}`}
-                    placeholder="เลือกสูตรการผลิต"
-                    allowClear
-                    showSearch
-                    className="planner-floor-recipe"
-                    options={filteredRecipes.map((r) => ({
-                      label: `${r.name} (${r.time_per_unit})`,
-                      value: r.id,
-                    }))}
-                    filterOption={(input, opt) =>
-                      (opt?.label as string ?? '').toLowerCase().includes(input.toLowerCase())
-                    }
-                  />
-
-                  {/* Preview count */}
-                  <span className="planner-floor-count text-xs text-gray-400 text-right tabular-nums">
-                    {f.recipe_id ? `×${previewCount.toLocaleString()}` : ''}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* Calculate button */}
-        <div className="space-y-2">
-          {error && (
-            <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">{error}</p>
-          )}
-          <button
-            onClick={handleCalculate}
-            disabled={loading || assignedCount === 0}
-            className="w-full rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          >
-            {loading
-              ? <><Spin indicator={<LoadingOutlined style={{ fontSize: 14, color: '#fff' }} spin />} /> กำลังคำนวณ…</>
-              : <><PlayCircleOutlined /> คำนวณแผนการผลิต</>
-            }
-          </button>
-        </div>
-      </div>
-
-      {/* ── Right: results ── */}
-      <div className="min-w-0 overflow-y-auto">
-        {!result && !loading && !error && (
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description={<span style={{ fontSize: 13, color: '#94a3b8' }}>กำหนดชั้นและสูตรการผลิต แล้วกดคำนวณ</span>}
-            style={{ padding: '60px 0' }}
-          />
-        )}
-        {loading && (
-          <div style={{ textAlign: 'center', padding: '60px 0' }}>
-            <Spin indicator={<LoadingOutlined style={{ fontSize: 28, color: '#2563eb' }} spin />} />
-            <div style={{ fontSize: 13, color: '#64748b', marginTop: 12 }}>กำลังคำนวณ…</div>
-          </div>
-        )}
-        {result && !loading && <PlanSummary result={result} />}
-      </div>
+  return <div className="production-planner">
+    <div className="planner-navigation">
+      <nav className="planner-view-switch" aria-label="หน้าวางแผน">
+        <button type="button" aria-pressed={view === 'configure'} onClick={() => setView('configure')}>กำหนดชั้น <span>{assigned.length}/{TOTAL_FLOORS}</span></button>
+        <button type="button" aria-pressed={view === 'summary'} disabled={!result} onClick={() => setView('summary')}>ผลการคำนวณ {stale && <span>ต้องคำนวณใหม่</span>}</button>
+      </nav>
+      {view === 'summary' && <Button icon={<ArrowLeftOutlined />} onClick={() => setView('configure')}>แก้ไขแผน</Button>}
     </div>
-  );
+    {error && <Alert type="error" showIcon message={error} />}
+    {stale && <Alert type="warning" showIcon message="แผนหรือข้อมูลเปลี่ยนแล้ว ผลด้านล่างยังเป็นรอบก่อนหน้า" action={<Button loading={loading} onClick={() => void calculate()}>คำนวณใหม่</Button>} />}
+
+    {view === 'configure' && <>
+      <section className="planner-event-bar" aria-label="ระยะเวลา Event">
+        <strong>ระยะเวลา Event</strong>
+        {[{ label: 'วัน', value: eventDays, min: 1, max: 365, set: setEventDays },
+          { label: 'ชั่วโมง', value: eventHours, min: 0, max: 23, set: setEventHours },
+          { label: 'นาที', value: eventMinutes, min: 0, max: 59, set: setEventMinutes }].map(({ label, value, min, max, set }) =>
+          <label key={label}><input type="number" aria-label={`ระยะเวลา ${label}`} min={min} max={max} step={1} value={value} disabled={loading}
+            onChange={(event) => set(Math.max(min, Math.min(max, Math.floor(Number(event.target.value) || 0))))} /><span>{label}</span></label>)}
+        <span className="planner-duration-total">รวม {totalHours.toLocaleString('th-TH', { maximumFractionDigits: 2 })} ชั่วโมง</span>
+      </section>
+
+      <div className="planner-assignment-grid">
+        {groups.map((group) => <section className="planner-floor-group" key={group[0].floor_number} aria-label={`กำหนดชั้น ${group[0].floor_number} ถึง ${group[group.length - 1].floor_number}`}>
+          <div className="planner-group-heading"><h4>ชั้น {group[0].floor_number}–{group[group.length - 1].floor_number}</h4><span>{group.filter((floor) => floor.recipe_id).length}/{group.length} ชั้น</span></div>
+          <div className="planner-entry-labels" aria-hidden="true"><span>ชั้น</span><span>อาชีพ</span><span>สูตรการผลิต</span></div>
+          {group.map((floor) => <div className={`planner-entry-row${floor.recipe_id ? ' is-assigned' : ''}`} key={floor.floor_number}>
+            <span className="planner-floor-number">{String(floor.floor_number).padStart(2, '0')}</span>
+            <Select aria-label={`อาชีพชั้น ${floor.floor_number}`} value={floor.occupation || 'ทุกอาชีพ'} disabled={loading}
+              onChange={(occupation) => changeFloor(floor.floor_number, { occupation, recipe_id: '' })}
+              options={occupations.map((occupation) => ({ label: occupation, value: occupation }))} popupMatchSelectWidth={false} />
+            <Select aria-label={`สูตรชั้น ${floor.floor_number}`} value={floor.recipe_id || undefined} disabled={loading}
+              placeholder="พิมพ์ค้นหาสูตร" showSearch optionFilterProp="label"
+              labelRender={({ value }) => recipes.find((recipe) => recipe.id === value)?.name ?? 'เลือกสูตรใหม่'}
+              onChange={(recipeId) => changeFloor(floor.floor_number, { recipe_id: recipeId ?? '' })}
+              options={[{ value: '', label: 'ไม่กำหนดสูตร', time: null }, ...(optionsByOccupation.get(floor.occupation) ?? optionsByOccupation.get('') ?? [])]}
+              popupMatchSelectWidth={false} classNames={{ popup: { root: 'planner-recipe-popup' } }}
+              optionRender={(option) => <div className="planner-recipe-option"><span>{option.label}</span><small>{option.data.time}</small></div>} />
+          </div>)}
+        </section>)}
+      </div>
+      <div className="planner-entry-footer"><p><kbd>Tab</kbd> ช่องถัดไป <span>·</span> <kbd>Shift + Tab</kbd> ย้อนกลับ <span>·</span> {SLOTS_PER_FLOOR} เครื่อง/ชั้น</p>
+        <div className="planner-entry-actions"><Popconfirm title="ล้างสูตรที่เลือกทั้ง 27 ชั้น?" okText="ล้างทั้งหมด" cancelText="ยกเลิก" onConfirm={() => {
+        setFloors((current) => current.map((floor) => ({ ...floor, occupation: '', recipe_id: '' }))); setError(null);
+      }}><Button type="text" disabled={loading || !assigned.length}>ล้างทั้งหมด</Button></Popconfirm><Button type="primary" icon={<PlayCircleOutlined />} loading={loading} disabled={!assigned.length} onClick={() => void calculate()}>คำนวณแผนการผลิต</Button></div>
+      </div>
+    </>}
+    {view === 'summary' && result && <PlanSummary key={result.key} result={result.data} />}
+  </div>;
 }

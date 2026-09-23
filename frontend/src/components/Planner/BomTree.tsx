@@ -20,6 +20,15 @@ export function BomTree({ node, depth = 0 }: BomTreeProps) {
           node.is_raw ? 'text-gray-500' : 'text-gray-800'
         }`}
         style={{ paddingLeft: `${8 + indent}px` }}
+        role={hasChildren ? 'button' : undefined}
+        tabIndex={hasChildren ? 0 : undefined}
+        aria-expanded={hasChildren ? open : undefined}
+        onKeyDown={(event) => {
+          if (hasChildren && (event.key === 'Enter' || event.key === ' ')) {
+            event.preventDefault();
+            setOpen((value) => !value);
+          }
+        }}
         onClick={() => hasChildren && setOpen((v) => !v)}
       >
         {/* expand/collapse icon */}
