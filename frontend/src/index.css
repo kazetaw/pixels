@@ -328,3 +328,19 @@ body {
 @media (max-width: 420px) {
   .floor-dashboard__grid { grid-template-columns: 1fr; }
 }
+
+/* Keep floor selectors inside their grid tracks, including on narrow screens. */
+.planner-layout { display: grid; grid-template-columns: minmax(0, 400px) minmax(0, 1fr); gap: 24px; align-items: start; }
+.planner-config { min-width: 0; }
+.planner-floor-heading, .planner-floor-row { display: grid; grid-template-columns: 2rem minmax(0, 1fr) 4.5rem; column-gap: 10px; align-items: center; }
+.planner-floor-list { max-height: 52vh; overflow-y: auto; padding-right: 4px; }
+.planner-floor-row { row-gap: 8px; padding: 12px 0; border-bottom: 1px solid #f1f5f9; }
+.planner-floor-row:last-child { border-bottom: 0; }
+.planner-floor-row .ant-select { width: 100%; min-width: 0; }
+.planner-floor-occupation { grid-column: 2; grid-row: 1; }
+.planner-floor-recipe { grid-column: 2; grid-row: 1; }
+.planner-floor-row--with-occupation .planner-floor-recipe { grid-column: 2 / -1; grid-row: 2; }
+.planner-floor-count { grid-column: 3; grid-row: 1; overflow-wrap: anywhere; }
+@media (max-width: 1100px) {
+  .planner-layout { grid-template-columns: minmax(0, 1fr); }
+}

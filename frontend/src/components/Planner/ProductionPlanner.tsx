@@ -143,9 +143,9 @@ export function ProductionPlanner({ recipes, machines = [] }: ProductionPlannerP
   const assignedCount = floors.filter((f) => f.recipe_id !== '').length;
 
   return (
-    <div className="flex gap-6 h-full">
+    <div className="planner-layout">
       {/* ── Left: config panel ── */}
-      <div className="w-96 flex-shrink-0 flex flex-col gap-4 overflow-y-auto pr-1">
+      <div className="planner-config flex flex-col gap-4">
 
         {/* Event duration */}
         <section className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 space-y-3">
@@ -184,15 +184,14 @@ export function ProductionPlanner({ recipes, machines = [] }: ProductionPlannerP
           </p>
 
           {/* Column headers */}
-          <div className={`grid gap-1 text-xs text-gray-400 font-medium px-1 ${hasOccupations ? 'grid-cols-[2rem_5rem_1fr_3rem]' : 'grid-cols-[2rem_1fr_3rem]'}`}>
+          <div className="planner-floor-heading text-xs text-gray-400 font-medium">
             <span className="text-center">ชั้น</span>
-            {hasOccupations && <span>อาชีพ</span>}
-            <span>สูตร</span>
+            <span>{hasOccupations ? 'อาชีพ / สูตรการผลิต' : 'สูตรการผลิต'}</span>
             <span className="text-right">ชิ้น</span>
           </div>
 
           {/* Floor rows */}
-          <div className="space-y-1 max-h-[52vh] overflow-y-auto pr-1">
+          <div className="planner-floor-list">
             {floors.map((f) => {
               const filteredRecipes = getFilteredRecipes(f.occupation);
               const selectedRecipe = recipes.find((r) => r.id === f.recipe_id);
@@ -203,7 +202,7 @@ export function ProductionPlanner({ recipes, machines = [] }: ProductionPlannerP
               return (
                 <div
                   key={f.floor_number}
-                  className={`grid gap-1 items-center ${hasOccupations ? 'grid-cols-[2rem_5rem_1fr_3rem]' : 'grid-cols-[2rem_1fr_3rem]'}`}
+                  className={`planner-floor-row${hasOccupations ? ' planner-floor-row--with-occupation' : ''}`}
                 >
                   {/* ชั้น badge */}
                   <span className="text-xs font-semibold text-gray-500 text-center w-8 flex-shrink-0">
@@ -215,10 +214,10 @@ export function ProductionPlanner({ recipes, machines = [] }: ProductionPlannerP
                     <Select
                       value={f.occupation || undefined}
                       onChange={(v) => setFloorOccupation(f.floor_number, v ?? '')}
+                      aria-label={`อาชีพชั้น ${f.floor_number}`}
                       placeholder="อาชีพ"
                       allowClear
-                      size="small"
-                      style={{ width: 110 }}
+                      className="planner-floor-occupation"
                       options={availableOccupations.map((occ) => ({ label: occ, value: occ }))}
                     />
                   )}
@@ -227,11 +226,11 @@ export function ProductionPlanner({ recipes, machines = [] }: ProductionPlannerP
                   <Select
                     value={f.recipe_id || undefined}
                     onChange={(v) => setFloorRecipe(f.floor_number, v ?? '')}
-                    placeholder="เลือกสูตร"
+                    aria-label={`สูตรชั้น ${f.floor_number}`}
+                    placeholder="เลือกสูตรการผลิต"
                     allowClear
                     showSearch
-                    size="small"
-                    style={{ flex: 1 }}
+                    className="planner-floor-recipe"
                     options={filteredRecipes.map((r) => ({
                       label: `${r.name} (${r.time_per_unit})`,
                       value: r.id,
@@ -242,7 +241,7 @@ export function ProductionPlanner({ recipes, machines = [] }: ProductionPlannerP
                   />
 
                   {/* Preview count */}
-                  <span className="text-xs text-gray-400 text-right tabular-nums">
+                  <span className="planner-floor-count text-xs text-gray-400 text-right tabular-nums">
                     {f.recipe_id ? `×${previewCount.toLocaleString()}` : ''}
                   </span>
                 </div>
@@ -270,7 +269,7 @@ export function ProductionPlanner({ recipes, machines = [] }: ProductionPlannerP
       </div>
 
       {/* ── Right: results ── */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="min-w-0 overflow-y-auto">
         {!result && !loading && !error && (
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}
