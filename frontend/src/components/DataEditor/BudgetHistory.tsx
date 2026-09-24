@@ -1,3 +1,4 @@
+import { ItemLabel } from '../shared/ItemVisual';
 /**
  * BudgetHistory.tsx
  *
@@ -64,7 +65,7 @@ export function BudgetHistory({ recipes }: BudgetHistoryProps) {
     {
       title: 'รายการ',
       dataIndex: 'item_id',
-      render: (id) => <Text strong>{itemName(id)}</Text>,
+      render: (id) => <ItemLabel id={id} name={itemName(id)} size={32} reserveImage />,
     },
     {
       title: 'เพิ่มสต็อก',
@@ -156,6 +157,7 @@ export function BudgetHistory({ recipes }: BudgetHistoryProps) {
           <span style={{ fontSize: 12, color: '#94a3b8', marginLeft: 8 }}>{purchases.length} รายการล่าสุด</span>
         </div>
         <Table
+          scroll={{ x: 880 }}
           columns={columns}
           dataSource={purchases}
           rowKey="id"

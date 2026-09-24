@@ -1,3 +1,4 @@
+import { ItemLabel, itemSelectVisuals } from '../shared/ItemVisual';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Card, Input, InputNumber, Select, Space, Spin, Table, Tag, Typography, message } from 'antd';
 import { SaveOutlined, ShoppingCartOutlined } from '@ant-design/icons';
@@ -116,7 +117,7 @@ export function BudgetDraft({ stocks, recipes, onStockChanged }: BudgetDraftProp
   };
 
   const columns: ColumnsType<StockPurchase> = [
-    { title: 'รายการ', dataIndex: 'item_id', render: (id) => <Text strong>{itemName(id)}</Text> },
+    { title: 'รายการ', dataIndex: 'item_id', render: (id) => <ItemLabel id={id} name={itemName(id)} size={32} reserveImage /> },
     { title: 'เพิ่มสต็อก', dataIndex: 'quantity', align: 'right', width: 108, render: (value) => `+${value} ชิ้น` },
     { title: 'จ่ายทั้งหมด', dataIndex: 'total_amount', align: 'right', width: 140, render: (value, row) => <Text strong>{displayMoney(value, row.currency)}</Text> },
     { title: 'ต้นทุน/ชิ้น', align: 'right', width: 130, render: (_, row) => displayMoney(row.total_amount / row.quantity, row.currency) },
@@ -131,10 +132,10 @@ export function BudgetDraft({ stocks, recipes, onStockChanged }: BudgetDraftProp
       <Alert type="info" showIcon message="ทุกการซื้อเพิ่มสต็อกและบันทึกรายจ่ายในรายการเดียว" description="THB และ G แยกงบกันโดยสมบูรณ์ ระบบจะไม่แปลงค่าเงินเอง" />
 
       {loading ? <div style={{ textAlign: 'center', padding: 48 }}><Spin /></div> : <>
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.15fr) minmax(280px, .85fr)', gap: 16, alignItems: 'start' }}>
+        <div className="budget-content-grid">
           <Card title="ซื้อเพื่อเติมสต็อก" size="small">
             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 110px', gap: 12, marginBottom: 12 }}>
-              <label><span className="budget-field-label">รายการ</span><Select showSearch optionFilterProp="label" value={itemId || undefined} onChange={setItemId} placeholder="ค้นหาวัตถุดิบหรือสินค้าแปรรูป" options={itemOptions} style={{ width: '100%' }} /></label>
+              <label><span className="budget-field-label">รายการ</span><Select {...itemSelectVisuals} showSearch optionFilterProp="label" value={itemId || undefined} onChange={setItemId} placeholder="ค้นหาวัตถุดิบหรือสินค้าแปรรูป" options={itemOptions} style={{ width: '100%' }} /></label>
               <label><span className="budget-field-label">จำนวนที่ซื้อ</span><InputNumber min={1} value={quantity} onChange={(value) => setQuantity(value ?? 1)} style={{ width: '100%' }} /></label>
             </div>
             <Text type="secondary" style={{ display: 'block', fontSize: 12, marginBottom: 12 }}>เลือกซื้อได้ทั้งวัตถุดิบและสินค้าแปรรูปจากทุกสูตร แม้ยังไม่มีในสต็อก</Text>
@@ -178,7 +179,7 @@ export function BudgetDraft({ stocks, recipes, onStockChanged }: BudgetDraftProp
           </div>
         </div>
 
-        <div><div style={{ marginBottom: 8 }}><h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: '#0f172a' }}>ประวัติการซื้อ</h3><p style={{ margin: '3px 0 0', fontSize: 12, color: '#64748b' }}>เก็บ 100 รายการล่าสุด พร้อมจำนวนที่เพิ่มจริงในสต็อก</p></div><Table columns={columns} dataSource={purchases} rowKey="id" pagination={{ pageSize: 10, showSizeChanger: false }} size="small" locale={{ emptyText: 'ยังไม่มีประวัติการซื้อ' }} /></div>
+        <div><div style={{ marginBottom: 8 }}><h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: '#0f172a' }}>ประวัติการซื้อ</h3><p style={{ margin: '3px 0 0', fontSize: 12, color: '#64748b' }}>เก็บ 100 รายการล่าสุด พร้อมจำนวนที่เพิ่มจริงในสต็อก</p></div><Table scroll={{ x: 880 }} columns={columns} dataSource={purchases} rowKey="id" pagination={{ pageSize: 10, showSizeChanger: false }} size="small" locale={{ emptyText: 'ยังไม่มีประวัติการซื้อ' }} /></div>
       </>}
     </div>
   );

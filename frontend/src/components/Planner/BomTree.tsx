@@ -1,6 +1,7 @@
+import { ItemLabel } from '../shared/ItemVisual';
 // frontend/src/components/Planner/BomTree.tsx
 import { useState } from 'react';
-import { RightOutlined, DownOutlined, TagOutlined, InboxOutlined } from '@ant-design/icons';
+import { RightOutlined, DownOutlined } from '@ant-design/icons';
 import { BomTreeNode } from '../../types';
 
 interface BomTreeProps {
@@ -38,14 +39,9 @@ export function BomTree({ node, depth = 0 }: BomTreeProps) {
             : null}
         </span>
 
-        {/* item icon */}
-        <span className="text-sm flex-shrink-0" style={{ color: node.is_raw ? '#52c41a' : '#1677ff' }}>
-          {node.is_raw ? <TagOutlined /> : <InboxOutlined />}
-        </span>
-
         {/* name + qty */}
         <span className={`text-sm flex-1 ${node.is_raw ? 'text-gray-500' : 'font-medium'}`}>
-          {node.item_name}
+          <ItemLabel id={node.item_id} name={node.item_name} size={26} />
         </span>
         <span className="text-sm font-semibold text-gray-700 ml-2">
           {node.quantity_needed.toLocaleString()}

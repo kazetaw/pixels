@@ -1,3 +1,4 @@
+import { itemSelectVisuals } from '../shared/ItemVisual';
 import { useState, useMemo } from 'react';
 import {
   Table, Button, Input, InputNumber, Select, Modal, Form,
@@ -142,7 +143,7 @@ function AddItemModal({ open, recipes, machines, existingKeys, onAdd, onClose }:
             <Select
               showSearch
               placeholder="ค้นหา recipe…"
-              options={recipeOptions}
+              {...itemSelectVisuals} options={recipeOptions}
               filterOption={(input, opt) =>
                 (opt?.label as string ?? '').toLowerCase().includes(input.toLowerCase())
               }
@@ -260,6 +261,7 @@ export function StockEditorFull({ stocks, stockImages, recipes, machines, onSave
       render: (_, row) => (
         <ImagePicker
           value={row.image}
+          fallbackImage={recipes.find((recipe) => recipe.id === row.key)?.image}
           onChange={(v) => handleImageChange(row.key, v)}
           folder="stocks"
           itemId={row.key}

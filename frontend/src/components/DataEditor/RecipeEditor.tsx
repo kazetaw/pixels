@@ -1,3 +1,4 @@
+import { ItemLabel, itemSelectVisuals } from '../shared/ItemVisual';
 import { useState } from 'react';
 import {
   Input, InputNumber, Select, Button, Tag, Space, Popconfirm, Modal, Form,
@@ -77,7 +78,7 @@ function IngredientEditor({ ingredients, recipes, stocks, onChange }: IngEditorP
           return (
             <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <Tag color={isRecipe ? 'blue' : 'green'} style={{ margin: 0, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {getLabel(k)}
+                <ItemLabel id={k} name={getLabel(k)} size={22} />
               </Tag>
               <span style={{ fontSize: 12, color: '#374151', fontWeight: 600, marginLeft: 'auto', flexShrink: 0 }}>
                 ×{v}
@@ -95,7 +96,7 @@ function IngredientEditor({ ingredients, recipes, stocks, onChange }: IngEditorP
 
       {/* Add row */}
       <Space.Compact style={{ width: '100%' }}>
-        <Select
+        <Select {...itemSelectVisuals}
           value={selectedKey}
           onChange={setSelectedKey}
           placeholder="เลือกวัตถุดิบหรือสินค้า…"
@@ -425,7 +426,7 @@ export function RecipeEditor({ recipes, machines, stocks, onChange }: RecipeEdit
           style={{ width: 200 }}
           allowClear
         />
-        <Select
+        <Select {...itemSelectVisuals}
           value={filterMachine || undefined}
           onChange={(v) => setFilterMachine(v ?? '')}
           placeholder="ทุกเครื่องจักร"
@@ -436,7 +437,7 @@ export function RecipeEditor({ recipes, machines, stocks, onChange }: RecipeEdit
           ]}
         />
         {occupationOptions.length > 0 && (
-          <Select
+          <Select {...itemSelectVisuals}
             value={filterOcc || undefined}
             onChange={(v) => setFilterOcc(v ?? '')}
             placeholder="ทุกอาชีพ"
@@ -486,13 +487,13 @@ export function RecipeEditor({ recipes, machines, stocks, onChange }: RecipeEdit
                   />
                 </td>
                 <td className="px-4 py-2 font-medium text-gray-800">{r.name}</td>
-                <td className="px-4 py-2 text-gray-600 text-xs">{r.machine_id ? (machineMap.get(r.machine_id) ?? '—') : '—'}</td>
+                <td className="px-4 py-2 text-gray-600 text-xs">{r.machine_id ? <ItemLabel id={r.machine_id} name={machineMap.get(r.machine_id) ?? '—'} size={26} /> : '—'}</td>
                 <td className="px-4 py-2 text-center text-gray-600 font-mono text-xs">{r.time_per_unit ?? '—'}</td>
                 <td className="px-4 py-2 text-xs">
                   <div className="flex flex-wrap gap-1 justify-center">
                     {Object.entries(r.ingredients).slice(0, 3).map(([k, v]) => (
                       <span key={k} className="bg-gray-100 rounded px-1.5 py-0.5 text-xs">
-                        {recipeMap.get(k) ?? k} ×{v}
+                        <ItemLabel id={k} name={recipeMap.get(k) ?? k} size={20} /> ×{v}
                       </span>
                     ))}
                     {Object.keys(r.ingredients).length > 3 && (

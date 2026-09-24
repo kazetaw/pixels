@@ -1,3 +1,4 @@
+import { ItemVisualProvider } from './components/shared/ItemVisual';
 import { useState } from 'react';
 import { Layout, Menu, Alert, Spin, Empty, Button, message, Skeleton, Drawer, Divider } from 'antd';
 import {
@@ -210,15 +211,15 @@ export default function App() {
   const sidebarProps = { view, setView };
 
   if (bomOpen) {
-    return <BomWorkspace onBack={() => setBomOpen(false)} {...{
+    return <ItemVisualProvider recipes={recipes} machines={_machines} stockImages={stockImages}><BomWorkspace onBack={() => setBomOpen(false)} {...{
       recipes, stocks, stockImages, targetItems, addTargetItem, removeTargetItem,
       updateStock, saveStocks, runCalculation, calculationResult, loading, initError,
       calcError, saveStatus, saveError,
-    }} />;
+    }} /></ItemVisualProvider>;
   }
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <ItemVisualProvider recipes={recipes} machines={_machines} stockImages={stockImages}><Layout style={{ minHeight: '100vh' }}>
 
       {/* ── Mobile hamburger bar (hidden on desktop) ────────────────── */}
       <div style={{
@@ -323,6 +324,6 @@ export default function App() {
 
         </Content>
       </Layout>
-    </Layout>
+    </Layout></ItemVisualProvider>
   );
 }

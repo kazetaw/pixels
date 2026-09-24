@@ -1,3 +1,4 @@
+import { ItemLabel } from '../shared/ItemVisual';
 import { Recipe, TargetItem } from '../../types';
 
 interface TargetItemListProps {
@@ -21,7 +22,7 @@ export function TargetItemList({ items, recipes, onRemove }: TargetItemListProps
           }}
         >
           <span style={{ fontSize: 13, fontWeight: 500, color: '#1e40af', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {recipeMap.get(item.target_item_id) ?? item.target_item_id}
+            <ItemLabel id={item.target_item_id} name={recipeMap.get(item.target_item_id) ?? item.target_item_id} size={24} />
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             <span style={{ fontSize: 12, color: '#3b82f6', fontWeight: 500 }}>×{item.target_quantity}</span>

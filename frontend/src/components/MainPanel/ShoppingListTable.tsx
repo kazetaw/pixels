@@ -1,3 +1,4 @@
+import { ItemThumbnail } from '../shared/ItemVisual';
 import { ShoppingListEntry, StockImageMap, StockMap } from '../../types';
 import { Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -18,9 +19,7 @@ export function ShoppingListTable({ entries, stocks, stockImages }: Props) {
       title: '',
       dataIndex: 'item_id',
       width: 44,
-      render: (id) => stockImages[id]
-        ? <img src={stockImages[id]} alt="" style={{ width: 36, height: 36, borderRadius: 6, objectFit: 'contain', background: '#f8fafc' }} />
-        : <div style={{ width: 36, height: 36, borderRadius: 6, background: '#f1f5f9' }} />,
+      render: (id) => <ItemThumbnail id={id} image={stockImages[id]} size={36} />,
     },
     {
       title: 'ชื่อวัตถุดิบ',

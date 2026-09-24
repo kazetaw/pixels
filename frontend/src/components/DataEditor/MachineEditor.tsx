@@ -1,3 +1,4 @@
+import { ItemThumbnail } from '../shared/ItemVisual';
 import { useState } from 'react';
 import {
   Table, Button, Input, Modal, Form, InputNumber,
@@ -204,12 +205,7 @@ export function MachineEditor({ machines, recipes, stocks, onChange }: MachineEd
       dataIndex: 'image',
       width: 80,
       align: 'center',
-      render: (img, record) =>
-        img ? (
-          <img src={img} alt={record.machine_name} style={{ width: 56, height: 56, borderRadius: 6, objectFit: 'cover' }} />
-        ) : (
-          <div style={{ width: 56, height: 56, borderRadius: 6, background: '#f0f0f0', margin: '0 auto' }} />
-        ),
+      render: (img, record) => <ItemThumbnail id={record.machine_id} image={img} size={48} />,
     },
     {
       title: 'ชั้น',

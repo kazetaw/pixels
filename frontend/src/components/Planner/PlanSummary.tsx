@@ -1,3 +1,4 @@
+import { ItemLabel } from '../shared/ItemVisual';
 import { useMemo, useState } from 'react';
 import { Button, Checkbox, Drawer, Empty, Input, Table } from 'antd';
 import { CheckCircleOutlined, RightOutlined, SearchOutlined, WarningOutlined } from '@ant-design/icons';
@@ -17,7 +18,7 @@ function MaterialTable({ rows, type }: { rows: MaterialRow[]; type: 'raw' | 'int
   const filtered = rows.filter((row) => (!missingOnly || row.shortfall > 0) && row.name.toLocaleLowerCase('th').includes(query.trim().toLocaleLowerCase('th')))
     .sort((a, b) => b.shortfall - a.shortfall || a.name.localeCompare(b.name, 'th'));
   const columns: ColumnsType<MaterialRow> = [
-    { title: 'รายการ', dataIndex: 'name', render: (name) => <strong>{name}</strong> },
+    { title: 'รายการ', dataIndex: 'name', render: (name, row) => <ItemLabel id={row.key} name={name} size={32} reserveImage /> },
     { title: 'ต้องใช้', dataIndex: 'needed', align: 'right', width: 100, render: number },
     { title: type === 'raw' ? 'ในสต็อก' : 'ผลิตในแผน', dataIndex: 'available', align: 'right', width: 110, render: number },
     { title: type === 'raw' ? 'จัดหาเพิ่ม' : 'ยังขาด', dataIndex: 'shortfall', align: 'right', width: 115,
@@ -47,7 +48,7 @@ export function PlanSummary({ result }: { result: PlanResponse }) {
   const totalOutput = floors.reduce((sum, floor) => sum + floor.output_qty, 0);
   const hasShortfall = missingRaw.length + missingIntermediate.length > 0;
   const outputColumns: ColumnsType<(typeof products)[number]> = [
-    { title: 'สินค้าที่ผลิต', dataIndex: 'name', render: (name, product) => <div><strong>{name}</strong><span className="plan-product-floors">ชั้น {product.floors.join(', ')}</span></div> },
+    { title: 'สินค้าที่ผลิต', dataIndex: 'name', render: (name, product) => <ItemLabel id={product.id} name={name} size={36} reserveImage detail={`ชั้น ${product.floors.join(', ')}`} /> },
     { title: 'จำนวน (ชิ้น)', dataIndex: 'quantity', align: 'right', width: 120, render: (value) => <strong>{number(value)}</strong> },
   ];
 
@@ -76,7 +77,7 @@ export function PlanSummary({ result }: { result: PlanResponse }) {
         {([{ title: 'วัตถุดิบดิบ', rows: missingRaw, target: 'raw' }, { title: 'สินค้าแปรรูป', rows: missingIntermediate, target: 'intermediate' }] as const).map((section) =>
           <div className="plan-shortage-group" key={section.target}>
             <div className="plan-shortage-heading"><strong>{section.title}</strong><span>{section.rows.length} รายการ</span></div>
-            {section.rows.length ? <ul>{section.rows.slice(0, 2).map((row) => <li key={row.key}><span>{row.name}</span><strong className="plan-shortfall">+{number(row.shortfall)}</strong></li>)}</ul>
+            {section.rows.length ? <ul>{section.rows.slice(0, 2).map((row) => <li key={row.key}><ItemLabel id={row.key} name={row.name} size={26} /><strong className="plan-shortfall">+{number(row.shortfall)}</strong></li>)}</ul>
               : <p className="plan-sufficient"><CheckCircleOutlined /> ไม่มีรายการที่ขาด</p>}
             <Button type="link" onClick={() => setView(section.target)}>ดู{section.title}ทั้งหมด <RightOutlined /></Button>
           </div>)}
@@ -87,7 +88,7 @@ export function PlanSummary({ result }: { result: PlanResponse }) {
       {floors.length ? <div className="plan-floor-results-grid">{groupFloorRows(floors).map((group) => <div className="plan-floor-results-group" key={group[0].floor_number}>
         <div className="plan-floor-results-labels"><span>ชั้น</span><span>สูตรการผลิต</span><span>ชิ้น</span><span /></div>
         {group.map((floor) => <button type="button" className="plan-floor-result" key={floor.floor_number} onClick={() => setSelected(floor)} aria-label={`ดูรายละเอียดชั้น ${floor.floor_number} ${floor.recipe_name}`}>
-          <span className="planner-floor-number">{String(floor.floor_number).padStart(2, '0')}</span><span className="plan-floor-recipe-name">{floor.recipe_name}</span><strong>{number(floor.output_qty)}</strong><RightOutlined />
+          <span className="planner-floor-number">{String(floor.floor_number).padStart(2, '0')}</span><span className="plan-floor-recipe-name"><ItemLabel id={floor.recipe_id} name={floor.recipe_name} size={24} /></span><strong>{number(floor.output_qty)}</strong><RightOutlined />
         </button>)}
       </div>)}</div> : <Empty description="ยังไม่มีชั้นที่กำหนด" />}
     </section>}
@@ -95,7 +96,7 @@ export function PlanSummary({ result }: { result: PlanResponse }) {
     {view === 'intermediate' && <MaterialTable key="intermediate" rows={intermediate} type="intermediate" />}
 
     <Drawer open={!!selected} onClose={() => setSelected(null)} title={selected ? `รายละเอียดชั้น ${selected.floor_number}` : ''} size={560} className="plan-detail-drawer">
-      {selected && <><h3 className="plan-detail-title">{selected.recipe_name}</h3>
+      {selected && <><h3 className="plan-detail-title"><ItemLabel id={selected.recipe_id} name={selected.recipe_name} size={44} /></h3>
         <dl className="plan-detail-metrics"><div><dt>ผลผลิต</dt><dd>{number(selected.output_qty)} ชิ้น</dd></div><div><dt>รอบ / เครื่อง</dt><dd>{number(selected.cycles)} รอบ</dd></div><div><dt>เวลา / ชิ้น</dt><dd>{selected.time_per_unit}</dd></div></dl>
         <h4 className="plan-detail-subtitle">ส่วนผสมทั้งหมดที่ต้องใช้</h4><p className="plan-detail-note">จำนวนรวมสำหรับชั้นนี้ ก่อนหักสต็อก · หน่วย: ชิ้น</p>
         <BomTree key={selected.floor_number} node={selected.bom_tree} />

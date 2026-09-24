@@ -1,8 +1,9 @@
+import { ItemLabel, ItemThumbnail, ItemVisualProvider, itemSelectVisuals } from '../shared/ItemVisual';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Card, Empty, Form, InputNumber, Modal, Select, Spin, Tag, message } from 'antd';
 import { ClockCircleOutlined, PauseCircleOutlined, PlayCircleOutlined, PlusOutlined, ReloadOutlined, SettingOutlined } from '@ant-design/icons';
 import { createFloorTimer, fetchAllData, fetchFloorTimers, updateFloorTimer } from '../../api/client';
-import type { FloorDisplayStatus, FloorTimer, Machine, Recipe } from '../../types';
+import type { FloorDisplayStatus, FloorTimer, Machine, Recipe, StockImageMap } from '../../types';
 import { machinesForProfession } from './floorOptions';
 
 const FLOAT_GRACE_SECONDS = 15 * 60;
@@ -56,6 +57,7 @@ export function FloorTimerDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [stockImages, setStockImages] = useState<StockImageMap>({});
   const [selected, setSelected] = useState<FloorTimer | null>(null);
   const [configuring, setConfiguring] = useState<FloorTimer | null>(null);
   const [addOpen, setAddOpen] = useState(false);
@@ -68,7 +70,7 @@ export function FloorTimerDashboard() {
     setLoading(true); setError(null);
     try {
       const [timerRows, data] = await Promise.all([fetchFloorTimers(), fetchAllData()]);
-      setFloors(timerRows); setMachines(data.machines); setRecipes(data.recipes);
+      setFloors(timerRows); setMachines(data.machines); setRecipes(data.recipes); setStockImages(data.stockImages ?? {});
     }
     catch (e) { setError((e as Error).message); }
     finally { setLoading(false); }
@@ -151,7 +153,7 @@ export function FloorTimerDashboard() {
     setAddOpen(true);
   };
 
-  return <div className="floor-dashboard">
+  return <ItemVisualProvider recipes={recipes} machines={machines} stockImages={stockImages}><div className="floor-dashboard">
     {contextHolder}
     {error && <Alert type="error" showIcon message="โหลดข้อมูลชั้นไม่สำเร็จ" description={error} action={<Button size="small" onClick={() => void load()}>ลองอีกครั้ง</Button>} />}
     <div className="floor-dashboard__toolbar">
@@ -171,10 +173,10 @@ export function FloorTimerDashboard() {
         const recipe = recipes.find((item) => item.id === floor.recipe_id);
         const finishTime = floor.start_time && floor.estimated_duration_seconds ? new Date(new Date(floor.start_time).getTime() + floor.estimated_duration_seconds * 1000) : null;
         return <Card key={floor.floor_number} className={`floor-card floor-card--${floor.displayStatus}`} size="small">
-          <div className="floor-card__head"><div><strong>ชั้น {floor.floor_number}</strong><span>{floor.profession || 'ยังไม่ระบุอาชีพ'}</span></div><Tag color={meta.color}>{meta.label}</Tag></div>
+          <div className="floor-card__head"><div><strong>ชั้น {floor.floor_number}</strong><span><ItemLabel id={floor.profession} name={floor.profession || 'ยังไม่ระบุอาชีพ'} size={16} /></span></div><Tag color={meta.color}>{meta.label}</Tag></div>
           <div className="floor-card__selection">
-            {machine?.image ? <img src={machine.image} alt="" /> : <span className="floor-card__machine-placeholder"><SettingOutlined /></span>}
-            <div><span>{machineName || 'ยังไม่ได้เลือกเครื่อง'}</span><b>{recipe?.name || 'ยังไม่ได้เลือกสูตร'}</b></div>
+            <ItemThumbnail id={machine?.machine_id} image={machine?.image} size={32} />
+            <div><span>{machineName || 'ยังไม่ได้เลือกเครื่อง'}</span><b>{recipe ? <ItemLabel id={recipe.id} name={recipe.name} image={recipe.image} size={24} /> : 'ยังไม่ได้เลือกสูตร'}</b></div>
           </div>
           <div className="floor-card__body">
             {floor.displayStatus === 'idle' && <><ClockCircleOutlined /><span>พร้อมเริ่มงาน</span></>}
@@ -205,7 +207,7 @@ export function FloorTimerDashboard() {
       <Form form={configForm} layout="vertical">
         <Form.Item label="อาชีพประจำชั้น" name="profession" rules={[{ required: true, message: 'เลือกอาชีพ' }]}>
           <Select
-            placeholder="เลือกอาชีพ" optionLabelProp="label"
+            placeholder="เลือกอาชีพ" optionLabelProp="label" labelRender={itemSelectVisuals.labelRender}
             options={professions.map((profession) => ({ value: profession, label: profession, children: <ProfessionOption profession={profession} /> }))}
             optionRender={(option) => option.data.children}
             onChange={() => configForm.setFieldsValue({ machine_id: undefined, recipe_id: undefined })}
@@ -218,18 +220,18 @@ export function FloorTimerDashboard() {
             disabled={!chosenProfession}
             placeholder={chosenProfession ? 'เลือกเครื่องจักร' : 'เลือกอาชีพก่อน'}
             optionLabelProp="label"
-            labelRender={({ value }) => machines.find((machine) => machine.machine_id === value)?.machine_name ?? 'ไม่พบเครื่องจักรเดิม กรุณาเลือกใหม่'}
+            labelRender={({ value }) => <ItemLabel id={String(value)} name={machines.find((machine) => machine.machine_id === value)?.machine_name ?? 'ไม่พบเครื่องจักรเดิม กรุณาเลือกใหม่'} size={22} />}
             options={configMachines.map((machine) => ({
               value: machine.machine_id,
               label: machine.machine_name,
-              children: <span className="machine-select-option">{machine.image ? <img src={machine.image} alt="" /> : <span className="machine-select-option__placeholder"><SettingOutlined /></span>}<span>{machine.machine_name}</span></span>,
+              children: <ItemLabel id={machine.machine_id} name={machine.machine_name} image={machine.image} size={28} reserveImage />,
             }))}
             optionRender={(option) => option.data.children}
             onChange={() => configForm.setFieldValue('recipe_id', undefined)}
           />
         </Form.Item>
         <Form.Item label="สูตรการผลิต" name="recipe_id" rules={[{ required: true, message: 'เลือกสูตรการผลิต' }]}>
-          <Select showSearch optionFilterProp="label" labelRender={({ value }) => recipes.find((recipe) => recipe.id === value)?.name ?? 'ไม่พบสูตรเดิม กรุณาเลือกใหม่'} disabled={!chosenMachineId} placeholder={chosenMachineId ? 'เลือกสูตรการผลิต' : 'เลือกเครื่องจักรก่อน'} options={configRecipes.map((recipe) => ({ value: recipe.id, label: `${recipe.name}${recipe.time_per_unit ? ` (${recipe.time_per_unit})` : ''}` }))} />
+          <Select {...itemSelectVisuals} showSearch optionFilterProp="label" labelRender={({ value }) => <ItemLabel id={String(value)} name={recipes.find((recipe) => recipe.id === value)?.name ?? 'ไม่พบสูตรเดิม กรุณาเลือกใหม่'} size={22} />} disabled={!chosenMachineId} placeholder={chosenMachineId ? 'เลือกสูตรการผลิต' : 'เลือกเครื่องจักรก่อน'} options={configRecipes.map((recipe) => ({ value: recipe.id, label: `${recipe.name}${recipe.time_per_unit ? ` (${recipe.time_per_unit})` : ''}` }))} />
         </Form.Item>
       </Form>
     </Modal>
@@ -237,9 +239,9 @@ export function FloorTimerDashboard() {
     <Modal open={addOpen} onCancel={() => setAddOpen(false)} onOk={() => void addFloor()} okText="เพิ่มชั้น" okButtonProps={{ loading: saving }} cancelText="ยกเลิก" title="เพิ่มชั้นใหม่">
       <Form form={floorForm} layout="vertical"><Form.Item label="หมายเลขชั้น" name="floor_number" rules={[{ required: true, message: 'กรอกหมายเลขชั้น' }]}><InputNumber min={1} precision={0} style={{ width: '100%' }} /></Form.Item>
         <Form.Item label="อาชีพ" name="profession" rules={[{ required: true, message: 'เลือกอาชีพประจำชั้น' }]}>
-          <Select placeholder="เลือกอาชีพ" optionLabelProp="label" options={professions.map((profession) => ({ value: profession, label: profession, children: <ProfessionOption profession={profession} /> }))} optionRender={(option) => option.data.children} />
+          <Select placeholder="เลือกอาชีพ" optionLabelProp="label" labelRender={itemSelectVisuals.labelRender} options={professions.map((profession) => ({ value: profession, label: profession, children: <ProfessionOption profession={profession} /> }))} optionRender={(option) => option.data.children} />
         </Form.Item>
       </Form>
     </Modal>
-  </div>;
+  </div></ItemVisualProvider>;
 }

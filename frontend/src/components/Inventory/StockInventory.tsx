@@ -1,3 +1,4 @@
+import { ItemThumbnail } from '../shared/ItemVisual';
 /**
  * StockInventory.tsx
  *
@@ -75,12 +76,7 @@ export function StockInventory({ stocks, stockImages, recipes }: StockInventoryP
       dataIndex: 'image',
       width: 52,
       align: 'center',
-      render: (_, row) =>
-        row.image ? (
-          <img src={row.image} alt={row.name} style={{ width: 36, height: 36, borderRadius: 6, objectFit: 'contain', background: '#f8fafc' }} />
-        ) : (
-          <div style={{ width: 36, height: 36, borderRadius: 6, background: '#f1f5f9', margin: '0 auto' }} />
-        ),
+      render: (_, row) => <ItemThumbnail id={row.key} image={row.image} size={36} />,
     },
     {
       title: 'ชื่อรายการ',

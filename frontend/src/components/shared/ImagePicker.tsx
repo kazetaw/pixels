@@ -1,3 +1,4 @@
+import { useItemImage } from './ItemVisual';
 /**
  * shared/ImagePicker.tsx
  *
@@ -21,6 +22,7 @@ import { uploadImage } from '../../api/client';
 
 export interface ImagePickerProps {
   value: string | undefined;
+  fallbackImage?: string;
   onChange: (url: string | undefined) => void;
   folder: 'machines' | 'recipes' | 'stocks';
   itemId?: string;
@@ -32,6 +34,7 @@ export interface ImagePickerProps {
 
 export function ImagePicker({
   value,
+  fallbackImage,
   onChange,
   folder,
   itemId,
@@ -39,6 +42,7 @@ export function ImagePicker({
   variant = 'box',
   className = '',
 }: ImagePickerProps) {
+  const catalogImage = useItemImage(itemId ?? '');
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -171,6 +175,7 @@ export function ImagePicker({
   // ── Table variant ────────────────────────────────────────────────────────
   // Keeps the image column actionable without adding controls that widen a row.
   if (variant === 'table') {
+    const displayImage = value || fallbackImage || catalogImage;
     return (
       <>
         <div
@@ -179,7 +184,7 @@ export function ImagePicker({
           onDragLeave={() => setIsDragging(false)}
           onDrop={handleDrop}
         >
-          {value ? (
+          {displayImage ? (
             <button
               type="button"
               onClick={() => setPreviewOpen(true)}
@@ -187,7 +192,7 @@ export function ImagePicker({
               title="ดูรูปขนาดใหญ่"
               aria-label="ดูรูปขนาดใหญ่"
             >
-              <img src={value} alt="รูปสินค้า" className="h-full w-full object-contain" />
+              <img src={displayImage} alt="รูปสินค้า" className="h-full w-full object-contain" />
               <span className="absolute inset-0 flex items-center justify-center bg-slate-950/0 text-white opacity-0 transition group-hover:bg-slate-950/45 group-hover:opacity-100 group-focus:bg-slate-950/45 group-focus:opacity-100">
                 <EyeOutlined className="text-sm" />
               </span>
@@ -211,7 +216,7 @@ export function ImagePicker({
 
         {error && <p className="mt-1 max-w-24 text-xs text-red-500">{error}</p>}
         <Modal open={previewOpen} footer={null} onCancel={() => setPreviewOpen(false)} centered width={720} title="รูปสินค้า">
-          {value && <img src={value} alt="รูปสินค้าขนาดใหญ่" className="max-h-[70vh] w-full object-contain" />}
+          {displayImage && <img src={displayImage} alt="รูปสินค้าขนาดใหญ่" className="max-h-[70vh] w-full object-contain" />}
         </Modal>
       </>
     );

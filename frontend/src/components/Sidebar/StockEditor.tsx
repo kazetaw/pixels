@@ -1,3 +1,4 @@
+import { ItemThumbnail } from '../shared/ItemVisual';
 import { Recipe, StockImageMap, StockMap } from '../../types';
 
 interface StockEditorProps {
@@ -28,11 +29,7 @@ export function StockEditor({ recipes, stocks, stockImages, onUpdate }: StockEdi
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 260, overflowY: 'auto', paddingRight: 2 }}>
       {items.map(({ id, name }) => (
         <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-          {stockImages[id] ? (
-            <img src={stockImages[id]} alt="" style={{ width: 26, height: 26, borderRadius: 4, objectFit: 'contain', background: '#f1f5f9', flexShrink: 0 }} />
-          ) : (
-            <div style={{ width: 26, height: 26, borderRadius: 4, background: '#f1f5f9', flexShrink: 0 }} />
-          )}
+          <ItemThumbnail id={id} image={stockImages[id]} size={26} />
           <span style={{ flex: 1, fontSize: 12, color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={name}>
             {name}
           </span>

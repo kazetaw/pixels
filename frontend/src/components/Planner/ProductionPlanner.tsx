@@ -1,3 +1,4 @@
+import { ItemLabel, itemSelectVisuals } from '../shared/ItemVisual';
 import { useState, useMemo } from 'react';
 import { Alert, Button, Popconfirm, Select } from 'antd';
 import { ArrowLeftOutlined, PlayCircleOutlined } from '@ant-design/icons';
@@ -90,16 +91,16 @@ export function ProductionPlanner({ recipes, stocks, machines = [] }: Production
           <div className="planner-entry-labels" aria-hidden="true"><span>ชั้น</span><span>อาชีพ</span><span>สูตรการผลิต</span></div>
           {group.map((floor) => <div className={`planner-entry-row${floor.recipe_id ? ' is-assigned' : ''}`} key={floor.floor_number}>
             <span className="planner-floor-number">{String(floor.floor_number).padStart(2, '0')}</span>
-            <Select aria-label={`อาชีพชั้น ${floor.floor_number}`} value={floor.occupation || 'ทุกอาชีพ'} disabled={loading}
+            <Select {...itemSelectVisuals} aria-label={`อาชีพชั้น ${floor.floor_number}`} value={floor.occupation || 'ทุกอาชีพ'} disabled={loading}
               onChange={(occupation) => changeFloor(floor.floor_number, { occupation, recipe_id: '' })}
               options={occupations.map((occupation) => ({ label: occupation, value: occupation }))} popupMatchSelectWidth={false} />
-            <Select aria-label={`สูตรชั้น ${floor.floor_number}`} value={floor.recipe_id || undefined} disabled={loading}
+            <Select {...itemSelectVisuals} aria-label={`สูตรชั้น ${floor.floor_number}`} value={floor.recipe_id || undefined} disabled={loading}
               placeholder="พิมพ์ค้นหาสูตร" showSearch optionFilterProp="label"
-              labelRender={({ value }) => recipes.find((recipe) => recipe.id === value)?.name ?? 'เลือกสูตรใหม่'}
+              labelRender={({ value }) => <ItemLabel id={String(value)} name={recipes.find((recipe) => recipe.id === value)?.name ?? 'เลือกสูตรใหม่'} size={22} />}
               onChange={(recipeId) => changeFloor(floor.floor_number, { recipe_id: recipeId ?? '' })}
               options={[{ value: '', label: 'ไม่กำหนดสูตร', time: null }, ...(optionsByOccupation.get(floor.occupation) ?? optionsByOccupation.get('') ?? [])]}
               popupMatchSelectWidth={false} classNames={{ popup: { root: 'planner-recipe-popup' } }}
-              optionRender={(option) => <div className="planner-recipe-option"><span>{option.label}</span><small>{option.data.time}</small></div>} />
+              optionRender={(option) => <div className="planner-recipe-option"><ItemLabel id={String(option.value)} name={option.label} size={28} /><small>{option.data.time}</small></div>} />
           </div>)}
         </section>)}
       </div>

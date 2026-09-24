@@ -17,7 +17,7 @@ export const OCCUPATION_IMAGE: Record<Occupation, string> = {
   เชฟ:      '/occupations/chef.png',
   ไอดอล:   '/occupations/idol.png',
   เกษตร:   '/occupations/farmer.png',
-  ทุกอาชีพ: '/occupations/all.png',
+  ทุกอาชีพ: '',
 };
 
 export const OCCUPATION_COLOR: Record<Occupation, string> = {
@@ -37,7 +37,7 @@ function OccupationLabel({ occ }: { occ: Occupation }) {
         src={OCCUPATION_IMAGE[occ]}
         size={18}
         style={{ flexShrink: 0, background: '#f1f5f9' }}
-      />
+      >∀</Avatar>
       <span>{occ}</span>
     </Space>
   );

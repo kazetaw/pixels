@@ -1,3 +1,4 @@
+import { ItemLabel } from '../shared/ItemVisual';
 import { MachineWorkloadEntry } from '../../types';
 import { Table, Tag } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -29,7 +30,7 @@ export function MachineWorkloadTable({ entries }: Props) {
     {
       title: 'ชื่อเครื่องจักร',
       dataIndex: 'machine_name',
-      render: (name) => <span style={{ fontSize: 13, fontWeight: 500, color: '#0f172a' }}>{name}</span>,
+      render: (name, row) => <ItemLabel id={row.machine_id} name={name} size={32} reserveImage />,
     },
     {
       title: 'ชั้น',

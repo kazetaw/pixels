@@ -1,3 +1,4 @@
+import { itemSelectVisuals } from '../shared/ItemVisual';
 import { useState } from 'react';
 import { Select, InputNumber, Button } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
@@ -25,7 +26,7 @@ export function TargetItemForm({ recipes, onAdd }: TargetItemFormProps) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <Select
+      <Select {...itemSelectVisuals}
         value={selectedId || undefined}
         onChange={setSelectedId}
         options={options}
