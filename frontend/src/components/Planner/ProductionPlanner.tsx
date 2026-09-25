@@ -75,6 +75,9 @@ export function ProductionPlanner({ recipes, stocks, machines = [] }: Production
     {stale && <Alert type="warning" showIcon message="แผนหรือข้อมูลเปลี่ยนแล้ว ผลด้านล่างยังเป็นรอบก่อนหน้า" action={<Button loading={loading} onClick={() => void calculate()}>คำนวณใหม่</Button>} />}
 
     {view === 'configure' && <>
+      {!assigned.length && <div className="planner-starting-hint" role="status">
+        <strong>เริ่มวางแผน</strong><span>เลือกอาชีพและสูตรในชั้นที่ต้องการผลิตอย่างน้อย 1 ชั้น แล้วจึงคำนวณ</span>
+      </div>}
       <section className="planner-event-bar" aria-label="ระยะเวลา Event">
         <strong>ระยะเวลา Event</strong>
         {[{ label: 'วัน', value: eventDays, min: 1, max: 365, set: setEventDays },
@@ -107,7 +110,7 @@ export function ProductionPlanner({ recipes, stocks, machines = [] }: Production
       <div className="planner-entry-footer"><p><kbd>Tab</kbd> ช่องถัดไป <span>·</span> <kbd>Shift + Tab</kbd> ย้อนกลับ <span>·</span> {SLOTS_PER_FLOOR} เครื่อง/ชั้น</p>
         <div className="planner-entry-actions"><Popconfirm title="ล้างสูตรที่เลือกทั้ง 27 ชั้น?" okText="ล้างทั้งหมด" cancelText="ยกเลิก" onConfirm={() => {
         setFloors((current) => current.map((floor) => ({ ...floor, occupation: '', recipe_id: '' }))); setError(null);
-      }}><Button type="text" disabled={loading || !assigned.length}>ล้างทั้งหมด</Button></Popconfirm><Button type="primary" icon={<PlayCircleOutlined />} loading={loading} disabled={!assigned.length} onClick={() => void calculate()}>คำนวณแผนการผลิต</Button></div>
+      }}><Button type="text" disabled={loading || !assigned.length}>ล้างทั้งหมด</Button></Popconfirm><Button type="primary" icon={<PlayCircleOutlined />} loading={loading} disabled={!assigned.length} title={!assigned.length ? 'เลือกสูตรอย่างน้อย 1 ชั้นก่อนคำนวณ' : undefined} onClick={() => void calculate()}>คำนวณแผนการผลิต</Button></div>
       </div>
     </>}
     {view === 'summary' && result && <PlanSummary key={result.key} result={result.data} />}

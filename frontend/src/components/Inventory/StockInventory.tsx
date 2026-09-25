@@ -9,7 +9,7 @@ import { ItemThumbnail } from '../shared/ItemVisual';
  *   - Distinguishes recipe products vs raw materials
  */
 import { useMemo, useState } from 'react';
-import { Input, Table, Tag, Empty, Typography } from 'antd';
+import { Input, Segmented, Table, Tag, Empty, Typography } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType, TableProps } from 'antd/es/table';
 import type { Recipe, StockMap, StockImageMap } from '../../types';
@@ -32,6 +32,7 @@ interface StockInventoryProps {
 
 export function StockInventory({ stocks, stockImages, recipes }: StockInventoryProps) {
   const [search, setSearch] = useState('');
+  const [stockFilter, setStockFilter] = useState<'available' | 'all' | 'empty'>('available');
 
   const nameMap = useMemo(() => {
     const m = new Map<string, string>();
@@ -59,16 +60,22 @@ export function StockInventory({ stocks, stockImages, recipes }: StockInventoryP
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
-    const result = q
+    const matchingSearch = q
       ? rows.filter((r) => r.name.toLowerCase().includes(q) || r.key.toLowerCase().includes(q))
       : rows;
+    const result = matchingSearch.filter((row) => {
+      if (stockFilter === 'available') return row.qty > 0;
+      if (stockFilter === 'empty') return row.qty === 0;
+      return true;
+    });
     // Default sort: A→Z / ก→ฮ
     return [...result].sort((a, b) => a.name.localeCompare(b.name, 'th'));
-  }, [rows, search]);
+  }, [rows, search, stockFilter]);
 
-  const totalItems = filtered.length;
-  const totalQty   = filtered.reduce((s, r) => s + r.qty, 0);
-  const inStock    = filtered.filter((r) => r.qty > 0).length;
+  const totalItems = rows.length;
+  const totalQty   = rows.reduce((s, r) => s + r.qty, 0);
+  const inStock    = rows.filter((r) => r.qty > 0).length;
+  const outOfStock = totalItems - inStock;
 
   const columns: ColumnsType<RowData> = [
     {
@@ -129,18 +136,27 @@ export function StockInventory({ stocks, stockImages, recipes }: StockInventoryP
         ))}
       </div>
 
-      {/* Search only — sort via column headers */}
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+      <div className="inventory-toolbar">
         <Input
           prefix={<SearchOutlined style={{ color: '#94a3b8' }} />}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="ค้นหารายการ…"
+          placeholder="ค้นหาชื่อหรือรหัสรายการ"
           allowClear
-          style={{ maxWidth: 280 }}
+          className="inventory-search"
+        />
+        <Segmented
+          aria-label="กรองสถานะสต็อก"
+          value={stockFilter}
+          onChange={(value) => setStockFilter(value as typeof stockFilter)}
+          options={[
+            { label: `มีสต็อก (${inStock})`, value: 'available' },
+            { label: `ทั้งหมด (${totalItems})`, value: 'all' },
+            { label: `หมด (${outOfStock})`, value: 'empty' },
+          ]}
         />
         <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
-          {filtered.length} รายการ — คลิก header คอลัมน์เพื่อเรียงลำดับ
+          แสดง {filtered.length} รายการ · คลิกหัวตารางเพื่อเรียงลำดับ
         </Text>
       </div>
 

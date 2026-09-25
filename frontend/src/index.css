@@ -460,3 +460,12 @@ body {
 .budget-content-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(280px, .85fr); gap: 16px; align-items: start; }
 .budget-content-grid > * { min-width: 0; }
 @media (max-width: 1000px) { .budget-content-grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* Inventory starts with items a person can act on; the complete catalogue stays one tap away. */
+.inventory-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.inventory-search { width: min(320px, 100%); }
+.inventory-toolbar .ant-segmented { background: #f1f5f9; padding: 3px; }
+.inventory-toolbar .ant-segmented-item { font-size: 12px; }
+.planner-starting-hint { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; padding: 10px 14px; color: #475569; background: #f0f7ff; border-left: 3px solid #2563eb; border-radius: 5px; font-size: 13px; }
+.planner-starting-hint strong { color: #1e3a8a; }
+@media (max-width: 768px) { .inventory-toolbar { align-items: stretch; }.inventory-search { width: 100%; }.inventory-toolbar .ant-segmented { width: 100%; overflow-x: auto; }.inventory-toolbar .ant-segmented-group { display: flex; min-width: max-content; }.inventory-toolbar > .ant-typography { white-space: normal !important; } }
