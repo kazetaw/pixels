@@ -13,9 +13,6 @@ import type { Budget, Currency, Recipe, Machine, StockMap, StockImageMap, StockP
 
 // ── Singleton ─────────────────────────────────────────────────────────────────
 let _client: SupabaseClient | null = null;
-let sharedPlannerBucket: Promise<void> | null = null;
-const SHARED_PLANNER_BUCKET = 'app-data';
-const SHARED_PLANNER_PATH = 'planner/shared-plan.json';
 
 export function getSupabase(): SupabaseClient {
   if (_client) return _client;
@@ -35,34 +32,21 @@ export function getSupabase(): SupabaseClient {
   return _client;
 }
 
-async function ensureSharedPlannerBucket(): Promise<void> {
-  if (!sharedPlannerBucket) {
-    sharedPlannerBucket = (async () => {
-      const { error } = await getSupabase().storage.createBucket(SHARED_PLANNER_BUCKET, { public: false, fileSizeLimit: '64KB' });
-      if (error && !/already exists|duplicate/i.test(error.message)) throw new Error(`create planner storage: ${error.message}`);
-    })();
-  }
-  return sharedPlannerBucket;
-}
-
 export async function readSharedPlannerPlan(): Promise<SharedPlannerPlan | null> {
-  await ensureSharedPlannerBucket();
-  const storage = getSupabase().storage.from(SHARED_PLANNER_BUCKET);
-  const { data: files, error: listError } = await storage.list('planner', { limit: 100 });
-  if (listError) throw new Error(`read shared planner: ${listError.message}`);
-  if (!files.some((file) => file.name === 'shared-plan.json')) return null;
-  const { data, error } = await storage.download(SHARED_PLANNER_PATH);
+  const { data, error } = await getSupabase().from('shared_production_plans')
+    .select('event_days, event_hours, event_minutes, floors, updated_at').eq('id', 'default').maybeSingle();
   if (error) throw new Error(`read shared planner: ${error.message}`);
-  try { return JSON.parse(await data.text()) as SharedPlannerPlan; }
-  catch { throw new Error('read shared planner: stored plan is invalid'); }
+  if (!data) return null;
+  return { event_days: data.event_days, event_hours: data.event_hours, event_minutes: data.event_minutes,
+    floors: data.floors as SharedPlannerPlan['floors'], updated_at: data.updated_at };
 }
 
 export async function writeSharedPlannerPlan(plan: SharedPlannerPlan): Promise<SharedPlannerPlan> {
-  await ensureSharedPlannerBucket();
   const saved = { ...plan, updated_at: new Date().toISOString() };
-  const { error } = await getSupabase().storage.from(SHARED_PLANNER_BUCKET).upload(
-    SHARED_PLANNER_PATH, JSON.stringify(saved), { contentType: 'application/json', cacheControl: '0', upsert: true },
-  );
+  const { error } = await getSupabase().from('shared_production_plans').upsert({
+    id: 'default', event_days: saved.event_days, event_hours: saved.event_hours,
+    event_minutes: saved.event_minutes, floors: saved.floors, updated_at: saved.updated_at,
+  }, { onConflict: 'id' });
   if (error) throw new Error(`write shared planner: ${error.message}`);
   return saved;
 }

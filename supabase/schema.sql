@@ -91,7 +91,21 @@ alter table floor_timers add column if not exists machine_id uuid references mac
 alter table floor_timers add column if not exists recipe_id uuid references recipes(id) on delete set null;
 
 -- ────────────────────────────────────────────────────────────
--- 6. Budgets and stock purchases
+-- 6. shared_production_plans (one shared plan for all users)
+-- ────────────────────────────────────────────────────────────
+create table if not exists shared_production_plans (
+  id text primary key default 'default' check (id = 'default'),
+  event_days integer not null check (event_days between 1 and 365),
+  event_hours integer not null check (event_hours between 0 and 23),
+  event_minutes integer not null check (event_minutes between 0 and 59),
+  floors jsonb not null,
+  updated_at timestamptz not null default now()
+);
+
+alter table shared_production_plans disable row level security;
+
+-- ────────────────────────────────────────────────────────────
+-- 7. Budgets and stock purchases
 -- A purchase is an auditable stock movement: one row records the money spent
 -- and the database function below increments the matching stock item atomically.
 -- Currency is intentionally not converted; THB and G are separate budgets.
