@@ -44,18 +44,18 @@ function enrichMachines(machines: Machine[], recipes: Recipe[]): Machine[] {
 }
 
 async function syncNameToUUID(newId: string, name: string, stocks: StockMap): Promise<boolean> {
-  const trimmedName = name.trim();
-  if (!Object.prototype.hasOwnProperty.call(stocks, trimmedName)) return false;
+  const stockKey = Object.keys(stocks).find((key) => normalizeName(key) === normalizeName(name));
+  if (!stockKey) return false;
   const db = getSupabase();
-  const qty = stocks[trimmedName] ?? 0;
-  await db.from('stocks').delete().eq('item_id', trimmedName);
+  const qty = stocks[stockKey] ?? 0;
+  await db.from('stocks').delete().eq('item_id', stockKey);
   await db.from('stocks').upsert({ item_id: newId, quantity: qty }, { onConflict: 'item_id' });
   const recipes = await readRecipes();
   for (const r of recipes) {
-    if (!Object.prototype.hasOwnProperty.call(r.ingredients, trimmedName)) continue;
+    if (!Object.prototype.hasOwnProperty.call(r.ingredients, stockKey)) continue;
     const newIng = { ...r.ingredients };
-    const existingQty = newIng[trimmedName];
-    delete newIng[trimmedName];
+    const existingQty = newIng[stockKey];
+    delete newIng[stockKey];
     newIng[newId] = (newIng[newId] ?? 0) + existingQty;
     await db.from('recipes').update({ ingredients: newIng }).eq('id', r.id);
   }
@@ -179,7 +179,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       try {
         const [recipes, machines, stocks] = await Promise.all([readRecipes(), readMachines(), readStocks()]);
         const conflict = findNameConflict(body.name, { recipes, machines, stocks });
-        if (conflict) return res.status(409).json({ error: duplicateNameError(conflict) });
+        if (conflict && conflict.type !== 'วัตถุดิบ') return res.status(409).json({ error: duplicateNameError(conflict) });
         const newRecipe = await insertRecipe({
           name: body.name.trim(), machine_id: body.machine_id ?? null,
           time_per_unit: body.time_per_unit ?? null, ingredients: body.ingredients ?? {},
@@ -200,7 +200,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const newName = (body.name ?? existing.name).trim();
         if (!newName) return res.status(400).json({ error: 'name is required' });
         const conflict = findNameConflict(newName, { recipes, machines, stocks, excludeRecipeId: id });
-        if (conflict) return res.status(409).json({ error: duplicateNameError(conflict) });
+        if (conflict && conflict.type !== 'วัตถุดิบ') return res.status(409).json({ error: duplicateNameError(conflict) });
         const updated = await dbUpdateRecipe(id, {
           name: newName,
           machine_id: body.machine_id !== undefined ? body.machine_id : existing.machine_id,

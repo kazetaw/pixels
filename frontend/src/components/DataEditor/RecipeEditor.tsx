@@ -158,11 +158,9 @@ function RecipeForm({ initial, recipes, machines, stocks, onSave, onCancel }: Re
     try {
       const values = await form.validateFields();
       const normalizedName = values.name.trim().normalize('NFKC').toLocaleLowerCase('th');
-      const recipeIds = new Set(recipes.map((r) => r.id));
       const conflict = [
         ...recipes.filter((r) => r.id !== initial?.id).map((r) => r.name),
         ...machines.map((m) => m.machine_name),
-        ...Object.keys(stocks).filter((k) => !recipeIds.has(k)),
       ].find((n) => n.trim().normalize('NFKC').toLocaleLowerCase('th') === normalizedName);
       if (conflict) {
         form.setFields([{ name: 'name', errors: [`ชื่อนี้ซ้ำกับ "${conflict}"`] }]);

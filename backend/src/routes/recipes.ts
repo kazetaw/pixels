@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { randomUUID } from 'crypto';
 import { readRecipes, writeRecipes, readStocks, writeStocks, readMachines, readStockPurchases } from '../services/fileStore';
 import { Recipe, StockMap } from '../types';
-import { duplicateNameError, findNameConflict } from '../utils/names';
+import { duplicateNameError, findNameConflict, normalizeName } from '../utils/names';
 
 const router = Router();
 
@@ -24,26 +24,26 @@ async function syncNameToUUID(
   allRecipes: Recipe[],
   stocks: StockMap
 ): Promise<{ recipes: Recipe[]; stocks: StockMap; migrated: boolean }> {
-  const trimmedName = name.trim();
+  const stockKey = Object.keys(stocks).find((key) => normalizeName(key) === normalizeName(name));
 
   // Check if stocks has a key equal to this name
-  if (!Object.prototype.hasOwnProperty.call(stocks, trimmedName)) {
+  if (!stockKey) {
     return { recipes: allRecipes, stocks, migrated: false };
   }
 
   // 1. Migrate stock key: name → UUID
-  const qty = stocks[trimmedName] ?? 0;
+  const qty = stocks[stockKey] ?? 0;
   const newStocks: StockMap = { ...stocks };
-  delete newStocks[trimmedName];
+  delete newStocks[stockKey];
   // Merge: if UUID key already existed (shouldn't normally), sum quantities
   newStocks[newId] = (newStocks[newId] ?? 0) + qty;
 
   // 2. Migrate ingredient references in all recipes: name → UUID
   const newRecipes = allRecipes.map((r) => {
-    if (!Object.prototype.hasOwnProperty.call(r.ingredients, trimmedName)) return r;
+    if (!Object.prototype.hasOwnProperty.call(r.ingredients, stockKey)) return r;
     const newIngredients = { ...r.ingredients };
-    const existingQty = newIngredients[trimmedName];
-    delete newIngredients[trimmedName];
+    const existingQty = newIngredients[stockKey];
+    delete newIngredients[stockKey];
     // Merge if UUID already referenced
     newIngredients[newId] = (newIngredients[newId] ?? 0) + existingQty;
     return { ...r, ingredients: newIngredients };
@@ -69,7 +69,7 @@ router.post('/api/recipes', async (req: Request, res: Response) => {
   try {
     const [recipes, stocks, machines] = await Promise.all([readRecipes(), readStocks(), readMachines()]);
     const conflict = findNameConflict(body.name, { recipes, machines, stocks });
-    if (conflict) return res.status(409).json({ error: duplicateNameError(conflict) });
+    if (conflict && conflict.type !== 'วัตถุดิบ') return res.status(409).json({ error: duplicateNameError(conflict) });
 
     const newRecipe: Recipe = {
       id: randomUUID(),
@@ -115,7 +115,7 @@ router.put('/api/recipes/:id', async (req: Request, res: Response) => {
     const newName = (body.name ?? oldRecipe.name).trim();
     if (!newName) return res.status(400).json({ error: 'name is required' });
     const conflict = findNameConflict(newName, { recipes, machines, stocks, excludeRecipeId: id });
-    if (conflict) return res.status(409).json({ error: duplicateNameError(conflict) });
+    if (conflict && conflict.type !== 'วัตถุดิบ') return res.status(409).json({ error: duplicateNameError(conflict) });
 
     const updated: Recipe = {
       ...oldRecipe,
