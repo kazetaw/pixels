@@ -35,6 +35,8 @@ export function ProductionPlanner({ recipes, stocks, machines = [], mode = 'loca
   const [sharedError, setSharedError] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<string>();
   const hydrated = useRef(false);
+  const skipNextSharedSave = useRef(false);
+  const lastSharedEditAt = useRef(0);
   const isShared = mode === 'shared';
   const eventDays = isShared ? sharedEventDays : localEventDays;
   const setEventDays = isShared ? setSharedEventDays : setLocalEventDays;
@@ -63,6 +65,7 @@ export function ProductionPlanner({ recipes, stocks, machines = [], mode = 'loca
     void fetchSharedPlannerPlan().then((plan) => {
       if (!active) return;
       if (plan) {
+        skipNextSharedSave.current = true;
         setSharedEventDays(plan.event_days); setSharedEventHours(plan.event_hours); setSharedEventMinutes(plan.event_minutes);
         setSharedFloors([...plan.floors].sort((a, b) => a.floor_number - b.floor_number)); setSavedAt(plan.updated_at);
       }
@@ -75,7 +78,24 @@ export function ProductionPlanner({ recipes, stocks, machines = [], mode = 'loca
   }, [isShared]);
 
   useEffect(() => {
+    if (!isShared) return;
+    let active = true;
+    const refresh = () => {
+      if (Date.now() - lastSharedEditAt.current < 1_500) return;
+      void fetchSharedPlannerPlan().then((plan) => {
+        if (!active || !plan || plan.updated_at === savedAt) return;
+        skipNextSharedSave.current = true;
+        setSharedEventDays(plan.event_days); setSharedEventHours(plan.event_hours); setSharedEventMinutes(plan.event_minutes);
+        setSharedFloors([...plan.floors].sort((a, b) => a.floor_number - b.floor_number)); setSavedAt(plan.updated_at);
+      }).catch(() => undefined);
+    };
+    const timer = window.setInterval(refresh, 3_000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [isShared, savedAt]);
+
+  useEffect(() => {
     if (!isShared || !hydrated.current) return;
+    if (skipNextSharedSave.current) { skipNextSharedSave.current = false; return; }
     const plan: SharedPlannerPlan = { event_days: sharedEventDays, event_hours: sharedEventHours, event_minutes: sharedEventMinutes, floors: sharedFloors };
     const timer = window.setTimeout(() => {
       setSharedState('saving'); setSharedError(null);
@@ -86,6 +106,7 @@ export function ProductionPlanner({ recipes, stocks, machines = [], mode = 'loca
   }, [isShared, sharedEventDays, sharedEventHours, sharedEventMinutes, sharedFloors]);
 
   const changeFloor = (number: number, patch: Partial<PlannerFloorRow>) => {
+    if (isShared) lastSharedEditAt.current = Date.now();
     setFloors((current) => current.map((floor) => floor.floor_number === number ? { ...floor, ...patch } : floor));
     setError(null);
   };
@@ -137,7 +158,7 @@ export function ProductionPlanner({ recipes, stocks, machines = [], mode = 'loca
           { label: 'ชั่วโมง', value: eventHours, min: 0, max: 23, set: setEventHours },
           { label: 'นาที', value: eventMinutes, min: 0, max: 59, set: setEventMinutes }].map(({ label, value, min, max, set }) =>
           <label key={label}><input type="number" aria-label={`ระยะเวลา ${label}`} min={min} max={max} step={1} value={value} disabled={loading}
-            onChange={(event) => set(Math.max(min, Math.min(max, Math.floor(Number(event.target.value) || 0))))} /><span>{label}</span></label>)}
+            onChange={(event) => { if (isShared) lastSharedEditAt.current = Date.now(); set(Math.max(min, Math.min(max, Math.floor(Number(event.target.value) || 0)))); }} /><span>{label}</span></label>)}
         <span className="planner-duration-total">รวม {totalHours.toLocaleString('th-TH', { maximumFractionDigits: 2 })} ชั่วโมง</span>
       </section>
 
@@ -162,7 +183,7 @@ export function ProductionPlanner({ recipes, stocks, machines = [], mode = 'loca
       </div>
       <div className="planner-entry-footer"><p><kbd>Tab</kbd> ช่องถัดไป <span>·</span> <kbd>Shift + Tab</kbd> ย้อนกลับ <span>·</span> {SLOTS_PER_FLOOR} เครื่อง/ชั้น</p>
         <div className="planner-entry-actions"><Popconfirm title="ล้างสูตรที่เลือกทั้ง 27 ชั้น?" okText="ล้างทั้งหมด" cancelText="ยกเลิก" onConfirm={() => {
-        setFloors((current) => current.map((floor) => ({ ...floor, occupation: '', recipe_id: '' }))); setError(null);
+        if (isShared) lastSharedEditAt.current = Date.now(); setFloors((current) => current.map((floor) => ({ ...floor, occupation: '', recipe_id: '' }))); setError(null);
       }}><Button type="text" disabled={loading || !assigned.length}>ล้างทั้งหมด</Button></Popconfirm><Button type="primary" icon={<PlayCircleOutlined />} loading={loading} disabled={!assigned.length} title={!assigned.length ? 'เลือกสูตรอย่างน้อย 1 ชั้นก่อนคำนวณ' : undefined} onClick={() => void calculate()}>คำนวณแผนการผลิต</Button></div>
       </div>
     </>}
