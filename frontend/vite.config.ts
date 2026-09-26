@@ -6,8 +6,9 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': {
-        target: 'http://localhost:3001',
+      '/api/planner': {
+        // Keep the local UI on the same shared data as the deployed app.
+        target: 'https://backoffice-pixel.vercel.app',
         changeOrigin: true,
       },
     },
