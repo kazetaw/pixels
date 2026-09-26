@@ -23,7 +23,7 @@ async function readCatalogItems(itemIds?: string[]): Promise<Map<string, Catalog
   return new Map((data ?? []).map((item) => [item.item_id, item as CatalogItem]));
 }
 
-async function upsertCatalogItems(items: Array<{ item_id: string; name: string; image_url?: string | null }>) {
+async function upsertCatalogItems(items: Array<{ item_id: string; name: string; image_url?: string | null; item_type?: 'raw' | 'processed' }>) {
   if (!items.length) return;
   const { error } = await getSupabase().from('items').upsert(items, { onConflict: 'item_id' });
   if (error) throw new Error(`writeItems: ${error.message}`);
@@ -201,7 +201,7 @@ export async function insertRecipe(
     .single();
 
   if (error) throw new Error(`insertRecipe: ${error.message}`);
-  await upsertCatalogItems([{ item_id: data.id, name: r.name, image_url: r.image ?? null }]);
+  await upsertCatalogItems([{ item_id: data.id, name: r.name, image_url: r.image ?? null, item_type: 'processed' }]);
 
   return {
     id:            data.id,
@@ -235,7 +235,7 @@ export async function updateRecipe(
 
   if (error) throw new Error(`updateRecipe: ${error.message}`);
   await upsertCatalogItems([{ item_id: data.id, name: fields.name ?? data.name,
-    image_url: fields.image !== undefined ? fields.image : data.image_url }]);
+    image_url: fields.image !== undefined ? fields.image : data.image_url, item_type: 'processed' }]);
 
   return {
     id:            data.id,

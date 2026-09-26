@@ -31,6 +31,7 @@ create table if not exists items (
   item_id         text primary key,
   name            text not null,
   image_url       text,
+  item_type       text not null default 'raw' check (item_type in ('raw', 'processed')),
   created_at      timestamptz default now()
 );
 create index if not exists items_name_idx on items (lower(name));

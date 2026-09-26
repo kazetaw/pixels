@@ -3,6 +3,7 @@ create table if not exists public.items (
   item_id text primary key,
   name text not null,
   image_url text,
+  item_type text not null default 'raw' check (item_type in ('raw', 'processed')),
   created_at timestamptz not null default now()
 );
 
@@ -14,13 +15,13 @@ create index if not exists items_name_idx on public.items (lower(name));
 alter table public.items disable row level security;
 
 -- Processed products keep their existing recipe UUID as the shared item ID.
-insert into public.items (item_id, name, image_url)
-select id::text, name, image_url from public.recipes
-on conflict (item_id) do update set name = excluded.name, image_url = coalesce(excluded.image_url, items.image_url);
+insert into public.items (item_id, name, image_url, item_type)
+select id::text, name, image_url, 'processed' from public.recipes
+on conflict (item_id) do update set name = excluded.name, image_url = coalesce(excluded.image_url, items.image_url), item_type = 'processed';
 
 -- Raw materials already stored in stock or used by a recipe become catalog items too.
-insert into public.items (item_id, name, image_url)
-select source.item_id, source.item_id, stock_images.image_url
+insert into public.items (item_id, name, image_url, item_type)
+select source.item_id, source.item_id, stock_images.image_url, 'raw'
 from (
   select item_id from public.stocks
   union
