@@ -14,6 +14,27 @@ import type { Budget, Currency, Recipe, Machine, StockMap, StockImageMap, StockP
 // ── Singleton ─────────────────────────────────────────────────────────────────
 let _client: SupabaseClient | null = null;
 
+interface CatalogItem { item_id: string; name: string; image_url: string | null }
+
+async function readCatalogItems(itemIds?: string[]): Promise<Map<string, CatalogItem>> {
+  const query = getSupabase().from('items').select('item_id, name, image_url');
+  const { data, error } = itemIds?.length ? await query.in('item_id', itemIds) : await query;
+  if (error) throw new Error(`readItems: ${error.message}`);
+  return new Map((data ?? []).map((item) => [item.item_id, item as CatalogItem]));
+}
+
+async function upsertCatalogItems(items: Array<{ item_id: string; name: string; image_url?: string | null }>) {
+  if (!items.length) return;
+  const { error } = await getSupabase().from('items').upsert(items, { onConflict: 'item_id' });
+  if (error) throw new Error(`writeItems: ${error.message}`);
+}
+
+async function ensureCatalogItems(items: Array<{ item_id: string; name: string }>) {
+  if (!items.length) return;
+  const { error } = await getSupabase().from('items').upsert(items, { onConflict: 'item_id', ignoreDuplicates: true });
+  if (error) throw new Error(`ensureItems: ${error.message}`);
+}
+
 export function getSupabase(): SupabaseClient {
   if (_client) return _client;
 
@@ -150,14 +171,15 @@ export async function readRecipes(): Promise<Recipe[]> {
     .order('name', { ascending: true });
 
   if (error) throw new Error(`readRecipes: ${error.message}`);
+  const items = await readCatalogItems((data ?? []).map((row) => row.id));
 
   return (data ?? []).map((row) => ({
     id:            row.id,
-    name:          row.name,
+    name:          items.get(row.id)?.name ?? row.name,
     machine_id:    row.machine_id ?? null,
     time_per_unit: row.time_per_unit ?? null,
     ingredients:   (row.ingredients as Record<string, number>) ?? {},
-    image:         row.image_url ?? undefined,
+    image:         items.get(row.id)?.image_url ?? row.image_url ?? undefined,
   }));
 }
 
@@ -179,6 +201,7 @@ export async function insertRecipe(
     .single();
 
   if (error) throw new Error(`insertRecipe: ${error.message}`);
+  await upsertCatalogItems([{ item_id: data.id, name: r.name, image_url: r.image ?? null }]);
 
   return {
     id:            data.id,
@@ -211,6 +234,8 @@ export async function updateRecipe(
     .single();
 
   if (error) throw new Error(`updateRecipe: ${error.message}`);
+  await upsertCatalogItems([{ item_id: data.id, name: fields.name ?? data.name,
+    image_url: fields.image !== undefined ? fields.image : data.image_url }]);
 
   return {
     id:            data.id,
@@ -252,6 +277,7 @@ export async function writeStocks(stocks: StockMap): Promise<void> {
     item_id,
     quantity,
   }));
+  await ensureCatalogItems(rows.map(({ item_id }) => ({ item_id, name: item_id })));
 
   if (rows.length === 0) {
     // Delete everything
@@ -278,6 +304,7 @@ export async function writeStocks(stocks: StockMap): Promise<void> {
 /** Upsert a single stock item (used during BOM sync) */
 export async function upsertStockItem(itemId: string, quantity: number): Promise<void> {
   const db = getSupabase();
+  await ensureCatalogItems([{ item_id: itemId, name: itemId }]);
   const { error } = await db
     .from('stocks')
     .upsert({ item_id: itemId, quantity }, { onConflict: 'item_id' });
@@ -295,50 +322,24 @@ export async function deleteStockItem(itemId: string): Promise<void> {
 
 /** Read all stock images as a flat { item_id: url } map */
 export async function readStockImages(): Promise<StockImageMap> {
-  const db = getSupabase();
-  const { data, error } = await db
-    .from('stock_images')
-    .select('item_id, image_url');
-  if (error) throw new Error(`readStockImages: ${error.message}`);
+  const data = await readCatalogItems();
   const map: StockImageMap = {};
-  for (const row of data ?? []) map[row.item_id] = row.image_url;
+  for (const row of data.values()) if (row.image_url) map[row.item_id] = row.image_url;
   return map;
 }
 
 /** Overwrite stock images (upsert + delete removed) */
 export async function writeStockImages(images: StockImageMap): Promise<void> {
-  const db = getSupabase();
-  const rows = Object.entries(images).map(([item_id, image_url]) => ({
-    item_id,
-    image_url,
-  }));
-
-  if (rows.length === 0) {
-    const { error } = await db.from('stock_images').delete().neq('item_id', '');
-    if (error) throw new Error(`writeStockImages(clear): ${error.message}`);
-    return;
-  }
-
-  const { error: upsertErr } = await db
-    .from('stock_images')
-    .upsert(rows, { onConflict: 'item_id' });
-  if (upsertErr) throw new Error(`writeStockImages(upsert): ${upsertErr.message}`);
-
-  const keepIds = rows.map((r) => r.item_id);
-  const { error: delErr } = await db
-    .from('stock_images')
-    .delete()
-    .not('item_id', 'in', `(${keepIds.map((id) => `"${id}"`).join(',')})`);
-  if (delErr) throw new Error(`writeStockImages(delete): ${delErr.message}`);
+  const existing = await readCatalogItems();
+  await upsertCatalogItems([...existing.values()].map((item) => ({
+    item_id: item.item_id, name: item.name, image_url: images[item.item_id] ?? null,
+  })));
 }
 
 /** Upsert a single stock image */
 export async function upsertStockImage(itemId: string, imageUrl: string): Promise<void> {
-  const db = getSupabase();
-  const { error } = await db
-    .from('stock_images')
-    .upsert({ item_id: itemId, image_url: imageUrl }, { onConflict: 'item_id' });
-  if (error) throw new Error(`upsertStockImage: ${error.message}`);
+  const existing = await readCatalogItems([itemId]);
+  await upsertCatalogItems([{ item_id: itemId, name: existing.get(itemId)?.name ?? itemId, image_url: imageUrl }]);
 }
 
 // ── Budgets and purchases (see new implementations below) ────────────────────

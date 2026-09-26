@@ -25,7 +25,18 @@ create unique index if not exists machines_name_unique
   on machines (lower(machine_name));
 
 -- ────────────────────────────────────────────────────────────
--- 2. recipes
+-- 2. items (one shared name + image for raw and processed products)
+-- ────────────────────────────────────────────────────────────
+create table if not exists items (
+  item_id         text primary key,
+  name            text not null,
+  image_url       text,
+  created_at      timestamptz default now()
+);
+create index if not exists items_name_idx on items (lower(name));
+
+-- ────────────────────────────────────────────────────────────
+-- 3. recipes (production details for a processed item)
 -- ────────────────────────────────────────────────────────────
 create table if not exists recipes (
   id              uuid        primary key default gen_random_uuid(),
@@ -41,15 +52,15 @@ create unique index if not exists recipes_name_unique
   on recipes (lower(name));
 
 -- ────────────────────────────────────────────────────────────
--- 3. stocks  (one row per item — raw material OR recipe product)
+-- 4. stocks  (quantity only; item metadata belongs to items)
 -- ────────────────────────────────────────────────────────────
 create table if not exists stocks (
-  item_id         text        primary key,  -- recipe UUID or raw-material name
+  item_id         text        primary key references items(item_id),
   quantity        integer     not null default 0 check (quantity >= 0)
 );
 
 -- ────────────────────────────────────────────────────────────
--- 4. stock_images  (one row per raw-material item)
+-- Legacy only. New image writes go to items.image_url.
 -- ────────────────────────────────────────────────────────────
 create table if not exists stock_images (
   item_id         text        primary key,
@@ -61,6 +72,7 @@ create table if not exists stock_images (
 --    (Vercel Functions use the service role key, so RLS not needed)
 -- ────────────────────────────────────────────────────────────
 alter table machines     disable row level security;
+alter table items        disable row level security;
 alter table recipes      disable row level security;
 alter table stocks       disable row level security;
 alter table stock_images disable row level security;

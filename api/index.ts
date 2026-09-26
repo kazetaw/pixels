@@ -354,8 +354,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const conflict = findNameConflict(key, { recipes, machines, stocks: {} });
         if (conflict) return res.status(409).json({ error: duplicateNameError(conflict) });
       }
-      if (imageMap !== undefined) await Promise.all([writeStocks(stockMap), writeStockImages(imageMap)]);
-      else await writeStocks(stockMap);
+      await writeStocks(stockMap);
+      if (imageMap !== undefined) await writeStockImages(imageMap);
       return res.json({ ok: true });
     } catch (e) { return res.status(500).json({ error: (e as Error).message }); }
   }
