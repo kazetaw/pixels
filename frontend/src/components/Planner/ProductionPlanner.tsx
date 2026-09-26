@@ -187,6 +187,7 @@ export function ProductionPlanner({ recipes, stocks, machines = [], mode = 'loca
       }}><Button type="text" disabled={loading || !assigned.length}>ล้างทั้งหมด</Button></Popconfirm><Button type="primary" icon={<PlayCircleOutlined />} loading={loading} disabled={!assigned.length} title={!assigned.length ? 'เลือกสูตรอย่างน้อย 1 ชั้นก่อนคำนวณ' : undefined} onClick={() => void calculate()}>คำนวณแผนการผลิต</Button></div>
       </div>
     </>}
-    {view === 'summary' && result && <PlanSummary key={result.key} result={result.data} />}
+    {view === 'summary' && result && <PlanSummary key={result.key} result={result.data}
+      occupationByFloor={Object.fromEntries(floors.map((floor) => [floor.floor_number, floor.occupation]))} />}
   </div>;
 }

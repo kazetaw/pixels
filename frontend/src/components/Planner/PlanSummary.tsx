@@ -3,13 +3,22 @@ import { useMemo, useState } from 'react';
 import { Button, Checkbox, Drawer, Empty, Input, Table } from 'antd';
 import { CheckCircleOutlined, RightOutlined, SearchOutlined, WarningOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import type { PlanResponse, FloorPlanResult } from '../../types';
+import type { BomTreeNode, PlanResponse, FloorPlanResult } from '../../types';
 import { BomTree } from './BomTree';
 import { formatPlanDuration, groupFloorRows, summarizeProducts } from './planPresentation';
 
-type SummaryView = 'overview' | 'floors' | 'raw' | 'intermediate';
+type SummaryView = 'overview' | 'floors' | 'occupations' | 'raw' | 'intermediate';
 interface MaterialRow { key: string; name: string; needed: number; available: number; shortfall: number }
 const number = (value: number) => value.toLocaleString('th-TH');
+
+function collectRawMaterials(node: BomTreeNode, materials: Map<string, { name: string; quantity: number }>) {
+  if (node.is_raw) {
+    const current = materials.get(node.item_id);
+    materials.set(node.item_id, { name: node.item_name, quantity: (current?.quantity ?? 0) + node.quantity_needed });
+    return;
+  }
+  node.children.forEach((child) => collectRawMaterials(child, materials));
+}
 
 function MaterialTable({ rows, type }: { rows: MaterialRow[]; type: 'raw' | 'intermediate' }) {
   const [query, setQuery] = useState('');
@@ -36,7 +45,7 @@ function MaterialTable({ rows, type }: { rows: MaterialRow[]; type: 'raw' | 'int
   </section>;
 }
 
-export function PlanSummary({ result }: { result: PlanResponse }) {
+export function PlanSummary({ result, occupationByFloor = {} }: { result: PlanResponse; occupationByFloor?: Record<number, string> }) {
   const [view, setView] = useState<SummaryView>('overview');
   const [selected, setSelected] = useState<FloorPlanResult | null>(null);
   const products = useMemo(() => summarizeProducts(result.floor_results), [result]);
@@ -47,6 +56,17 @@ export function PlanSummary({ result }: { result: PlanResponse }) {
   const missingIntermediate = intermediate.filter((row) => row.shortfall > 0).sort((a, b) => b.shortfall - a.shortfall);
   const totalOutput = floors.reduce((sum, floor) => sum + floor.output_qty, 0);
   const hasShortfall = missingRaw.length + missingIntermediate.length > 0;
+  const occupationGroups = useMemo(() => {
+    const groups = new Map<string, { occupation: string; floors: FloorPlanResult[]; materials: Map<string, { name: string; quantity: number }> }>();
+    floors.forEach((floor) => {
+      const occupation = occupationByFloor[floor.floor_number] || 'ยังไม่ระบุอาชีพ';
+      const group = groups.get(occupation) ?? { occupation, floors: [] as FloorPlanResult[], materials: new Map<string, { name: string; quantity: number }>() };
+      group.floors.push(floor); collectRawMaterials(floor.bom_tree, group.materials); groups.set(occupation, group);
+    });
+    return [...groups.values()].map((group) => ({ ...group,
+      materials: [...group.materials.entries()].map(([key, item]) => ({ key, ...item })).sort((a, b) => b.quantity - a.quantity || a.name.localeCompare(b.name, 'th')),
+    })).sort((a, b) => a.occupation.localeCompare(b.occupation, 'th'));
+  }, [floors, occupationByFloor]);
   const outputColumns: ColumnsType<(typeof products)[number]> = [
     { title: 'สินค้าที่ผลิต', dataIndex: 'name', render: (name, product) => <ItemLabel id={product.id} name={name} size={36} reserveImage detail={`ชั้น ${product.floors.join(', ')}`} /> },
     { title: 'จำนวน (ชิ้น)', dataIndex: 'quantity', align: 'right', width: 120, render: (value) => <strong>{number(value)}</strong> },
@@ -64,6 +84,7 @@ export function PlanSummary({ result }: { result: PlanResponse }) {
     </dl>
     <nav className="plan-summary-navigation" aria-label="รายละเอียดผลคำนวณ">
       {([{ key: 'overview', label: 'ภาพรวม' }, { key: 'floors', label: `แต่ละชั้น (${floors.length})` },
+        { key: 'occupations', label: `แยกอาชีพ (${occupationGroups.length})` },
         { key: 'raw', label: `วัตถุดิบดิบ (${raw.length})` }, { key: 'intermediate', label: `สินค้าแปรรูป (${intermediate.length})` }] as const)
         .map((item) => <button type="button" key={item.key} aria-pressed={view === item.key} onClick={() => setView(item.key)}>{item.label}</button>)}
     </nav>
@@ -91,6 +112,14 @@ export function PlanSummary({ result }: { result: PlanResponse }) {
           <span className="planner-floor-number">{String(floor.floor_number).padStart(2, '0')}</span><span className="plan-floor-recipe-name"><ItemLabel id={floor.recipe_id} name={floor.recipe_name} size={24} /></span><strong>{number(floor.output_qty)}</strong><RightOutlined />
         </button>)}
       </div>)}</div> : <Empty description="ยังไม่มีชั้นที่กำหนด" />}
+    </section>}
+    {view === 'occupations' && <section className="plan-occupation-section"><div className="plan-panel-heading"><h4>ของที่ต้องเตรียมแยกตามอาชีพ</h4><span>ยอดรวมก่อนหักสต็อก</span></div>
+      <div className="plan-occupation-grid">{occupationGroups.map((group) => <article className="plan-occupation-card" key={group.occupation}>
+        <header><div><strong>{group.occupation}</strong><span>ชั้น {group.floors.map((floor) => floor.floor_number).join(', ')}</span></div><b>{group.floors.length} ชั้น</b></header>
+        <div className="plan-occupation-output">{group.floors.map((floor) => <span key={floor.floor_number}>ชั้น {floor.floor_number}: {number(floor.output_qty)} ชิ้น</span>)}</div>
+        <h5>ต้องใช้ทั้งหมด</h5>
+        <ul>{group.materials.map((item) => <li key={item.key}><ItemLabel id={item.key} name={item.name} size={24} /><strong>{number(item.quantity)}</strong></li>)}</ul>
+      </article>)}</div>
     </section>}
     {view === 'raw' && <MaterialTable key="raw" rows={raw} type="raw" />}
     {view === 'intermediate' && <MaterialTable key="intermediate" rows={intermediate} type="intermediate" />}

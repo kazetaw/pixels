@@ -400,6 +400,19 @@ body {
 .plan-summary .ant-table td { font-variant-numeric: tabular-nums; }
 .plan-floor-results-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .plan-floor-results-group { min-width: 0; background: #fff; border: 1px solid #e2e8f0; border-radius: 7px; padding: 8px; }
+.plan-occupation-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.plan-occupation-card { min-width: 0; background: #fff; border: 1px solid #dbe5f0; border-radius: 10px; overflow: hidden; }
+.plan-occupation-card header { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 13px 14px; background: #f7faff; border-bottom: 1px solid #e7edf5; }
+.plan-occupation-card header strong, .plan-occupation-card header span { display: block; }
+.plan-occupation-card header strong { font-size: 16px; }
+.plan-occupation-card header span { margin-top: 2px; color: #64748b; font-size: 12px; }
+.plan-occupation-card header b { flex: 0 0 auto; padding: 3px 8px; color: #1d4ed8; background: #dbeafe; border-radius: 999px; font-size: 12px; }
+.plan-occupation-output { display: flex; flex-wrap: wrap; gap: 5px; padding: 10px 14px 0; color: #475569; font-size: 12px; }
+.plan-occupation-output span { padding: 3px 6px; background: #f1f5f9; border-radius: 4px; }
+.plan-occupation-card h5 { margin: 13px 14px 6px; font-size: 12px; color: #64748b; }
+.plan-occupation-card ul { max-height: 260px; overflow: auto; margin: 0; padding: 0 14px 10px; list-style: none; }
+.plan-occupation-card li { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 34px; border-top: 1px solid #f1f5f9; font-size: 13px; }
+.plan-occupation-card li strong { flex: 0 0 auto; color: #0f172a; }
 .plan-floor-results-labels, .plan-floor-result { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto 12px; gap: 8px; align-items: center; }
 .plan-floor-results-labels { color: #64748b; font-size: 11px; padding: 3px 4px 7px; }
 .plan-floor-result { width: 100%; text-align: left; border-top: 1px solid #f1f5f9; padding: 10px 4px; font-size: 12px; }
@@ -414,10 +427,10 @@ body {
 .plan-detail-subtitle { font-size: 14px; font-weight: 600; margin: 22px 0 4px; }
 .plan-detail-note { margin-bottom: 14px; }
 @media (min-width: 769px) and (max-width: 1199px) {
-  .planner-assignment-grid, .plan-floor-results-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .planner-assignment-grid, .plan-floor-results-grid, .plan-occupation-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 768px) {
-  .planner-assignment-grid, .plan-floor-results-grid, .plan-overview-grid { grid-template-columns: minmax(0, 1fr); }
+  .planner-assignment-grid, .plan-floor-results-grid, .plan-overview-grid, .plan-occupation-grid { grid-template-columns: minmax(0, 1fr); }
   .planner-entry-labels, .planner-entry-row { grid-template-columns: 24px 118px minmax(0, 1fr); }
   .planner-event-bar { gap: 8px; }
   .planner-event-bar > strong { width: 100%; }
