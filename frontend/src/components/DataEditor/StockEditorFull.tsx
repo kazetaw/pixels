@@ -231,6 +231,12 @@ export function StockEditorFull({ stocks, stockImages, recipes, machines, onSave
         name: recipe.name, machine_id: recipe.machine_id, time_per_unit: recipe.time_per_unit,
         ingredients: recipe.ingredients, image: img,
       });
+      setLocalImages((prev) => {
+        const next = { ...prev };
+        if (img) next[key] = img;
+        else delete next[key];
+        return next;
+      });
       onRecipeImageChanged(updated);
       return;
     }
@@ -255,6 +261,7 @@ export function StockEditorFull({ stocks, stockImages, recipes, machines, onSave
         name: recipe.name, machine_id: recipe.machine_id, time_per_unit: recipe.time_per_unit,
         ingredients: recipe.ingredients, image,
       });
+      setLocalImages((prev) => ({ ...prev, [key]: image }));
       onRecipeImageChanged(updated);
     } else if (image) setLocalImages((prev) => ({ ...prev, [key]: image }));
     msgApi.success('เพิ่มรายการแล้ว');
