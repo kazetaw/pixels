@@ -25,6 +25,7 @@ import {
   ArrowLeftOutlined,
   ClockCircleOutlined,
   WalletOutlined,
+  AimOutlined,
   CloseCircleFilled,
 } from '@ant-design/icons';
 
@@ -39,11 +40,12 @@ import { DataEditor } from './components/DataEditor/DataEditor';
 import { StockInventory } from './components/Inventory/StockInventory';
 import { FloorTimerDashboard } from './components/Floors/FloorTimerDashboard';
 import { BudgetHistory } from './components/DataEditor/BudgetHistory';
+import { ProductionTargetsBoard } from './components/Targets/ProductionTargetsBoard';
 import type { SaveStatus } from './hooks/useAppState';
 
 const { Sider, Content } = Layout;
 
-type MainView = 'planner' | 'data' | 'inventory' | 'floors' | 'budget';
+type MainView = 'planner' | 'data' | 'inventory' | 'floors' | 'targets' | 'budget';
 
 const NAV_ITEMS = [
   {
@@ -65,6 +67,11 @@ const NAV_ITEMS = [
     key: 'floors',
     icon: <ClockCircleOutlined />,
     label: 'สถานะชั้น',
+  },
+  {
+    key: 'targets',
+    icon: <AimOutlined />,
+    label: 'เป้าหมายการผลิต',
   },
   {
     key: 'budget',
@@ -834,6 +841,21 @@ export default function App() {
               />
 
               <FloorTimerDashboard />
+            </div>
+          )}
+
+          {view === 'targets' && (
+            <div className="page-content">
+              <PageHead
+                title="เป้าหมายการผลิต"
+                sub="ดูชุดสินค้าแปรรูปตามอาชีพของแต่ละชั้น และเทียบยอดในสต็อกกับจำนวนที่อยากมี"
+              />
+
+              <ProductionTargetsBoard
+                recipes={recipes}
+                machines={_machines}
+                stocks={stocks}
+              />
             </div>
           )}
 
