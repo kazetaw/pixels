@@ -33,22 +33,15 @@ function collectDirectIngredients(
   materials: Map<string, { name: string; quantity: number }>,
   nameMap: Map<string, string>
 ) {
-  // Only walk the top-level recipe's direct children.
-  // Each child is either:
-  //   - raw (leaf) → add directly
-  //   - intermediate with produced_by_floor → add as-is (another floor handles it)
-  //   - intermediate without produced_by_floor → recurse one more level (it's a sub-recipe
-  //     the current floor must also handle, so we still want its direct ingredients)
-  // This prevents blowing through every sub-recipe down to raw leaf materials.
+  // Show only the DIRECT children of this floor's recipe.
+  // We do NOT recurse further — if a child is itself a recipe (e.g. ไวท์ช็อค),
+  // it still appears as a single line item here. The floor needs to obtain those
+  // items (either from stock or from another floor); it is not our job here to
+  // expand every sub-recipe down to its raw leaves.
   for (const child of node.children) {
-    if (child.is_raw || child.produced_by_floor !== undefined) {
-      const current = materials.get(child.item_id);
-      const name = resolveName(child.item_id, child.item_name, nameMap);
-      materials.set(child.item_id, { name, quantity: (current?.quantity ?? 0) + child.quantity_needed });
-    } else {
-      // sub-recipe without a dedicated floor: show ITS children
-      collectDirectIngredients(child, materials, nameMap);
-    }
+    const current = materials.get(child.item_id);
+    const name = resolveName(child.item_id, child.item_name, nameMap);
+    materials.set(child.item_id, { name, quantity: (current?.quantity ?? 0) + child.quantity_needed });
   }
 }
 
