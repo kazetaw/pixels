@@ -8,9 +8,9 @@ import { ItemThumbnail } from '../shared/ItemVisual';
  *   - Sort A→Z / ก→ฮ or by quantity (high → low)
  *   - Distinguishes recipe products vs raw materials
  */
-import { useMemo, useState } from 'react';
-import { Input, Segmented, Table, Tag, Empty, Typography } from 'antd';
-import { SearchOutlined } from '@ant-design/icons';
+import { useEffect, useMemo, useState } from 'react';
+import { Button, Input, InputNumber, Popconfirm, Segmented, Table, Tag, Empty, Typography } from 'antd';
+import { DeleteOutlined, SaveOutlined, SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType, TableProps } from 'antd/es/table';
 import type { Recipe, StockMap, StockImageMap } from '../../types';
 
@@ -28,11 +28,17 @@ interface StockInventoryProps {
   stocks: StockMap;
   stockImages: StockImageMap;
   recipes: Recipe[];
+  onSaveStocks: (stocks: StockMap) => Promise<void>;
 }
 
-export function StockInventory({ stocks, stockImages, recipes }: StockInventoryProps) {
+export function StockInventory({ stocks, stockImages, recipes, onSaveStocks }: StockInventoryProps) {
   const [search, setSearch] = useState('');
   const [stockFilter, setStockFilter] = useState<'available' | 'all' | 'empty'>('available');
+  const [draftStocks, setDraftStocks] = useState<StockMap>(stocks);
+  const [savingKey, setSavingKey] = useState<string>();
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  useEffect(() => { setDraftStocks(stocks); }, [stocks]);
 
   const nameMap = useMemo(() => {
     const m = new Map<string, string>();
@@ -48,15 +54,22 @@ export function StockInventory({ stocks, stockImages, recipes }: StockInventoryP
   const recipeIds = useMemo(() => new Set(recipes.map((r) => r.id)), [recipes]);
 
   const rows: RowData[] = useMemo(() => {
-    const allKeys = new Set<string>([...Object.keys(stocks), ...nameMap.keys()]);
+    const allKeys = new Set<string>([...Object.keys(draftStocks), ...nameMap.keys()]);
     return Array.from(allKeys).map((key) => ({
       key,
       name: nameMap.get(key) ?? key,
-      qty: stocks[key] ?? 0,
+      qty: draftStocks[key] ?? 0,
       isRecipe: recipeIds.has(key),
       image: stockImages[key],
     }));
-  }, [stocks, nameMap, recipeIds, stockImages]);
+  }, [draftStocks, nameMap, recipeIds, stockImages]);
+
+  const persist = async (key: string, next: StockMap) => {
+    setSavingKey(key); setSaveError(null);
+    try { await onSaveStocks(next); }
+    catch (error) { setSaveError((error as Error).message || 'บันทึกสต็อกไม่สำเร็จ'); }
+    finally { setSavingKey(undefined); }
+  };
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
@@ -103,11 +116,8 @@ export function StockInventory({ stocks, stockImages, recipes }: StockInventoryP
       align: 'right',
       width: 140,
       sorter: (a, b) => a.qty - b.qty,
-      render: (qty) => (
-        <span style={{ fontSize: 14, fontWeight: 600, color: qty === 0 ? '#cbd5e1' : qty >= 100 ? '#16a34a' : '#0f172a' }}>
-          {qty.toLocaleString()}
-        </span>
-      ),
+      render: (qty, row) => <InputNumber min={0} value={qty} size="small" style={{ width: 100 }}
+        onChange={(value) => setDraftStocks((current) => ({ ...current, [row.key]: value ?? 0 }))} />,
     },
     {
       title: 'สถานะ',
@@ -115,6 +125,17 @@ export function StockInventory({ stocks, stockImages, recipes }: StockInventoryP
       width: 90,
       align: 'center',
       render: (qty) => qty > 0 ? <Tag color="green">มีสต็อก</Tag> : <Tag color="default">หมด</Tag>,
+    },
+    {
+      title: 'จัดการ', width: 130, align: 'center', render: (_, row) => <div style={{ display: 'flex', justifyContent: 'center', gap: 4 }}>
+        <Button size="small" type="text" icon={<SaveOutlined />} loading={savingKey === row.key}
+          disabled={savingKey !== undefined || draftStocks[row.key] === stocks[row.key]}
+          onClick={() => void persist(row.key, draftStocks)} aria-label={`บันทึก ${row.name}`} />
+        <Popconfirm title={`ลบ “${row.name}” ออกจากสต็อก?`} description="รายการจะหายจากคลัง แต่ข้อมูลสินค้ายังอยู่" okText="ลบ" cancelText="ยกเลิก"
+          onConfirm={() => { const next = { ...draftStocks }; delete next[row.key]; void persist(row.key, next); }}>
+          <Button size="small" type="text" danger icon={<DeleteOutlined />} disabled={savingKey !== undefined} aria-label={`ลบ ${row.name}`} />
+        </Popconfirm>
+      </div>,
     },
   ];
 
@@ -159,6 +180,7 @@ export function StockInventory({ stocks, stockImages, recipes }: StockInventoryP
           แสดง {filtered.length} รายการ · คลิกหัวตารางเพื่อเรียงลำดับ
         </Text>
       </div>
+      {saveError && <Text type="danger" style={{ fontSize: 12 }}>{saveError}</Text>}
 
       <Table<RowData>
         columns={columns}

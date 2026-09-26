@@ -28,6 +28,7 @@ export interface AppState {
   // Stock editor
   updateStock: (itemId: string, qty: number) => void;
   saveStocks: () => Promise<void>;
+  replaceStocks: (stocks: StockMap) => Promise<void>;
 
   // Calculation
   runCalculation: () => Promise<void>;
@@ -114,6 +115,11 @@ export function useAppState(): AppState {
     }
   }, [stocks]);
 
+  const replaceStocks = useCallback(async (nextStocks: StockMap) => {
+    await apiSaveStocks(nextStocks, stockImages);
+    setStocks(nextStocks);
+  }, [stockImages]);
+
   const calculate = useCallback(async () => {
     setLoading(true);
     setCalcError(null);
@@ -139,6 +145,7 @@ export function useAppState(): AppState {
     removeTargetItem,
     updateStock,
     saveStocks,
+    replaceStocks,
     runCalculation: calculate,
     calculationResult,
     loading,

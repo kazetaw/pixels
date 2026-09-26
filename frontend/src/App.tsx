@@ -655,6 +655,7 @@ export default function App() {
     removeTargetItem,
     updateStock,
     saveStocks,
+    replaceStocks,
     runCalculation,
     calculationResult,
     loading,
@@ -839,9 +840,10 @@ export default function App() {
 
               <StockInventory
                 stocks={stocks}
-                stockImages={stockImages}
-                recipes={recipes}
-              />
+              stockImages={stockImages}
+              recipes={recipes}
+              onSaveStocks={replaceStocks}
+            />
             </div>
           )}
 
