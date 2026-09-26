@@ -18,7 +18,6 @@ import {
   readBudgets, upsertBudget,
   readPurchases, insertPurchase,
   readFloorTimers, insertFloorTimer, patchFloorTimer,
-  readSharedPlannerPlan, writeSharedPlannerPlan,
 } from './lib/db.js';
 import { parseTimeToHours } from './lib/time.js';
 import { findNameConflict, duplicateNameError, normalizeName } from './lib/names.js';
@@ -27,7 +26,6 @@ import type {
   Machine, Recipe, StockMap, StockImageMap,
   TargetItem, PlanRequest, PlanResponse,
   FloorPlanResult, BomTreeNode, RawMaterialEntry, IntermediateSupplyEntry,
-  SharedPlannerPlan,
 } from './lib/types.js';
 import { randomUUID } from 'crypto';
 import { Readable } from 'stream';
@@ -162,28 +160,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ]);
       return res.json({ recipes, machines: enrichMachines(machines, recipes), stocks, stockImages });
     } catch (e) { return res.status(500).json({ error: (e as Error).message }); }
-  }
-
-  // ── Shared production-plan draft ───────────────────────────────────────────
-  if (segments[0] === 'planner') {
-    if (method === 'GET') {
-      try { return res.json({ plan: await readSharedPlannerPlan() }); }
-      catch (e) { return res.status(500).json({ error: (e as Error).message }); }
-    }
-    if (method === 'PUT') {
-      const body = req.body as SharedPlannerPlan;
-      const validDurations = Number.isInteger(body?.event_days) && body.event_days >= 1 && body.event_days <= 365
-        && Number.isInteger(body.event_hours) && body.event_hours >= 0 && body.event_hours <= 23
-        && Number.isInteger(body.event_minutes) && body.event_minutes >= 0 && body.event_minutes <= 59;
-      const validFloors = Array.isArray(body?.floors) && body.floors.length === 27
-        && new Set(body.floors.map((floor) => floor.floor_number)).size === 27
-        && body.floors.every((floor) => Number.isInteger(floor.floor_number) && floor.floor_number >= 1 && floor.floor_number <= 27
-          && typeof floor.occupation === 'string' && typeof floor.recipe_id === 'string');
-      if (!validDurations || !validFloors)
-        return res.status(400).json({ error: 'Shared planner data is invalid' });
-      try { return res.json({ plan: await writeSharedPlannerPlan(body) }); }
-      catch (e) { return res.status(500).json({ error: (e as Error).message }); }
-    }
   }
 
   // ── /api/recipes ────────────────────────────────────────────────────────────

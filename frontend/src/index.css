@@ -333,9 +333,6 @@ body {
 /* Production planner: all 27 floors in one workspace. */
 .planner-page-content { max-width: 1560px; padding-top: 20px; }
 .production-planner { display: flex; flex-direction: column; gap: 12px; }
-.planner-shared-status { align-self: flex-start; padding: 5px 10px; border-radius: 5px; font-size: 12px; color: #475569; background: #f1f5f9; }
-.planner-shared-status--saving { color: #1d4ed8; background: #eff6ff; }
-.planner-shared-status--error { color: #b91c1c; background: #fef2f2; }
 .planner-navigation, .planner-section-heading, .planner-entry-footer, .plan-summary-heading, .plan-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .planner-view-switch, .plan-summary-navigation { display: flex; flex-wrap: wrap; gap: 20px; border-bottom: 1px solid #e2e8f0; }
 .planner-view-switch { flex: 1; }

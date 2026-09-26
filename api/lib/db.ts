@@ -9,14 +9,10 @@
  */
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import type { Budget, Currency, Recipe, Machine, StockMap, StockImageMap, StockPurchase, FloorTimer, SharedPlannerPlan } from './types.js';
+import type { Budget, Currency, Recipe, Machine, StockMap, StockImageMap, StockPurchase, FloorTimer } from './types.js';
 
 // ── Singleton ─────────────────────────────────────────────────────────────────
 let _client: SupabaseClient | null = null;
-let sharedPlannerBucket: Promise<void> | null = null;
-
-const SHARED_PLANNER_BUCKET = 'app-data';
-const SHARED_PLANNER_PATH = 'planner/shared-plan.json';
 
 export function getSupabase(): SupabaseClient {
   if (_client) return _client;
@@ -34,52 +30,6 @@ export function getSupabase(): SupabaseClient {
     auth: { persistSession: false },
   });
   return _client;
-}
-
-async function ensureSharedPlannerBucket(): Promise<void> {
-  if (!sharedPlannerBucket) {
-    sharedPlannerBucket = (async () => {
-      const { error } = await getSupabase().storage.createBucket(SHARED_PLANNER_BUCKET, {
-        public: false,
-        fileSizeLimit: '64KB',
-      });
-      if (error && !/already exists/i.test(error.message)) {
-        throw new Error(`create planner storage: ${error.message}`);
-      }
-    })();
-  }
-  return sharedPlannerBucket;
-}
-
-/** The planner is one shared draft, stored privately and read only through the API. */
-export async function readSharedPlannerPlan(): Promise<SharedPlannerPlan | null> {
-  await ensureSharedPlannerBucket();
-  const { data, error } = await getSupabase().storage
-    .from(SHARED_PLANNER_BUCKET)
-    .download(SHARED_PLANNER_PATH);
-    if (error) {
-      if (String((error as { statusCode?: string | number }).statusCode) === '404') return null;
-    throw new Error(`read shared planner: ${error.message}`);
-  }
-  try {
-    return JSON.parse(await data.text()) as SharedPlannerPlan;
-  } catch {
-    throw new Error('read shared planner: stored plan is invalid');
-  }
-}
-
-export async function writeSharedPlannerPlan(plan: SharedPlannerPlan): Promise<SharedPlannerPlan> {
-  await ensureSharedPlannerBucket();
-  const saved = { ...plan, updated_at: new Date().toISOString() };
-  const { error } = await getSupabase().storage
-    .from(SHARED_PLANNER_BUCKET)
-    .upload(SHARED_PLANNER_PATH, JSON.stringify(saved), {
-      contentType: 'application/json',
-      cacheControl: '0',
-      upsert: true,
-    });
-  if (error) throw new Error(`write shared planner: ${error.message}`);
-  return saved;
 }
 
 // ── Machines ──────────────────────────────────────────────────────────────────

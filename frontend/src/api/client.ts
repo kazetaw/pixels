@@ -1,4 +1,4 @@
-import { AppData, Budget, StockMap, StockImageMap, StockPurchase, TargetItem, CalculateResponse, PlanRequest, PlanResponse, Recipe, FloorTimer, SharedPlannerPlan } from '../types';
+import { AppData, Budget, StockMap, StockImageMap, StockPurchase, TargetItem, CalculateResponse, PlanRequest, PlanResponse, Recipe, FloorTimer } from '../types';
 
 /**
  * Helper to handle fetch responses — throws with server error message on non-OK status.
@@ -64,18 +64,6 @@ export async function runPlan(plan: PlanRequest): Promise<PlanResponse> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(plan),
   }));
-}
-
-export async function fetchSharedPlannerPlan(): Promise<SharedPlannerPlan | null> {
-  const response = await handleResponse<{ plan: SharedPlannerPlan | null }>(await fetch('/api/planner'));
-  return response.plan;
-}
-
-export async function saveSharedPlannerPlan(plan: SharedPlannerPlan): Promise<SharedPlannerPlan> {
-  const response = await handleResponse<{ plan: SharedPlannerPlan }>(await fetch('/api/planner', {
-    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(plan),
-  }));
-  return response.plan;
 }
 
 /** GET /api/recipes — list all recipes */
