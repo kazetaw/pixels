@@ -5,6 +5,7 @@ import { SaveOutlined, ShoppingCartOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { Budget, Currency, Recipe, StockMap, StockPurchase } from '../../types';
 import { createStockPurchase, fetchBudgetData, saveBudget } from '../../api/client';
+import { BudgetPinModal } from './BudgetPinModal';
 
 const { Text } = Typography;
 const currencies: Currency[] = ['THB', 'G'];
@@ -26,6 +27,7 @@ export function BudgetDraft({ stocks, recipes, onStockChanged }: BudgetDraftProp
   const [purchases, setPurchases] = useState<StockPurchase[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingCurrency, setSavingCurrency] = useState<Currency | null>(null);
+  const [pendingCurrency, setPendingCurrency] = useState<Currency | null>(null);
   const [buying, setBuying] = useState(false);
   const [itemId, setItemId] = useState('');
   const [quantity, setQuantity] = useState<number>(1);
@@ -87,10 +89,10 @@ export function BudgetDraft({ stocks, recipes, onStockChanged }: BudgetDraftProp
   };
   const unitCost = quantity > 0 ? total / quantity : 0;
 
-  const saveLimit = async (target: Currency) => {
+  const saveLimit = async (target: Currency, pin: string) => {
     setSavingCurrency(target);
     try {
-      const budget = await saveBudget(target, limitInput[target] ?? 0);
+      const budget = await saveBudget(target, limitInput[target] ?? 0, pin);
       setBudgets((current) => [...current.filter((entry) => entry.currency !== target), budget]);
       messageApi.success(`บันทึกงบ ${target} แล้ว`);
     } catch (error) {
@@ -129,6 +131,9 @@ export function BudgetDraft({ stocks, recipes, onStockChanged }: BudgetDraftProp
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {contextHolder}
+      {pendingCurrency && <BudgetPinModal onCancel={() => setPendingCurrency(null)} onVerified={pin => {
+        const target = pendingCurrency; setPendingCurrency(null); void saveLimit(target, pin);
+      }} />}
       <Alert type="info" showIcon message="ทุกการซื้อเพิ่มสต็อกและบันทึกรายจ่ายในรายการเดียว" description="THB และ G แยกงบกันโดยสมบูรณ์ ระบบจะไม่แปลงค่าเงินเอง" />
 
       {loading ? <div style={{ textAlign: 'center', padding: 48 }}><Spin /></div> : <>
@@ -158,7 +163,7 @@ export function BudgetDraft({ stocks, recipes, onStockChanged }: BudgetDraftProp
                   const breakdown = contributorBreakdown(target);
                   return <div key={target}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}><Text strong>{target === 'THB' ? 'เงินบาท (THB)' : 'เหรียญในเกม (G)'}</Text><Text type="secondary" style={{ fontSize: 12 }}>ใช้ {displayMoney(used, target)}</Text></div>
-                    <Space.Compact style={{ width: '100%' }}><InputNumber min={0} value={limitInput[target]} onChange={(value) => setLimitInput((current) => ({ ...current, [target]: value ?? 0 }))} style={{ width: '100%' }} /><Button icon={<SaveOutlined />} loading={savingCurrency === target} onClick={() => void saveLimit(target)}>บันทึก</Button></Space.Compact>
+                    <Space.Compact style={{ width: '100%' }}><InputNumber min={0} value={limitInput[target]} onChange={(value) => setLimitInput((current) => ({ ...current, [target]: value ?? 0 }))} style={{ width: '100%' }} /><Button icon={<SaveOutlined />} loading={savingCurrency === target} onClick={() => setPendingCurrency(target)}>บันทึก</Button></Space.Compact>
                     {limit !== undefined && <Text type={used > limit ? 'danger' : 'secondary'} style={{ fontSize: 12 }}>คงเหลือ {displayMoney(Math.max(0, limit - used), target)} จากงบ {displayMoney(limit, target)}</Text>}
                     {breakdown.length > 0 && (
                       <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 3 }}>

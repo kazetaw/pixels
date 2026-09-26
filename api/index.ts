@@ -537,6 +537,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // ── /api/budgets ─────────────────────────────────────────────────────────────
   if (segments[0] === 'budgets') {
+    if (segments[1] === 'verify-pin' && method === 'POST') {
+      if (req.body?.pin !== (process.env.BUDGET_PIN ?? '7774')) return res.status(403).json({ error: 'PIN ไม่ถูกต้อง' });
+      return res.json({ ok: true });
+    }
     // GET /api/budgets — return budgets + last 100 purchases
     if (method === 'GET') {
       try {
@@ -546,10 +550,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     // PUT /api/budgets — upsert one budget limit
     if (method === 'PUT') {
+      if (req.body?.pin !== (process.env.BUDGET_PIN ?? '7774')) return res.status(403).json({ error: 'กรุณายืนยัน PIN ให้ถูกต้องก่อนบันทึก' });
       const body = req.body as { currency: 'THB' | 'G'; limit_amount: number };
       if (!body.currency || !['THB','G'].includes(body.currency))
         return res.status(400).json({ error: 'currency must be THB or G' });
-      if (typeof body.limit_amount !== 'number' || body.limit_amount < 0)
+      if (typeof body.limit_amount !== 'number' || !Number.isFinite(body.limit_amount) || body.limit_amount < 0)
         return res.status(400).json({ error: 'limit_amount must be a non-negative number' });
       try {
         const budget = await upsertBudget(body.currency, body.limit_amount);

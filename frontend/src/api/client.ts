@@ -45,10 +45,16 @@ export async function fetchBudgetData(): Promise<{ budgets: Budget[]; purchases:
   return handleResponse(await fetch('/api/budgets'));
 }
 
-export async function saveBudget(currency: Budget['currency'], limit_amount: number): Promise<Budget> {
+export async function verifyBudgetPin(pin: string): Promise<void> {
+  await handleResponse(await fetch('/api/budgets/verify-pin', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pin }),
+  }));
+}
+
+export async function saveBudget(currency: Budget['currency'], limit_amount: number, pin: string): Promise<Budget> {
   return handleResponse(await fetch('/api/budgets', {
     method: 'PUT', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ currency, limit_amount }),
+    body: JSON.stringify({ currency, limit_amount, pin }),
   }));
 }
 

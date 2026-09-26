@@ -8,10 +8,11 @@ import { ItemLabel } from '../shared/ItemVisual';
  *   - Purchase history table
  */
 import { useEffect, useState } from 'react';
-import { Table, Tag, Typography, Spin, Alert, Divider } from 'antd';
+import { Table, Tag, Typography, Spin, Alert, Divider, Button, Modal, InputNumber } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { Budget, Currency, Recipe, StockPurchase } from '../../types';
-import { fetchBudgetData } from '../../api/client';
+import { fetchBudgetData, saveBudget } from '../../api/client';
+import { BudgetPinModal } from './BudgetPinModal';
 
 const { Text } = Typography;
 
@@ -30,6 +31,22 @@ export function BudgetHistory({ recipes }: BudgetHistoryProps) {
   const [purchases, setPurchases] = useState<StockPurchase[]>([]);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState<string | null>(null);
+  const [pendingCurrency, setPendingCurrency] = useState<Currency | null>(null);
+  const [editing, setEditing] = useState<{ currency: Currency; pin: string } | null>(null);
+  const [amount, setAmount] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [editError, setEditError] = useState('');
+
+  const save = async () => {
+    if (!editing || amount === null || !Number.isFinite(amount) || amount < 0) return;
+    setSaving(true); setEditError('');
+    try {
+      const budget = await saveBudget(editing.currency, amount, editing.pin);
+      setBudgets(current => [...current.filter(b => b.currency !== budget.currency), budget]);
+      setEditing(null);
+    } catch (e) { setEditError((e as Error).message); }
+    finally { setSaving(false); }
+  };
 
   const itemName = (id: string) => recipes.find((r) => r.id === id)?.name ?? id;
 
@@ -111,6 +128,18 @@ export function BudgetHistory({ recipes }: BudgetHistoryProps) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {pendingCurrency && <BudgetPinModal onCancel={() => setPendingCurrency(null)} onVerified={pin => {
+        setAmount(budgets.find(b => b.currency === pendingCurrency)?.limit_amount ?? 0);
+        setEditing({ currency: pendingCurrency, pin }); setEditError(''); setPendingCurrency(null);
+      }} />}
+      <Modal open={!!editing} title={`แก้ไขวงเงินงบ ${editing?.currency ?? ''}`} okText="บันทึก" cancelText="ยกเลิก"
+        onCancel={() => { if (!saving) setEditing(null); }} onOk={() => void save()} confirmLoading={saving}
+        okButtonProps={{ disabled: amount === null || amount < 0 }}>
+        <label>วงเงินงบประมาณ
+          <InputNumber aria-label="วงเงินงบประมาณ" min={0} value={amount} onChange={setAmount} style={{ width: '100%', marginTop: 8 }} />
+        </label>
+        {editError && <Alert style={{ marginTop: 12 }} type="error" message={editError} />}
+      </Modal>
 
       {/* Budget summary */}
       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
@@ -129,6 +158,7 @@ export function BudgetHistory({ recipes }: BudgetHistoryProps) {
                   {cur === 'THB' ? 'เงินบาท (THB)' : 'เหรียญในเกม (G)'}
                 </Tag>
                 {over && <Tag color="red">เกินงบ</Tag>}
+                <Button size="small" onClick={() => setPendingCurrency(cur)}>แก้ไขงบ</Button>
               </div>
               <div style={{ fontSize: 22, fontWeight: 700, color: over ? '#dc2626' : '#0f172a' }}>
                 {displayMoney(used, cur)}
