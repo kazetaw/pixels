@@ -478,7 +478,7 @@ export function RecipeEditor({ recipes, machines, stocks, onChange }: RecipeEdit
                 <td className="px-3 py-2">
                   <ImagePicker
                     value={r.image}
-                    onChange={(image) => { void handleTableImageChange(r, image); }}
+                    onChange={(image) => handleTableImageChange(r, image)}
                     folder="recipes"
                     itemId={r.id}
                     variant="table"

@@ -14,7 +14,7 @@ import { useItemImage } from './ItemVisual';
  *   size     — thumbnail size in px (default 64)
  *   variant  — "button", "box", "recipe", or "table" (compact drag/drop + preview)
  */
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ChangeEvent, DragEvent } from 'react';
 import { DeleteOutlined, EyeOutlined, UploadOutlined } from '@ant-design/icons';
 import { Modal } from 'antd';
@@ -23,7 +23,7 @@ import { uploadImage } from '../../api/client';
 export interface ImagePickerProps {
   value: string | undefined;
   fallbackImage?: string;
-  onChange: (url: string | undefined) => void;
+  onChange: (url: string | undefined) => void | Promise<void>;
   folder: 'machines' | 'recipes' | 'stocks';
   itemId?: string;
   size?: number;
@@ -48,6 +48,10 @@ export function ImagePicker({
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [optimisticImage, setOptimisticImage] = useState<string>();
+  const displayImage = optimisticImage ?? value;
+
+  useEffect(() => { setOptimisticImage(undefined); }, [value]);
 
   const uploadFile = async (file: File) => {
     if (!file.type.startsWith('image/')) {
@@ -58,8 +62,10 @@ export function ImagePicker({
     setError(null);
     try {
       const result = await uploadImage(file, folder, itemId);
-      onChange(result.url);
+      setOptimisticImage(result.url);
+      await onChange(result.url);
     } catch (err) {
+      setOptimisticImage(undefined);
       setError((err as Error).message ?? 'อัปโหลดไม่สำเร็จ');
     } finally {
       setUploading(false);
@@ -106,12 +112,12 @@ export function ImagePicker({
     return (
       <>
         <div
-          className={`flex items-center gap-3 ${className}`}
+          className={`flex items-center gap-3 rounded-lg transition-colors ${isDragging ? 'bg-blue-50 ring-2 ring-blue-400 ring-offset-2' : ''} ${className}`}
           onDragOver={handleDragOver}
           onDragLeave={() => setIsDragging(false)}
           onDrop={handleDrop}
         >
-          {value ? (
+          {displayImage ? (
             <button
               type="button"
               onClick={() => setPreviewOpen(true)}
@@ -120,7 +126,7 @@ export function ImagePicker({
               title="ดูรูปขนาดใหญ่"
               aria-label="ดูรูปขนาดใหญ่"
             >
-              <img src={value} alt="รูปสินค้า" className="h-full w-full object-contain" />
+              <img src={displayImage} alt="รูปสินค้า" className="h-full w-full object-contain" />
               <span className="absolute inset-0 flex items-center justify-center bg-slate-950/0 text-white opacity-0 transition group-hover:bg-slate-950/45 group-hover:opacity-100 group-focus:bg-slate-950/45 group-focus:opacity-100">
                 <EyeOutlined className="text-base" />
               </span>
@@ -142,7 +148,7 @@ export function ImagePicker({
           )}
 
           <div className="min-w-0 space-y-1">
-            {value ? (
+            {displayImage ? (
               <>
                 <p className="text-xs text-slate-500">คลิกรูปเพื่อดูขนาดใหญ่</p>
                 <div className="flex items-center gap-3">
@@ -166,7 +172,7 @@ export function ImagePicker({
         </div>
 
         <Modal open={previewOpen} footer={null} onCancel={() => setPreviewOpen(false)} centered width={720} title="รูปสินค้า">
-          {value && <img src={value} alt="รูปสินค้าขนาดใหญ่" className="max-h-[70vh] w-full object-contain" />}
+          {displayImage && <img src={displayImage} alt="รูปสินค้าขนาดใหญ่" className="max-h-[70vh] w-full object-contain" />}
         </Modal>
       </>
     );
@@ -175,16 +181,16 @@ export function ImagePicker({
   // ── Table variant ────────────────────────────────────────────────────────
   // Keeps the image column actionable without adding controls that widen a row.
   if (variant === 'table') {
-    const displayImage = value || fallbackImage || catalogImage;
+    const tableImage = optimisticImage ?? value ?? fallbackImage ?? catalogImage;
     return (
       <>
         <div
-          className={`inline-flex ${className}`}
+          className={`inline-flex rounded transition-colors ${isDragging ? 'bg-blue-50 ring-2 ring-blue-400 ring-offset-1' : ''} ${className}`}
           onDragOver={handleDragOver}
           onDragLeave={() => setIsDragging(false)}
           onDrop={handleDrop}
         >
-          {displayImage ? (
+          {tableImage ? (
             <button
               type="button"
               onClick={() => setPreviewOpen(true)}
@@ -192,7 +198,7 @@ export function ImagePicker({
               title="ดูรูปขนาดใหญ่"
               aria-label="ดูรูปขนาดใหญ่"
             >
-              <img src={displayImage} alt="รูปสินค้า" className="h-full w-full object-contain" />
+              <img src={tableImage} alt="รูปสินค้า" className="h-full w-full object-contain" />
               <span className="absolute inset-0 flex items-center justify-center bg-slate-950/0 text-white opacity-0 transition group-hover:bg-slate-950/45 group-hover:opacity-100 group-focus:bg-slate-950/45 group-focus:opacity-100">
                 <EyeOutlined className="text-sm" />
               </span>
@@ -216,7 +222,7 @@ export function ImagePicker({
 
         {error && <p className="mt-1 max-w-24 text-xs text-red-500">{error}</p>}
         <Modal open={previewOpen} footer={null} onCancel={() => setPreviewOpen(false)} centered width={720} title="รูปสินค้า">
-          {displayImage && <img src={displayImage} alt="รูปสินค้าขนาดใหญ่" className="max-h-[70vh] w-full object-contain" />}
+          {tableImage && <img src={tableImage} alt="รูปสินค้าขนาดใหญ่" className="max-h-[70vh] w-full object-contain" />}
         </Modal>
       </>
     );
@@ -225,11 +231,15 @@ export function ImagePicker({
   // ── Box variant ──────────────────────────────────────────────────────────
   if (variant === 'box') {
     return (
-      <div className={`flex items-center gap-3 ${className}`}>
-        {value ? (
+      <div className={`flex items-center gap-3 rounded-lg transition-colors ${isDragging ? 'bg-blue-50 ring-2 ring-blue-400 ring-offset-2' : ''} ${className}`}
+        onDragOver={handleDragOver}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={handleDrop}
+      >
+        {displayImage ? (
           <div className="relative flex-shrink-0">
             <img
-              src={value}
+              src={displayImage}
               alt="preview"
               className="rounded-lg object-contain bg-gray-50 border border-gray-200"
               style={{ width: size, height: size }}
@@ -273,9 +283,9 @@ export function ImagePicker({
             disabled={uploading}
             className="text-xs text-blue-600 hover:text-blue-800 font-medium disabled:opacity-50"
           >
-            {uploading ? 'กำลังอัปโหลด…' : value ? 'เปลี่ยนรูป' : 'อัปโหลดรูป'}
+            {uploading ? 'กำลังอัปโหลด…' : displayImage ? 'เปลี่ยนรูป' : 'อัปโหลดรูป'}
           </button>
-          <p className="text-xs text-gray-400">PNG, JPG — อัปโหลดสู่ Supabase Storage</p>
+          <p className="text-xs text-gray-400">คลิก หรือลากรูปจากโฟลเดอร์มาวางได้</p>
           {error && <p className="text-xs text-red-500">{error}</p>}
         </div>
 
@@ -286,10 +296,14 @@ export function ImagePicker({
 
   // ── Button variant (used in MachineEditor / StockEditorFull) ─────────────
   return (
-    <div className={`flex items-center gap-2 ${className}`}>
-      {value && (
+    <div className={`flex items-center gap-2 rounded-lg transition-colors ${isDragging ? 'bg-blue-50 ring-2 ring-blue-400 ring-offset-2' : ''} ${className}`}
+      onDragOver={handleDragOver}
+      onDragLeave={() => setIsDragging(false)}
+      onDrop={handleDrop}
+    >
+      {displayImage && (
         <img
-          src={value}
+          src={displayImage}
           alt="preview"
           className="rounded object-contain bg-gray-50 border border-gray-200 flex-shrink-0"
           style={{ width: size, height: size }}
@@ -303,9 +317,9 @@ export function ImagePicker({
           className="inline-flex items-center gap-1 rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50"
         >
           <span>↑</span>
-          {uploading ? 'กำลังอัปโหลด…' : value ? 'เปลี่ยน' : 'อัปโหลด'}
+          {uploading ? 'กำลังอัปโหลด…' : displayImage ? 'เปลี่ยน' : 'อัปโหลด'}
         </button>
-        {value && (
+        {displayImage && (
           <button
             type="button"
             onClick={() => onChange(undefined)}
@@ -316,6 +330,7 @@ export function ImagePicker({
           </button>
         )}
         {error && <p className="text-xs text-red-500">{error}</p>}
+        {!displayImage && !error && <p className="text-[11px] text-gray-400">ลากรูปมาวางได้</p>}
       </div>
       {fileInput}
     </div>
