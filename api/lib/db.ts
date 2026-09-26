@@ -23,9 +23,16 @@ async function readCatalogItems(itemIds?: string[]): Promise<Map<string, Catalog
   return new Map((data ?? []).map((item) => [item.item_id, item as CatalogItem]));
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function readItemNames(): Promise<Record<string, string>> {
   const items = await readCatalogItems();
-  return Object.fromEntries([...items.values()].map((item) => [item.item_id, item.name]));
+  // Filter out rows where name was accidentally set to the UUID itself
+  return Object.fromEntries(
+    [...items.values()]
+      .filter((item) => !UUID_RE.test(item.name))
+      .map((item) => [item.item_id, item.name])
+  );
 }
 
 async function validateIngredientReferences(ingredients: Record<string, number>) {
@@ -302,7 +309,7 @@ export async function writeStocks(stocks: StockMap): Promise<void> {
     item_id,
     quantity,
   }));
-  await ensureCatalogItems(rows.map(({ item_id }) => ({ item_id, name: item_id })));
+  await ensureCatalogItems(rows.map(({ item_id }) => ({ item_id, name: '(ไม่ระบุชื่อ)' })));
 
   if (rows.length === 0) {
     // Delete everything
@@ -329,7 +336,7 @@ export async function writeStocks(stocks: StockMap): Promise<void> {
 /** Upsert a single stock item (used during BOM sync) */
 export async function upsertStockItem(itemId: string, quantity: number): Promise<void> {
   const db = getSupabase();
-  await ensureCatalogItems([{ item_id: itemId, name: itemId }]);
+  await ensureCatalogItems([{ item_id: itemId, name: '(ไม่ระบุชื่อ)' }]);
   const { error } = await db
     .from('stocks')
     .upsert({ item_id: itemId, quantity }, { onConflict: 'item_id' });
@@ -364,7 +371,7 @@ export async function writeStockImages(images: StockImageMap): Promise<void> {
 /** Upsert a single stock image */
 export async function upsertStockImage(itemId: string, imageUrl: string): Promise<void> {
   const existing = await readCatalogItems([itemId]);
-  await upsertCatalogItems([{ item_id: itemId, name: existing.get(itemId)?.name ?? itemId, image_url: imageUrl }]);
+  await upsertCatalogItems([{ item_id: itemId, name: existing.get(itemId)?.name ?? '(ไม่ระบุชื่อ)', image_url: imageUrl }]);
 }
 
 // ── Budgets and purchases (see new implementations below) ────────────────────

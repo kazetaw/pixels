@@ -887,7 +887,10 @@ export default function App() {
                 sub="สรุปยอดใช้จ่าย และประวัติการซื้อสต็อก — จัดการงบและบันทึกรายการซื้อได้ที่ จัดการข้อมูล"
               />
 
-              <BudgetHistory recipes={recipes} />
+              <BudgetHistory recipes={recipes} itemNames={itemNames} onStockChanged={async () => {
+                const { fetchAllData } = await import('./api/client');
+                applyData(await fetchAllData());
+              }} />
             </div>
           )}
         </Content>

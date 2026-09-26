@@ -6,6 +6,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { Budget, Currency, Recipe, StockMap, StockPurchase } from '../../types';
 import { createStockPurchase, fetchBudgetData, saveBudget } from '../../api/client';
 import { BudgetPinModal } from './BudgetPinModal';
+import { PurchaseEditButton } from './PurchaseEditButton';
 
 const { Text } = Typography;
 const currencies: Currency[] = ['THB', 'G'];
@@ -19,10 +20,11 @@ function displayMoney(amount: number, currency: Currency) {
 interface BudgetDraftProps {
   stocks: StockMap;
   recipes: Recipe[];
+  itemNames: Record<string, string>;
   onStockChanged: () => Promise<void>;
 }
 
-export function BudgetDraft({ stocks, recipes, onStockChanged }: BudgetDraftProps) {
+export function BudgetDraft({ stocks, recipes, itemNames, onStockChanged }: BudgetDraftProps) {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [purchases, setPurchases] = useState<StockPurchase[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,7 +40,11 @@ export function BudgetDraft({ stocks, recipes, onStockChanged }: BudgetDraftProp
   const [limitInput, setLimitInput] = useState<Record<Currency, number>>({ THB: 0, G: 0 });
   const [messageApi, contextHolder] = message.useMessage();
 
-  const itemName = (id: string) => recipes.find((recipe) => recipe.id === id)?.name ?? id;
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const itemName = (id: string) => {
+    const n = itemNames[id];
+    return (n && !UUID_RE.test(n)) ? n : recipes.find((recipe) => recipe.id === id)?.name ?? 'ไม่พบชื่อสินค้า';
+  };
 
   const load = async () => {
     setLoading(true);
@@ -59,6 +65,8 @@ export function BudgetDraft({ stocks, recipes, onStockChanged }: BudgetDraftProp
 
   useEffect(() => { void load(); }, []);
 
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
   const itemOptions = useMemo(() => {
     const recipeMap = new Map(recipes.map((recipe) => [recipe.id, recipe.name]));
     const itemIds = new Set([
@@ -67,9 +75,17 @@ export function BudgetDraft({ stocks, recipes, onStockChanged }: BudgetDraftProp
       ...recipes.flatMap((recipe) => Object.keys(recipe.ingredients)),
     ]);
     return Array.from(itemIds)
-      .map((id) => ({ value: id, label: recipeMap.get(id) ?? id }))
+      .map((id) => {
+        const fromNames = itemNames[id];
+        // ถ้า itemNames เก็บ UUID ไว้ผิดๆ ให้ข้ามแล้วไป fallback
+        const resolvedName =
+          fromNames && !UUID_RE.test(fromNames)
+            ? fromNames
+            : recipeMap.get(id) ?? 'ไม่พบชื่อสินค้า';
+        return { value: id, label: resolvedName };
+      })
       .sort((a, b) => a.label.localeCompare(b.label, 'th'));
-  }, [recipes, stocks]);
+  }, [recipes, stocks, itemNames]);
 
   const spent = (target: Currency) => purchases.filter((purchase) => purchase.currency === target).reduce((sum, purchase) => sum + purchase.total_amount, 0);
   const limitFor = (target: Currency) => budgets.find((budget) => budget.currency === target)?.limit_amount;
@@ -119,6 +135,12 @@ export function BudgetDraft({ stocks, recipes, onStockChanged }: BudgetDraftProp
   };
 
   const columns: ColumnsType<StockPurchase> = [
+    { title: 'จัดการ', key: 'edit', width: 95, fixed: 'right', render: (_, row) =>
+      <PurchaseEditButton purchase={row} itemNames={itemNames} onSaved={updated => {
+        setPurchases(current => current.map(p => p.id === updated.id ? updated : p)
+          .sort((a, b) => Date.parse(b.purchased_at) - Date.parse(a.purchased_at)));
+        void onStockChanged().catch(e => messageApi.error((e as Error).message));
+      }} /> },
     { title: 'รายการ', dataIndex: 'item_id', render: (id) => <ItemLabel id={id} name={itemName(id)} size={32} reserveImage /> },
     { title: 'เพิ่มสต็อก', dataIndex: 'quantity', align: 'right', width: 108, render: (value) => `+${value} ชิ้น` },
     { title: 'จ่ายทั้งหมด', dataIndex: 'total_amount', align: 'right', width: 140, render: (value, row) => <Text strong>{displayMoney(value, row.currency)}</Text> },

@@ -64,6 +64,13 @@ export async function createStockPurchase(input: Omit<StockPurchase, 'id' | 'pur
   }));
 }
 
+export async function editStockPurchase(expected: StockPurchase, changes: Omit<StockPurchase, 'id'>, pin: string): Promise<StockPurchase> {
+  return handleResponse(await fetch(`/api/purchases/${expected.id}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ expected, changes, pin }),
+  }));
+}
+
 /** POST /api/calculate — BOM calculation */
 export async function runCalculation(targets: TargetItem[]): Promise<CalculateResponse> {
   return handleResponse<CalculateResponse>(await fetch('/api/calculate', {

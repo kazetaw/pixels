@@ -161,7 +161,7 @@ export function DataEditor({ initialRecipes, initialMachines, initialStocks, ini
 
       {tab === 'budget' && (
         budgetUnlocked
-          ? <BudgetDraft stocks={stocks} recipes={recipes} onStockChanged={reload} />
+          ? <BudgetDraft stocks={stocks} recipes={recipes} itemNames={itemNames} onStockChanged={reload} />
           : (
             <div style={{
               display: 'flex', flexDirection: 'column', alignItems: 'center',

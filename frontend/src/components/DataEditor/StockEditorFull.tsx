@@ -28,12 +28,19 @@ const normalizedItemKey = (value: string) => value.trim().normalize('NFKC').toLo
 const recipeForStockItem = (recipes: Recipe[], key: string) => recipes.find((recipe) =>
   recipe.id === key || normalizedItemKey(recipe.name) === normalizedItemKey(key));
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function buildItemNames(recipes: Recipe[], itemNames: Record<string, string>): Map<string, string> {
-  const m = new Map<string, string>(Object.entries(itemNames));
+  // Filter out catalog rows where the name was accidentally stored as a UUID
+  const m = new Map<string, string>(
+    Object.entries(itemNames).filter(([, name]) => !UUID_RE.test(name))
+  );
   for (const r of recipes) {
     m.set(r.id, r.name);
     for (const k of Object.keys(r.ingredients)) {
-      if (!m.has(k)) m.set(k, k);
+      // Don't fall back to the raw UUID — leave the key absent so the
+      // caller can show a friendlier fallback like 'ไม่พบชื่อสินค้า'
+      if (!m.has(k)) m.set(k, r.ingredients ? (recipes.find((rx) => rx.id === k)?.name ?? 'ไม่พบชื่อสินค้า') : 'ไม่พบชื่อสินค้า');
     }
   }
   return m;
@@ -202,15 +209,15 @@ export function StockEditorFull({ stocks, stockImages, recipes, machines, itemNa
     // This screen is the physical stock list. Recipe ingredients belong in the
     // recipe editor and must not create phantom zero-quantity stock rows.
     return Object.keys(local).sort((a, b) => {
-      const na = nameMap.get(a) ?? a;
-      const nb = nameMap.get(b) ?? b;
+      const na = nameMap.get(a) ?? 'ไม่พบชื่อสินค้า';
+      const nb = nameMap.get(b) ?? 'ไม่พบชื่อสินค้า';
       return na.localeCompare(nb, 'th');
     });
   }, [local, nameMap]);
 
   const tableData: RowData[] = allKeys
     .filter((k) => {
-      const name = nameMap.get(k) ?? k;
+      const name = nameMap.get(k) ?? 'ไม่พบชื่อสินค้า';
       return (
         name.toLowerCase().includes(search.toLowerCase()) ||
         k.toLowerCase().includes(search.toLowerCase())
@@ -218,7 +225,7 @@ export function StockEditorFull({ stocks, stockImages, recipes, machines, itemNa
     })
     .map((k) => ({
       key: k,
-      name: nameMap.get(k) ?? k,
+      name: nameMap.get(k) ?? 'ไม่พบชื่อสินค้า',
       isRecipe: recipes.some((r) => r.id === k),
       qty: local[k] ?? 0,
       image: recipeForStockItem(recipes, k)?.image ?? localImages[k],

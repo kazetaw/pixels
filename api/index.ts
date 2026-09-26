@@ -565,6 +565,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // ── /api/purchases ────────────────────────────────────────────────────────────
   if (segments[0] === 'purchases') {
+    if (segments[1] && method === 'PUT') {
+      if (req.body?.pin !== (process.env.BUDGET_PIN ?? '7774')) return res.status(403).json({ error: 'PIN ไม่ถูกต้อง' });
+      const { expected, changes } = req.body;
+      if (!expected || !changes || typeof changes.item_id !== 'string'
+        || !Number.isSafeInteger(changes.quantity) || changes.quantity <= 0 || changes.quantity > 2147483647
+        || typeof changes.total_amount !== 'number' || !Number.isFinite(changes.total_amount) || changes.total_amount < 0
+        || !['THB', 'G'].includes(changes.currency) || typeof changes.purchased_at !== 'string'
+        || !Number.isFinite(Date.parse(changes.purchased_at))
+        || (changes.source != null && typeof changes.source !== 'string')
+        || (changes.contributor != null && typeof changes.contributor !== 'string')) {
+        return res.status(400).json({ error: 'กรุณากรอกข้อมูลรายการซื้อให้ครบและถูกต้อง' });
+      }
+      const { data, error } = await getSupabase().rpc('edit_stock_purchase', {
+        p_id: segments[1], p_expected: expected, p_changes: changes,
+      });
+      if (error) return res.status(error.code === 'PGRST202' ? 503 : 409).json({ error: error.code === 'PGRST202'
+        ? 'ระบบแก้ไขรายการซื้อยังไม่พร้อม กรุณาติดตั้ง migration edit_stock_purchase' : error.message });
+      return res.json(data);
+    }
     // GET /api/purchases
     if (method === 'GET') {
       try { return res.json(await readPurchases()); }

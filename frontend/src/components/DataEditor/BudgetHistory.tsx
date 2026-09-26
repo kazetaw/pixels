@@ -13,6 +13,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { Budget, Currency, Recipe, StockPurchase } from '../../types';
 import { fetchBudgetData, saveBudget } from '../../api/client';
 import { BudgetPinModal } from './BudgetPinModal';
+import { PurchaseEditButton } from './PurchaseEditButton';
 
 const { Text } = Typography;
 
@@ -24,9 +25,11 @@ function displayMoney(amount: number, currency: Currency) {
 
 interface BudgetHistoryProps {
   recipes: Recipe[];
+  itemNames: Record<string, string>;
+  onStockChanged: () => Promise<void>;
 }
 
-export function BudgetHistory({ recipes }: BudgetHistoryProps) {
+export function BudgetHistory({ recipes, itemNames, onStockChanged }: BudgetHistoryProps) {
   const [budgets, setBudgets]     = useState<Budget[]>([]);
   const [purchases, setPurchases] = useState<StockPurchase[]>([]);
   const [loading, setLoading]     = useState(true);
@@ -48,7 +51,11 @@ export function BudgetHistory({ recipes }: BudgetHistoryProps) {
     finally { setSaving(false); }
   };
 
-  const itemName = (id: string) => recipes.find((r) => r.id === id)?.name ?? id;
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const itemName = (id: string) => {
+    const n = itemNames[id];
+    return (n && !UUID_RE.test(n)) ? n : recipes.find((r) => r.id === id)?.name ?? 'ไม่พบชื่อสินค้า';
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -79,6 +86,12 @@ export function BudgetHistory({ recipes }: BudgetHistoryProps) {
 
   // ── Purchase columns ──────────────────────────────────────────────────────
   const columns: ColumnsType<StockPurchase> = [
+    { title: 'จัดการ', key: 'edit', width: 95, fixed: 'right', render: (_, row) =>
+      <PurchaseEditButton purchase={row} itemNames={itemNames} onSaved={updated => {
+        setPurchases(current => current.map(p => p.id === updated.id ? updated : p)
+          .sort((a, b) => Date.parse(b.purchased_at) - Date.parse(a.purchased_at)));
+        void onStockChanged().catch(e => setError((e as Error).message));
+      }} /> },
     {
       title: 'รายการ',
       dataIndex: 'item_id',

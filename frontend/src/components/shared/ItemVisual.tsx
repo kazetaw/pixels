@@ -23,7 +23,10 @@ export function ItemVisualProvider({ recipes, machines, stockImages, itemNames =
       result[machine.machine_id] = { name: machine.machine_name, image: machine.image };
       result[normalizedKey(machine.machine_name)] ??= { name: machine.machine_name, image: machine.image };
     }
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     for (const [id, name] of Object.entries(itemNames)) {
+      // Skip entries where the name is itself a UUID (corrupted catalog rows)
+      if (UUID_RE.test(name)) continue;
       result[id] = { name, image: result[id]?.image };
     }
     for (const recipe of recipes) {
@@ -35,7 +38,7 @@ export function ItemVisualProvider({ recipes, machines, stockImages, itemNames =
     for (const [id, image] of Object.entries(stockImages)) {
       const isLinkedRecipe = recipes.some((recipe) => recipe.id === id || normalizedKey(recipe.name) === normalizedKey(id));
       // Recipe is the shared image source for a matching stock item.
-      if (image && !isLinkedRecipe) result[id] = { name: result[id]?.name ?? id, image };
+      if (image && !isLinkedRecipe) result[id] = { name: result[id]?.name ?? '(ไม่ระบุชื่อ)', image };
     }
     return result;
   }, [recipes, machines, stockImages, itemNames]);
@@ -62,7 +65,7 @@ export function ItemLabel({ id, name, image, size = 28, detail, reserveImage = f
   id?: string; name?: ReactNode; image?: string; size?: number; detail?: ReactNode; reserveImage?: boolean;
 }) {
   const catalog = useContext(VisualContext);
-  const label = name ?? (id ? findVisual(catalog, id)?.name ?? id : '');
+  const label = name ?? (id ? findVisual(catalog, id)?.name ?? '(ไม่ระบุชื่อ)' : '');
   return <span className="item-label">
     {(reserveImage || image || findVisual(catalog, id)?.image) && <ItemThumbnail id={id} image={image} size={size} />}
     <span className="item-label__copy"><span className="item-label__name" title={typeof label === 'string' ? label : undefined}>{label}</span>

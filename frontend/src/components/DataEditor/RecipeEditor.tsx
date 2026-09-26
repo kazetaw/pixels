@@ -38,9 +38,13 @@ function IngredientEditor({ ingredients, recipes, stocks, itemNames, onChange }:
     label: r.name, value: r.id, type: 'recipe' as const,
   }));
   const recipeIds = new Set(recipes.map((r) => r.id));
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   const rawOptions = Object.keys(stocks)
     .filter((k) => !recipeIds.has(k))
-    .map((k) => ({ label: itemNames[k] ?? k, value: k, type: 'raw' as const }));
+    .map((k) => {
+      const n = itemNames[k];
+      return { label: (n && !UUID_RE.test(n)) ? n : 'ไม่พบชื่อสินค้า', value: k, type: 'raw' as const };
+    });
 
   const allOptions = [
     { label: '── สินค้า (Recipe) ──', options: recipeOptions },
@@ -60,9 +64,12 @@ function IngredientEditor({ ingredients, recipes, stocks, itemNames, onChange }:
     onChange(next);
   };
 
-  const recipeMap = new Map<string, string>(Object.entries(itemNames));
+  const UUID_RE_LABEL = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const recipeMap = new Map<string, string>(
+    Object.entries(itemNames).filter(([, name]) => !UUID_RE_LABEL.test(name))
+  );
   for (const recipe of recipes) recipeMap.set(recipe.id, recipe.name);
-  const getLabel = (k: string) => recipeMap.get(k) ?? k;
+  const getLabel = (k: string) => recipeMap.get(k) ?? 'ไม่พบชื่อสินค้า';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -497,7 +504,7 @@ export function RecipeEditor({ recipes, machines, stocks, itemNames, onChange }:
                   <div className="flex flex-wrap gap-1 justify-center">
                     {Object.entries(r.ingredients).slice(0, 3).map(([k, v]) => (
                       <span key={k} className="bg-gray-100 rounded px-1.5 py-0.5 text-xs">
-                        <ItemLabel id={k} name={recipeMap.get(k) ?? k} size={20} /> ×{v}
+                        <ItemLabel id={k} name={recipeMap.get(k) ?? 'ไม่พบชื่อสินค้า'} size={20} /> ×{v}
                       </span>
                     ))}
                     {Object.keys(r.ingredients).length > 3 && (
