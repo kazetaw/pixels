@@ -65,8 +65,6 @@ export function BudgetDraft({ stocks, recipes, itemNames, onStockChanged }: Budg
 
   useEffect(() => { void load(); }, []);
 
-  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
   const itemOptions = useMemo(() => {
     const recipeMap = new Map(recipes.map((recipe) => [recipe.id, recipe.name]));
     const itemIds = new Set([
