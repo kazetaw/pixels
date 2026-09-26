@@ -118,7 +118,7 @@ function buildTree(
   floorProducesMap: Map<string, number>
 ): BomTreeNode {
   const recipe = recipeMap.get(itemId);
-  const name = nameMap.get(itemId) ?? itemId;
+  const name = nameMap.get(itemId) ?? '(ไม่ระบุชื่อ)';
   if (!recipe || Object.keys(recipe.ingredients).length === 0)
     return { item_id: itemId, item_name: name, quantity_needed: quantity, is_raw: true, children: [] };
   return {
@@ -424,9 +424,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const slotsPerFloor = body.slots_per_floor ?? 12;
     const eventHours = toHours(body.event_days, body.event_hours, body.event_minutes);
     try {
-      const [recipes, stocks] = await Promise.all([readRecipes(), readStocks()]);
+      const [recipes, stocks, itemNames] = await Promise.all([readRecipes(), readStocks(), readItemNames()]);
       const recipeMap = new Map(recipes.map((r) => [r.id, r]));
-      const nameMap = new Map(recipes.map((r) => [r.id, r.name]));
+      // seed nameMap from catalog (raw ingredients) then overwrite with recipe names
+      const nameMap = new Map(Object.entries(itemNames));
+      for (const r of recipes) nameMap.set(r.id, r.name);
       for (const fa of body.floor_assignments) {
         if (!recipeMap.has(fa.recipe_id))
           return res.status(400).json({ error: `Unknown recipe_id "${fa.recipe_id}"` });

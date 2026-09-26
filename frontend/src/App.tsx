@@ -876,6 +876,7 @@ export default function App() {
                 recipes={recipes}
                 machines={_machines}
                 stocks={stocks}
+                itemNames={itemNames}
               />
             </div>
           )}
