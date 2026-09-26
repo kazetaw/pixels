@@ -119,7 +119,37 @@ async function reconcileDuplicateCatalogItems() {
     if (error) throw new Error(`remove duplicate items: ${error.message}`);
     merged += duplicateIds.length;
   }
-  return { merged };
+  // The recipe list above is a snapshot. Re-read it after all merges so a
+  // recipe affected by more than one group cannot retain a now-deleted ID.
+  const [{ data: currentItems, error: currentItemsError }, { data: migrations, error: migrationsError }, freshRecipes] = await Promise.all([
+    db.from('items').select('item_id, name'),
+    db.from('item_id_migrations').select('legacy_item_id, item_id'),
+    readRecipes(),
+  ]);
+  if (currentItemsError) throw new Error(`read merged items: ${currentItemsError.message}`);
+  if (migrationsError) throw new Error(`read item mappings: ${migrationsError.message}`);
+  const itemIdByName = new Map((currentItems ?? []).map((item) => [normalizeName(item.name), item.item_id]));
+  const legacyNameById = new Map((migrations ?? []).map((row) => [row.item_id, row.legacy_item_id]));
+  let repaired = 0;
+  for (const recipe of freshRecipes) {
+    const ingredients = { ...recipe.ingredients };
+    let changed = false;
+    for (const [itemId, quantity] of Object.entries(recipe.ingredients)) {
+      if ((currentItems ?? []).some((item) => item.item_id === itemId)) continue;
+      const legacyName = legacyNameById.get(itemId);
+      const canonicalId = legacyName ? itemIdByName.get(normalizeName(legacyName)) : undefined;
+      if (!canonicalId) continue;
+      ingredients[canonicalId] = (ingredients[canonicalId] ?? 0) + quantity;
+      delete ingredients[itemId];
+      changed = true;
+      repaired++;
+    }
+    if (changed) {
+      const { error } = await db.from('recipes').update({ ingredients }).eq('id', recipe.id);
+      if (error) throw new Error(`repair ingredients: ${error.message}`);
+    }
+  }
+  return { merged, repaired };
 }
 
 // ── multipart parser (for upload-image) ──────────────────────────────────────
