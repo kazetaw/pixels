@@ -483,6 +483,7 @@ body {
 .production-targets__floor-number { font-size: 11px; font-weight: 700; letter-spacing: .06em; color: #2563eb; text-transform: uppercase; }
 .production-targets__floor h3 { margin: 3px 0 0; font-size: 15px; color: #0f172a; }
 .production-targets__items { display: flex; flex-direction: column; }
+.production-targets__items > h4 { margin: 0; padding: 10px 16px 4px; color: #64748b; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
 .production-targets__item { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; }
 .production-targets__item:last-child { border-bottom: 0; }
 .production-targets__item-name { min-width: 0; margin-bottom: 9px; font-size: 13px; font-weight: 600; }
@@ -495,5 +496,13 @@ body {
 .production-targets__progress i { position: absolute; left: 0; width: 0; height: 5px; border-radius: 999px; background: #3b82f6; }
 .production-targets__progress i.is-complete { background: #16a34a; }
 .production-targets__progress span { min-width: 30px; text-align: right; }
+.production-targets__materials { padding: 12px 16px; background: #f8fafc; border-top: 1px solid #dbe4f0; }
+.production-targets__materials-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 7px; }
+.production-targets__materials-heading h4 { margin: 0; color: #334155; font-size: 12px; }
+.production-targets__materials-heading span { color: #94a3b8; font-size: 10px; text-align: right; }
+.production-targets__materials-empty { margin: 0; color: #94a3b8; font-size: 12px; }
+.production-targets__material { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 10px; padding: 7px 0; border-top: 1px solid #e8eef5; font-size: 12px; }
+.production-targets__material strong { color: #0f172a; font-variant-numeric: tabular-nums; }
+.production-targets__material > span:last-child { min-width: 42px; padding: 3px 6px; border-radius: 4px; color: #1d4ed8; background: #dbeafe; text-align: center; font-size: 11px; white-space: nowrap; }
 .production-targets__empty { margin: 0; padding: 28px 16px; color: #94a3b8; text-align: center; font-size: 13px; }
 @media (max-width: 600px) { .production-targets__summary { grid-template-columns: repeat(3, 1fr); } .production-targets__summary > div { padding: 12px; } .production-targets__summary strong { font-size: 21px; } .production-targets__grid { grid-template-columns: 1fr; } }
