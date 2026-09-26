@@ -145,6 +145,11 @@ export function DataEditor({ initialRecipes, initialMachines, initialStocks, ini
             setStockImages(newImages);
             onDataChanged({ recipes, machines, stocks: newStocks, stockImages: newImages });
           }}
+          onRecipeImageChanged={(updatedRecipe) => {
+            const nextRecipes = recipes.map((recipe) => recipe.id === updatedRecipe.id ? updatedRecipe : recipe);
+            setRecipes(nextRecipes);
+            onDataChanged({ recipes: nextRecipes, machines, stocks, stockImages });
+          }}
         />
       )}
 

@@ -30,7 +30,9 @@ export function ItemVisualProvider({ recipes, machines, stockImages, children }:
       result[normalizedKey(recipe.name)] ??= { name: recipe.name, image: recipe.image };
     }
     for (const [id, image] of Object.entries(stockImages)) {
-      if (image) result[id] = { name: result[id]?.name ?? id, image };
+      const isLinkedRecipe = recipes.some((recipe) => recipe.id === id || normalizedKey(recipe.name) === normalizedKey(id));
+      // Recipe is the shared image source for a matching stock item.
+      if (image && !isLinkedRecipe) result[id] = { name: result[id]?.name ?? id, image };
     }
     return result;
   }, [recipes, machines, stockImages]);

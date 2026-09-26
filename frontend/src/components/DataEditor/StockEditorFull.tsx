@@ -9,7 +9,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { StockMap, StockImageMap, Recipe, Machine } from '../../types';
-import { saveStocks } from '../../api/client';
+import { saveStocks, updateRecipe } from '../../api/client';
 import { ImagePicker } from '../shared/ImagePicker';
 
 const { Text } = Typography;
@@ -20,7 +20,12 @@ interface StockEditorFullProps {
   recipes: Recipe[];
   machines: Machine[];
   onSaved: (newStocks: StockMap, newImages: StockImageMap) => void;
+  onRecipeImageChanged: (recipe: Recipe) => void;
 }
+
+const normalizedItemKey = (value: string) => value.trim().normalize('NFKC').toLocaleLowerCase('th');
+const recipeForStockItem = (recipes: Recipe[], key: string) => recipes.find((recipe) =>
+  recipe.id === key || normalizedItemKey(recipe.name) === normalizedItemKey(key));
 
 function buildItemNames(recipes: Recipe[]): Map<string, string> {
   const m = new Map<string, string>();
@@ -39,7 +44,7 @@ interface AddModalProps {
   recipes: Recipe[];
   machines: Machine[];
   existingKeys: string[];
-  onAdd: (key: string, qty: number, image?: string) => void;
+  onAdd: (key: string, qty: number, image?: string) => void | Promise<void>;
   onClose: () => void;
 }
 
@@ -79,7 +84,7 @@ function AddItemModal({ open, recipes, machines, existingKeys, onAdd, onClose }:
         }
       }
 
-      onAdd(key, values.qty ?? 0, image);
+      await onAdd(key, values.qty ?? 0, image);
       form.resetFields();
       setImage(undefined);
       setMode('raw');
@@ -180,7 +185,7 @@ interface RowData {
   image?: string;
 }
 
-export function StockEditorFull({ stocks, stockImages, recipes, machines, onSaved }: StockEditorFullProps) {
+export function StockEditorFull({ stocks, stockImages, recipes, machines, onSaved, onRecipeImageChanged }: StockEditorFullProps) {
   const [local, setLocal] = useState<StockMap>({ ...stocks });
   const [localImages, setLocalImages] = useState<StockImageMap>({ ...stockImages });
   const [search, setSearch] = useState('');
@@ -212,14 +217,23 @@ export function StockEditorFull({ stocks, stockImages, recipes, machines, onSave
       name: nameMap.get(k) ?? k,
       isRecipe: recipes.some((r) => r.id === k),
       qty: local[k] ?? 0,
-      image: localImages[k],
+      image: recipeForStockItem(recipes, k)?.image ?? localImages[k],
     }));
 
   const handleQtyChange = (key: string, val: number | null) => {
     setLocal((prev) => ({ ...prev, [key]: val ?? 0 }));
   };
 
-  const handleImageChange = (key: string, img: string | undefined) => {
+  const handleImageChange = async (key: string, img: string | undefined) => {
+    const recipe = recipeForStockItem(recipes, key);
+    if (recipe) {
+      const updated = await updateRecipe(recipe.id, {
+        name: recipe.name, machine_id: recipe.machine_id, time_per_unit: recipe.time_per_unit,
+        ingredients: recipe.ingredients, image: img,
+      });
+      onRecipeImageChanged(updated);
+      return;
+    }
     setLocalImages((prev) => {
       const next = { ...prev };
       if (img) next[key] = img;
@@ -233,9 +247,16 @@ export function StockEditorFull({ stocks, stockImages, recipes, machines, onSave
     setLocalImages((prev) => { const n = { ...prev }; delete n[key]; return n; });
   };
 
-  const handleAdd = (key: string, qty: number, image?: string) => {
+  const handleAdd = async (key: string, qty: number, image?: string) => {
     setLocal((prev) => ({ ...prev, [key]: qty }));
-    if (image) setLocalImages((prev) => ({ ...prev, [key]: image }));
+    const recipe = recipeForStockItem(recipes, key);
+    if (image && recipe) {
+      const updated = await updateRecipe(recipe.id, {
+        name: recipe.name, machine_id: recipe.machine_id, time_per_unit: recipe.time_per_unit,
+        ingredients: recipe.ingredients, image,
+      });
+      onRecipeImageChanged(updated);
+    } else if (image) setLocalImages((prev) => ({ ...prev, [key]: image }));
     msgApi.success('เพิ่มรายการแล้ว');
   };
 
