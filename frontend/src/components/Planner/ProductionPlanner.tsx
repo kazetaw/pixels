@@ -112,7 +112,9 @@ export function ProductionPlanner({ recipes, stocks, machines = [], mode = 'loca
     {isShared && <div className={`planner-shared-status planner-shared-status--${sharedState}`} role="status">
       {sharedState === 'loading' && 'กำลังโหลดแผนส่วนกลาง…'}
       {sharedState === 'saving' && 'กำลังบันทึกแผนให้ทุกคน…'}
-      {sharedState === 'saved' && `แผนนี้ใช้ร่วมกัน · บันทึกล่าสุด ${savedAt ? new Date(savedAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : 'เมื่อกี้'} น.`}
+      {sharedState === 'saved' && (savedAt
+        ? `แผนนี้ใช้ร่วมกัน · บันทึกล่าสุด ${new Date(savedAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.`
+        : 'ยังไม่มีแผนส่วนกลาง · เริ่มวางแผนแล้วระบบจะบันทึกให้ทุกคนอัตโนมัติ')}
       {sharedState === 'error' && `แผนยังไม่ถูกบันทึก · ${sharedError}`}
     </div>}
     <div className="planner-navigation">
