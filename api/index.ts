@@ -68,6 +68,60 @@ async function syncNameToUUID(newId: string, name: string, stocks: StockMap): Pr
   return true;
 }
 
+/** Merge catalog rows that have the same normalized name and rewrite every reference. */
+async function reconcileDuplicateCatalogItems() {
+  const db = getSupabase();
+  const [{ data: itemRows, error: itemsError }, recipes, stocks] = await Promise.all([
+    db.from('items').select('item_id, name, image_url'), readRecipes(), readStocks(),
+  ]);
+  if (itemsError) throw new Error(`readItems: ${itemsError.message}`);
+  const recipeIds = new Set(recipes.map((recipe) => recipe.id));
+  const groups = new Map<string, Array<{ item_id: string; name: string; image_url: string | null }>>();
+  for (const item of itemRows ?? []) {
+    const key = normalizeName(item.name);
+    groups.set(key, [...(groups.get(key) ?? []), item]);
+  }
+  let merged = 0;
+  for (const items of groups.values()) {
+    if (items.length < 2) continue;
+    // Preserve a recipe's own ID when applicable; otherwise keep the stocked
+    // item, then the one with an image, for the least surprising result.
+    const canonical = items.find((item) => recipeIds.has(item.item_id))
+      ?? items.find((item) => Object.prototype.hasOwnProperty.call(stocks, item.item_id))
+      ?? items.find((item) => item.image_url)
+      ?? items[0];
+    const duplicateIds = items.filter((item) => item.item_id !== canonical.item_id).map((item) => item.item_id);
+    const totalStock = items.reduce((total, item) => total + (stocks[item.item_id] ?? 0), 0);
+    const image = canonical.image_url ?? items.find((item) => item.image_url)?.image_url ?? null;
+    await db.from('items').update({ image_url: image }).eq('item_id', canonical.item_id);
+    if (items.some((item) => Object.prototype.hasOwnProperty.call(stocks, item.item_id))) {
+      const { error } = await db.from('stocks').upsert({ item_id: canonical.item_id, quantity: totalStock }, { onConflict: 'item_id' });
+      if (error) throw new Error(`merge stock: ${error.message}`);
+    }
+    for (const id of duplicateIds) {
+      const { error } = await db.from('stocks').delete().eq('item_id', id);
+      if (error) throw new Error(`remove duplicate stock: ${error.message}`);
+      const purchase = await db.from('stock_purchases').update({ item_id: canonical.item_id }).eq('item_id', id);
+      if (purchase.error) throw new Error(`move purchases: ${purchase.error.message}`);
+    }
+    for (const recipe of recipes) {
+      if (!duplicateIds.some((id) => Object.prototype.hasOwnProperty.call(recipe.ingredients, id))) continue;
+      const ingredients = { ...recipe.ingredients };
+      for (const id of duplicateIds) {
+        if (ingredients[id] === undefined) continue;
+        ingredients[canonical.item_id] = (ingredients[canonical.item_id] ?? 0) + ingredients[id];
+        delete ingredients[id];
+      }
+      const { error } = await db.from('recipes').update({ ingredients }).eq('id', recipe.id);
+      if (error) throw new Error(`rewrite ingredients: ${error.message}`);
+    }
+    const { error } = await db.from('items').delete().in('item_id', duplicateIds);
+    if (error) throw new Error(`remove duplicate items: ${error.message}`);
+    merged += duplicateIds.length;
+  }
+  return { merged };
+}
+
 // ── multipart parser (for upload-image) ──────────────────────────────────────
 async function parseMultipart(req: VercelRequest): Promise<{
   file: Buffer; mimetype: string; fields: Record<string, string>;
@@ -331,6 +385,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // ── POST /api/stocks ─────────────────────────────────────────────────────────
+  if (segments[0] === 'items' && segments[1] === 'reconcile' && method === 'POST') {
+    try { return res.json({ ok: true, ...(await reconcileDuplicateCatalogItems()) }); }
+    catch (e) { return res.status(500).json({ error: (e as Error).message }); }
+  }
+
   if (segments[0] === 'items' && method === 'POST') {
     const body = req.body as { name?: string; image?: string };
     const name = body?.name?.trim();

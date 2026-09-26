@@ -199,8 +199,9 @@ export function StockEditorFull({ stocks, stockImages, recipes, machines, itemNa
   const nameMap = useMemo(() => buildItemNames(recipes, itemNames), [recipes, itemNames]);
 
   const allKeys = useMemo(() => {
-    const s = new Set<string>([...Object.keys(local), ...nameMap.keys()]);
-    return Array.from(s).sort((a, b) => {
+    // This screen is the physical stock list. Recipe ingredients belong in the
+    // recipe editor and must not create phantom zero-quantity stock rows.
+    return Object.keys(local).sort((a, b) => {
       const na = nameMap.get(a) ?? a;
       const nb = nameMap.get(b) ?? b;
       return na.localeCompare(nb, 'th');
