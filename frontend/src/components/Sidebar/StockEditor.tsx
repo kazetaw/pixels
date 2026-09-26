@@ -5,11 +5,12 @@ interface StockEditorProps {
   recipes: Recipe[];
   stocks: StockMap;
   stockImages: StockImageMap;
+  itemNames?: Record<string, string>;
   onUpdate: (itemId: string, qty: number) => void;
 }
 
-function getAllItems(recipes: Recipe[], stocks: StockMap): Array<{ id: string; name: string }> {
-  const itemMap = new Map<string, string>();
+function getAllItems(recipes: Recipe[], stocks: StockMap, itemNames: Record<string, string>): Array<{ id: string; name: string }> {
+  const itemMap = new Map<string, string>(Object.entries(itemNames));
   for (const recipe of recipes) {
     itemMap.set(recipe.id, recipe.name);
     for (const ingredientId of Object.keys(recipe.ingredients)) {
@@ -22,8 +23,8 @@ function getAllItems(recipes: Recipe[], stocks: StockMap): Array<{ id: string; n
   return Array.from(itemMap.entries()).map(([id, name]) => ({ id, name }));
 }
 
-export function StockEditor({ recipes, stocks, stockImages, onUpdate }: StockEditorProps) {
-  const items = getAllItems(recipes, stocks);
+export function StockEditor({ recipes, stocks, stockImages, itemNames = {}, onUpdate }: StockEditorProps) {
+  const items = getAllItems(recipes, stocks, itemNames);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 260, overflowY: 'auto', paddingRight: 2 }}>

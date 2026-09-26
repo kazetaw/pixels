@@ -424,6 +424,7 @@ function BomWorkspace({
   recipes,
   stocks,
   stockImages,
+  itemNames,
   targetItems,
   addTargetItem,
   removeTargetItem,
@@ -441,6 +442,7 @@ function BomWorkspace({
   recipes: ReturnType<typeof useAppState>['recipes'];
   stocks: ReturnType<typeof useAppState>['stocks'];
   stockImages: ReturnType<typeof useAppState>['stockImages'];
+  itemNames: ReturnType<typeof useAppState>['itemNames'];
   targetItems: ReturnType<typeof useAppState>['targetItems'];
   addTargetItem: ReturnType<typeof useAppState>['addTargetItem'];
   removeTargetItem: ReturnType<typeof useAppState>['removeTargetItem'];
@@ -551,6 +553,7 @@ function BomWorkspace({
             recipes={recipes}
             stocks={stocks}
             stockImages={stockImages}
+            itemNames={itemNames}
             onUpdate={updateStock}
           />
         )}
@@ -649,6 +652,7 @@ export default function App() {
     machines: _machines,
     stocks,
     stockImages,
+    itemNames,
     applyData,
     targetItems,
     addTargetItem,
@@ -672,12 +676,13 @@ export default function App() {
 
   if (bomOpen) {
     return (
-      <ItemVisualProvider recipes={recipes} machines={_machines} stockImages={stockImages}><BomWorkspace
+      <ItemVisualProvider recipes={recipes} machines={_machines} stockImages={stockImages} itemNames={itemNames}><BomWorkspace
         onBack={() => setBomOpen(false)}
         {...{
           recipes,
           stocks,
           stockImages,
+          itemNames,
           targetItems,
           addTargetItem,
           removeTargetItem,
@@ -696,7 +701,7 @@ export default function App() {
   }
 
   return (
-    <ItemVisualProvider recipes={recipes} machines={_machines} stockImages={stockImages}><Layout style={{ minHeight: '100vh' }}>
+    <ItemVisualProvider recipes={recipes} machines={_machines} stockImages={stockImages} itemNames={itemNames}><Layout style={{ minHeight: '100vh' }}>
       {/* Mobile hamburger bar */}
       <div
         style={{
@@ -805,6 +810,7 @@ export default function App() {
                 initialMachines={_machines}
                 initialStocks={stocks}
                 initialStockImages={stockImages}
+                initialItemNames={itemNames}
                 onDataChanged={applyData}
               />
             </div>
@@ -841,6 +847,7 @@ export default function App() {
               <StockInventory
                 stocks={stocks}
               stockImages={stockImages}
+              itemNames={itemNames}
               recipes={recipes}
               onSaveStocks={replaceStocks}
             />

@@ -13,8 +13,8 @@ function findVisual(catalog: Record<string, Visual>, id?: string) {
   return id ? catalog[id] ?? catalog[normalizedKey(id)] : undefined;
 }
 
-export function ItemVisualProvider({ recipes, machines, stockImages, children }: {
-  recipes: Recipe[]; machines: Machine[]; stockImages: StockImageMap; children: ReactNode;
+export function ItemVisualProvider({ recipes, machines, stockImages, itemNames = {}, children }: {
+  recipes: Recipe[]; machines: Machine[]; stockImages: StockImageMap; itemNames?: Record<string, string>; children: ReactNode;
 }) {
   const catalog = useMemo(() => {
     const result: Record<string, Visual> = Object.create(null);
@@ -22,6 +22,9 @@ export function ItemVisualProvider({ recipes, machines, stockImages, children }:
     for (const machine of machines) {
       result[machine.machine_id] = { name: machine.machine_name, image: machine.image };
       result[normalizedKey(machine.machine_name)] ??= { name: machine.machine_name, image: machine.image };
+    }
+    for (const [id, name] of Object.entries(itemNames)) {
+      result[id] = { name, image: result[id]?.image };
     }
     for (const recipe of recipes) {
       result[recipe.id] = { name: recipe.name, image: recipe.image };
@@ -35,7 +38,7 @@ export function ItemVisualProvider({ recipes, machines, stockImages, children }:
       if (image && !isLinkedRecipe) result[id] = { name: result[id]?.name ?? id, image };
     }
     return result;
-  }, [recipes, machines, stockImages]);
+  }, [recipes, machines, stockImages, itemNames]);
   return <VisualContext.Provider value={catalog}>{children}</VisualContext.Provider>;
 }
 

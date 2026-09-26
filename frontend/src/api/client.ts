@@ -31,6 +31,16 @@ export async function saveStocks(stocks: StockMap, images?: StockImageMap): Prom
   }));
 }
 
+export interface CatalogItem { item_id: string; name: string; image_url: string | null }
+
+/** Create raw stock materials in the shared catalog so references always use UUIDs. */
+export async function createCatalogItem(name: string, image?: string): Promise<CatalogItem> {
+  return handleResponse<CatalogItem>(await fetch('/api/items', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, image }),
+  }));
+}
+
 export async function fetchBudgetData(): Promise<{ budgets: Budget[]; purchases: StockPurchase[] }> {
   return handleResponse(await fetch('/api/budgets'));
 }

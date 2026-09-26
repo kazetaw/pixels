@@ -9,7 +9,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { StockMap, StockImageMap, Recipe, Machine } from '../../types';
-import { saveStocks, updateRecipe } from '../../api/client';
+import { createCatalogItem, saveStocks, updateRecipe } from '../../api/client';
 import { ImagePicker } from '../shared/ImagePicker';
 
 const { Text } = Typography;
@@ -19,6 +19,7 @@ interface StockEditorFullProps {
   stockImages: StockImageMap;
   recipes: Recipe[];
   machines: Machine[];
+  itemNames: Record<string, string>;
   onSaved: (newStocks: StockMap, newImages: StockImageMap) => void;
   onRecipeImageChanged: (recipe: Recipe) => void;
 }
@@ -27,8 +28,8 @@ const normalizedItemKey = (value: string) => value.trim().normalize('NFKC').toLo
 const recipeForStockItem = (recipes: Recipe[], key: string) => recipes.find((recipe) =>
   recipe.id === key || normalizedItemKey(recipe.name) === normalizedItemKey(key));
 
-function buildItemNames(recipes: Recipe[]): Map<string, string> {
-  const m = new Map<string, string>();
+function buildItemNames(recipes: Recipe[], itemNames: Record<string, string>): Map<string, string> {
+  const m = new Map<string, string>(Object.entries(itemNames));
   for (const r of recipes) {
     m.set(r.id, r.name);
     for (const k of Object.keys(r.ingredients)) {
@@ -68,9 +69,9 @@ function AddItemModal({ open, recipes, machines, existingKeys, onAdd, onClose }:
       if (mode === 'recipe') {
         key = values.recipe_id;
       } else {
-        key = values.raw_name.trim();
+        const rawName = values.raw_name.trim();
         // duplicate check
-        const norm = key.normalize('NFKC').toLocaleLowerCase('th');
+        const norm = rawName.normalize('NFKC').toLocaleLowerCase('th');
         const recipeIds = new Set(recipes.map((r) => r.id));
         const conflict = [
           ...recipes.map((r) => r.name),
@@ -82,6 +83,8 @@ function AddItemModal({ open, recipes, machines, existingKeys, onAdd, onClose }:
           setAdding(false);
           return;
         }
+        const item = await createCatalogItem(rawName, image);
+        key = item.item_id;
       }
 
       await onAdd(key, values.qty ?? 0, image);
@@ -185,7 +188,7 @@ interface RowData {
   image?: string;
 }
 
-export function StockEditorFull({ stocks, stockImages, recipes, machines, onSaved, onRecipeImageChanged }: StockEditorFullProps) {
+export function StockEditorFull({ stocks, stockImages, recipes, machines, itemNames, onSaved, onRecipeImageChanged }: StockEditorFullProps) {
   const [local, setLocal] = useState<StockMap>({ ...stocks });
   const [localImages, setLocalImages] = useState<StockImageMap>({ ...stockImages });
   const [search, setSearch] = useState('');
@@ -193,7 +196,7 @@ export function StockEditorFull({ stocks, stockImages, recipes, machines, onSave
   const [saving, setSaving] = useState(false);
   const [msgApi, msgCtx] = message.useMessage();
 
-  const nameMap = useMemo(() => buildItemNames(recipes), [recipes]);
+  const nameMap = useMemo(() => buildItemNames(recipes, itemNames), [recipes, itemNames]);
 
   const allKeys = useMemo(() => {
     const s = new Set<string>([...Object.keys(local), ...nameMap.keys()]);

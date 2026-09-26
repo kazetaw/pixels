@@ -73,6 +73,7 @@ export interface AppData {
   machines: Machine[];
   stocks: StockMap;
   stockImages: StockImageMap;
+  itemNames: Record<string, string>;
 }
 
 // ── Floor timer ──────────────────────────────────────────────────────────────

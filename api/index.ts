@@ -19,6 +19,8 @@ import {
   readPurchases, insertPurchase,
   readFloorTimers, insertFloorTimer, patchFloorTimer,
   readSharedPlannerPlan, writeSharedPlannerPlan,
+  createCatalogItem,
+  readItemNames,
 } from './lib/db.js';
 import { parseTimeToHours } from './lib/time.js';
 import { findNameConflict, duplicateNameError, normalizeName } from './lib/names.js';
@@ -164,10 +166,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // ── GET /api/data ───────────────────────────────────────────────────────────
   if (segments[0] === 'data' && method === 'GET') {
     try {
-      const [recipes, machines, stocks, stockImages] = await Promise.all([
-        readRecipes(), readMachines(), readStocks(), readStockImages(),
+      const [recipes, machines, stocks, stockImages, itemNames] = await Promise.all([
+        readRecipes(), readMachines(), readStocks(), readStockImages(), readItemNames(),
       ]);
-      return res.json({ recipes, machines: enrichMachines(machines, recipes), stocks, stockImages });
+      return res.json({ recipes, machines: enrichMachines(machines, recipes), stocks, stockImages, itemNames });
     } catch (e) { return res.status(500).json({ error: (e as Error).message }); }
   }
 
@@ -329,6 +331,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // ── POST /api/stocks ─────────────────────────────────────────────────────────
+  if (segments[0] === 'items' && method === 'POST') {
+    const body = req.body as { name?: string; image?: string };
+    const name = body?.name?.trim();
+    if (!name) return res.status(400).json({ error: 'ชื่อรายการต้องไม่ว่าง' });
+    try {
+      const [recipes, machines, catalogRows] = await Promise.all([
+        readRecipes(), readMachines(), getSupabase().from('items').select('name'),
+      ]);
+      if (catalogRows.error) throw new Error(`readItems: ${catalogRows.error.message}`);
+      const normalized = normalizeName(name);
+      const existing = (catalogRows.data ?? []).find((item) => normalizeName(item.name) === normalized);
+      if (existing) return res.status(409).json({ error: `มีรายการชื่อ "${existing.name}" อยู่แล้ว` });
+      const conflict = findNameConflict(name, { recipes, machines, stocks: {} });
+      if (conflict) return res.status(409).json({ error: duplicateNameError(conflict) });
+      return res.status(201).json(await createCatalogItem({ item_id: randomUUID(), name, image_url: body.image }));
+    } catch (e) { return res.status(500).json({ error: (e as Error).message }); }
+  }
+
   if (segments[0] === 'stocks' && method === 'POST') {
     const body = req.body;
     if (!body || typeof body !== 'object' || Array.isArray(body))
@@ -379,14 +399,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: `Item at index ${i} must have positive target_quantity` });
     }
     try {
-      const [recipes, machines, stocks] = await Promise.all([readRecipes(), readMachines(), readStocks()]);
+      const [recipes, machines, stocks, itemNames] = await Promise.all([readRecipes(), readMachines(), readStocks(), readItemNames()]);
       const allKnown = new Set<string>();
       for (const r of recipes) { allKnown.add(r.id); for (const k of Object.keys(r.ingredients)) allKnown.add(k); }
       for (const item of body as TargetItem[]) {
         if (!allKnown.has(item.target_item_id))
           return res.status(400).json({ error: `Unknown target_item_id: "${item.target_item_id}"` });
       }
-      return res.json(calculate(body as TargetItem[], recipes, machines, stocks));
+      return res.json(calculate(body as TargetItem[], recipes, machines, stocks, itemNames));
     } catch (e) { return res.status(500).json({ error: (e as Error).message }); }
   }
 

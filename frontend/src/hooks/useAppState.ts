@@ -18,6 +18,7 @@ export interface AppState {
   machines: Machine[];
   stocks: StockMap;
   stockImages: StockImageMap;
+  itemNames: Record<string, string>;
   applyData: (data: AppData) => void;
 
   // Target items list
@@ -47,6 +48,7 @@ export function useAppState(): AppState {
   const [machines, setMachines] = useState<Machine[]>([]);
   const [stocks, setStocks] = useState<StockMap>({});
   const [stockImages, setStockImages] = useState<StockImageMap>({});
+  const [itemNames, setItemNames] = useState<Record<string, string>>({});
   const [targetItems, setTargetItems] = useState<TargetItem[]>([]);
   const [calculationResult, setCalculationResult] = useState<CalculateResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -60,6 +62,7 @@ export function useAppState(): AppState {
     setMachines(data.machines);
     setStocks(data.stocks);
     setStockImages(data.stockImages ?? {});
+    setItemNames(data.itemNames ?? {});
     setCalculationResult(null);
   }, []);
 
@@ -139,6 +142,7 @@ export function useAppState(): AppState {
     machines,
     stocks,
     stockImages,
+    itemNames,
     applyData,
     targetItems,
     addTargetItem,

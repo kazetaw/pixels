@@ -23,10 +23,24 @@ async function readCatalogItems(itemIds?: string[]): Promise<Map<string, Catalog
   return new Map((data ?? []).map((item) => [item.item_id, item as CatalogItem]));
 }
 
+export async function readItemNames(): Promise<Record<string, string>> {
+  const items = await readCatalogItems();
+  return Object.fromEntries([...items.values()].map((item) => [item.item_id, item.name]));
+}
+
 async function upsertCatalogItems(items: Array<{ item_id: string; name: string; image_url?: string | null; item_type?: 'raw' | 'processed' }>) {
   if (!items.length) return;
   const { error } = await getSupabase().from('items').upsert(items, { onConflict: 'item_id' });
   if (error) throw new Error(`writeItems: ${error.message}`);
+}
+
+/** Create one raw-material catalog record before it is referenced by stock. */
+export async function createCatalogItem(item: { item_id: string; name: string; image_url?: string | null }) {
+  const { data, error } = await getSupabase().from('items').insert({
+    item_id: item.item_id, name: item.name, image_url: item.image_url ?? null, item_type: 'raw',
+  }).select('item_id, name, image_url').single();
+  if (error) throw new Error(`createItem: ${error.message}`);
+  return data as CatalogItem;
 }
 
 async function ensureCatalogItems(items: Array<{ item_id: string; name: string }>) {

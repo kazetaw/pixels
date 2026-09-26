@@ -28,10 +28,11 @@ interface StockInventoryProps {
   stocks: StockMap;
   stockImages: StockImageMap;
   recipes: Recipe[];
+  itemNames: Record<string, string>;
   onSaveStocks: (stocks: StockMap) => Promise<void>;
 }
 
-export function StockInventory({ stocks, stockImages, recipes, onSaveStocks }: StockInventoryProps) {
+export function StockInventory({ stocks, stockImages, recipes, itemNames, onSaveStocks }: StockInventoryProps) {
   const [search, setSearch] = useState('');
   const [stockFilter, setStockFilter] = useState<'available' | 'all' | 'empty'>('available');
   const [draftStocks, setDraftStocks] = useState<StockMap>(stocks);
@@ -41,7 +42,7 @@ export function StockInventory({ stocks, stockImages, recipes, onSaveStocks }: S
   useEffect(() => { setDraftStocks(stocks); }, [stocks]);
 
   const nameMap = useMemo(() => {
-    const m = new Map<string, string>();
+    const m = new Map<string, string>(Object.entries(itemNames));
     for (const r of recipes) {
       m.set(r.id, r.name);
       for (const k of Object.keys(r.ingredients)) {
@@ -49,7 +50,7 @@ export function StockInventory({ stocks, stockImages, recipes, onSaveStocks }: S
       }
     }
     return m;
-  }, [recipes]);
+  }, [recipes, itemNames]);
 
   const recipeIds = useMemo(() => new Set(recipes.map((r) => r.id)), [recipes]);
 

@@ -14,6 +14,21 @@ truncate table public.item_id_migrations;
 alter table public.items add column if not exists item_type text not null default 'raw'
   check (item_type in ('raw', 'processed'));
 
+-- A previous catalog migration could miss materials that only occurred inside a
+-- recipe BOM.  Put every live reference in the catalog before building the
+-- UUID mapping, so no Thai-name key can survive this migration.
+insert into public.items (item_id, name, item_type)
+select refs.item_id, refs.item_id, 'raw'
+from (
+  select item_id from public.stocks
+  union
+  select ingredient.key
+  from public.recipes r
+  cross join lateral jsonb_object_keys(coalesce(r.ingredients, '{}'::jsonb)) as ingredient(key)
+) refs
+left join public.items i on i.item_id = refs.item_id
+where i.item_id is null;
+
 insert into public.item_id_migrations (legacy_item_id, item_id)
 select i.item_id,
   case when i.item_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
@@ -27,7 +42,19 @@ select coalesce(m.item_id, s.item_id) as item_id, sum(s.quantity)::integer as qu
 from public.stocks s left join public.item_id_migrations m on m.legacy_item_id = s.item_id
 group by coalesce(m.item_id, s.item_id);
 
-alter table public.stocks drop constraint if exists stocks_item_id_fkey;
+-- Drop every old FK first.  Earlier partial runs can leave the same FK under a
+-- generated name, which would otherwise block rebuilding the catalog.
+do $$
+declare constraint_name text;
+begin
+  for constraint_name in
+    select conname from pg_constraint
+    where conrelid = 'public.stocks'::regclass and contype = 'f'
+  loop
+    execute format('alter table public.stocks drop constraint %I', constraint_name);
+  end loop;
+end $$;
+
 delete from public.stocks;
 insert into public.stocks (item_id, quantity) select item_id, quantity from normalized_stocks;
 
@@ -59,17 +86,5 @@ select item_id, name, image_url, item_type from normalized_items;
 update public.items i set name = r.name, image_url = coalesce(r.image_url, i.image_url), item_type = 'processed'
 from public.recipes r where i.item_id = r.id::text;
 
--- A prior partial run may leave the foreign key with a generated name.
--- Remove any existing stock foreign key before creating the canonical one.
-do $$
-declare constraint_name text;
-begin
-  for constraint_name in
-    select conname from pg_constraint
-    where conrelid = 'public.stocks'::regclass and contype = 'f'
-  loop
-    execute format('alter table public.stocks drop constraint %I', constraint_name);
-  end loop;
-  alter table public.stocks add constraint stocks_item_id_fkey
-    foreign key (item_id) references public.items(item_id) on delete restrict;
-end $$;
+alter table public.stocks add constraint stocks_item_id_fkey
+  foreign key (item_id) references public.items(item_id) on delete restrict;

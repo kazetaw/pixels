@@ -68,11 +68,13 @@ export function calculate(
   targets: TargetItem[],
   recipes: Recipe[],
   machines: Machine[],
-  stocks: StockMap
+  stocks: StockMap,
+  itemNames: Record<string, string> = {}
 ): CalculateResponse {
   const recipeMap = new Map<string, Recipe>(recipes.map((r) => [r.id, r]));
   const machineMap = new Map<string, Machine>(machines.map((m) => [m.machine_id, m]));
-  const itemNameMap = new Map<string, string>(recipes.map((r) => [r.id, r.name]));
+  const itemNameMap = new Map<string, string>(Object.entries(itemNames));
+  for (const recipe of recipes) itemNameMap.set(recipe.id, recipe.name);
 
   const workingStock: Record<string, number> = { ...stocks };
 

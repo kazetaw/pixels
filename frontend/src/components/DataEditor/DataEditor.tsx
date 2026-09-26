@@ -12,17 +12,19 @@ interface DataEditorProps {
   initialMachines: Machine[];
   initialStocks: StockMap;
   initialStockImages: StockImageMap;
+  initialItemNames: Record<string, string>;
   onDataChanged: (data: AppData) => void;
 }
 
 type DataTab = 'recipes' | 'machines' | 'stocks' | 'budget';
 
-export function DataEditor({ initialRecipes, initialMachines, initialStocks, initialStockImages, onDataChanged }: DataEditorProps) {
+export function DataEditor({ initialRecipes, initialMachines, initialStocks, initialStockImages, initialItemNames, onDataChanged }: DataEditorProps) {
   const [tab, setTab] = useState<DataTab>('recipes');
   const [recipes, setRecipes] = useState<Recipe[]>(initialRecipes);
   const [machines, setMachines] = useState<Machine[]>(initialMachines);
   const [stocks, setStocks] = useState<StockMap>(initialStocks);
   const [stockImages, setStockImages] = useState<StockImageMap>(initialStockImages);
+  const [itemNames, setItemNames] = useState<Record<string, string>>(initialItemNames);
   const [reloading, setReloading] = useState(false);
 
   // ── Budget PIN lock ────────────────────────────────────────────────────────
@@ -74,7 +76,8 @@ export function DataEditor({ initialRecipes, initialMachines, initialStocks, ini
     setMachines(initialMachines);
     setStocks(initialStocks);
     setStockImages(initialStockImages);
-  }, [initialRecipes, initialMachines, initialStocks, initialStockImages]);
+    setItemNames(initialItemNames);
+  }, [initialRecipes, initialMachines, initialStocks, initialStockImages, initialItemNames]);
 
   const reload = useCallback(async () => {
     setReloading(true);
@@ -84,6 +87,7 @@ export function DataEditor({ initialRecipes, initialMachines, initialStocks, ini
       setMachines(data.machines);
       setStocks(data.stocks);
       setStockImages(data.stockImages ?? {});
+      setItemNames(data.itemNames ?? {});
       onDataChanged(data);
     } finally {
       setReloading(false);
@@ -140,15 +144,16 @@ export function DataEditor({ initialRecipes, initialMachines, initialStocks, ini
           stockImages={stockImages}
           recipes={recipes}
           machines={machines}
+          itemNames={itemNames}
           onSaved={(newStocks, newImages) => {
             setStocks(newStocks);
             setStockImages(newImages);
-            onDataChanged({ recipes, machines, stocks: newStocks, stockImages: newImages });
+            onDataChanged({ recipes, machines, stocks: newStocks, stockImages: newImages, itemNames });
           }}
           onRecipeImageChanged={(updatedRecipe) => {
             const nextRecipes = recipes.map((recipe) => recipe.id === updatedRecipe.id ? updatedRecipe : recipe);
             setRecipes(nextRecipes);
-            onDataChanged({ recipes: nextRecipes, machines, stocks, stockImages });
+            onDataChanged({ recipes: nextRecipes, machines, stocks, stockImages, itemNames });
           }}
         />
       )}
