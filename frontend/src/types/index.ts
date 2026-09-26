@@ -100,6 +100,20 @@ export interface PlanRequest {
   floor_assignments: FloorAssignment[];
 }
 
+export interface PlannerFloorRow {
+  floor_number: number;
+  occupation: string;
+  recipe_id: string;
+}
+
+export interface SharedPlannerPlan {
+  event_days: number;
+  event_hours: number;
+  event_minutes: number;
+  floors: PlannerFloorRow[];
+  updated_at?: string;
+}
+
 export interface BomTreeNode {
   item_id: string;
   item_name: string;

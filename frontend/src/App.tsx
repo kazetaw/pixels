@@ -26,6 +26,7 @@ import {
   ClockCircleOutlined,
   WalletOutlined,
   AimOutlined,
+  CloudOutlined,
   CloseCircleFilled,
 } from '@ant-design/icons';
 
@@ -45,13 +46,18 @@ import type { SaveStatus } from './hooks/useAppState';
 
 const { Sider, Content } = Layout;
 
-type MainView = 'planner' | 'data' | 'inventory' | 'floors' | 'targets' | 'budget';
+type MainView = 'planner' | 'shared-planner' | 'data' | 'inventory' | 'floors' | 'targets' | 'budget';
 
 const NAV_ITEMS = [
   {
     key: 'planner',
     icon: <BarChartOutlined />,
-    label: 'วางแผนการผลิต',
+    label: 'แผนส่วนตัว',
+  },
+  {
+    key: 'shared-planner',
+    icon: <CloudOutlined />,
+    label: 'แผนส่วนกลาง',
   },
   {
     key: 'data',
@@ -806,15 +812,21 @@ export default function App() {
           {view === 'planner' && (
             <div className="page-content planner-page-content">
               <PageHead
-                title="วางแผนการผลิต"
-                sub="กำหนดสูตรแต่ละชั้น ระยะเวลา Event และดูผลการผลิตพร้อมวัตถุดิบที่ต้องใช้"
+                title="แผนการผลิตส่วนตัว"
+                sub="บันทึกเฉพาะในเบราว์เซอร์นี้ ใช้ทดลองวางแผนได้โดยไม่กระทบคนอื่น"
               />
 
-              <ProductionPlanner
-                recipes={recipes}
-                stocks={stocks}
-                machines={_machines}
+              <ProductionPlanner recipes={recipes} stocks={stocks} machines={_machines} />
+            </div>
+          )}
+
+          {view === 'shared-planner' && (
+            <div className="page-content planner-page-content">
+              <PageHead
+                title="แผนการผลิตส่วนกลาง"
+                sub="แผนเดียวที่ทุกคนเห็นและแก้ไขร่วมกัน ข้อมูลบันทึกในระบบอัตโนมัติ"
               />
+              <ProductionPlanner recipes={recipes} stocks={stocks} machines={_machines} mode="shared" />
             </div>
           )}
 

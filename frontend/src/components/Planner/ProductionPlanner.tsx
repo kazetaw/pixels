@@ -1,9 +1,9 @@
 import { ItemLabel, itemSelectVisuals } from '../shared/ItemVisual';
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Button, Popconfirm, Select } from 'antd';
 import { ArrowLeftOutlined, PlayCircleOutlined } from '@ant-design/icons';
-import type { Recipe, Machine, PlanRequest, PlanResponse } from '../../types';
-import { runPlan } from '../../api/client';
+import type { Recipe, Machine, PlanRequest, PlanResponse, PlannerFloorRow, SharedPlannerPlan } from '../../types';
+import { fetchSharedPlannerPlan, runPlan, saveSharedPlannerPlan } from '../../api/client';
 import { PlanSummary } from './PlanSummary';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { groupFloorRows, recipesForOccupation } from './planPresentation';
@@ -12,21 +12,38 @@ interface ProductionPlannerProps {
   recipes: Recipe[];
   stocks: Record<string, number>;
   machines?: Machine[];
+  mode?: 'local' | 'shared';
 }
-interface FloorRow { floor_number: number; occupation: string; recipe_id: string }
 const TOTAL_FLOORS = 27;
 const SLOTS_PER_FLOOR = 12;
+const createFloors = (): PlannerFloorRow[] => Array.from({ length: TOTAL_FLOORS }, (_, index) => ({ floor_number: index + 1, occupation: '', recipe_id: '' }));
 
-export function ProductionPlanner({ recipes, stocks, machines = [] }: ProductionPlannerProps) {
-  const [eventDays, setEventDays] = useLocalStorage<number>('planner_event_days', 30);
-  const [eventHours, setEventHours] = useLocalStorage<number>('planner_event_hours', 0);
-  const [eventMinutes, setEventMinutes] = useLocalStorage<number>('planner_event_minutes', 0);
-  const [floors, setFloors] = useLocalStorage<FloorRow[]>('planner_floors',
-    Array.from({ length: TOTAL_FLOORS }, (_, i) => ({ floor_number: i + 1, occupation: '', recipe_id: '' })));
+export function ProductionPlanner({ recipes, stocks, machines = [], mode = 'local' }: ProductionPlannerProps) {
+  const [localEventDays, setLocalEventDays] = useLocalStorage<number>('planner_event_days', 30);
+  const [localEventHours, setLocalEventHours] = useLocalStorage<number>('planner_event_hours', 0);
+  const [localEventMinutes, setLocalEventMinutes] = useLocalStorage<number>('planner_event_minutes', 0);
+  const [localFloors, setLocalFloors] = useLocalStorage<PlannerFloorRow[]>('planner_floors', createFloors());
+  const [sharedEventDays, setSharedEventDays] = useState(30);
+  const [sharedEventHours, setSharedEventHours] = useState(0);
+  const [sharedEventMinutes, setSharedEventMinutes] = useState(0);
+  const [sharedFloors, setSharedFloors] = useState<PlannerFloorRow[]>(createFloors);
   const [result, setResult] = useState<{ data: PlanResponse; key: string } | null>(null);
   const [view, setView] = useState<'configure' | 'summary'>('configure');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sharedState, setSharedState] = useState<'loading' | 'saved' | 'saving' | 'error'>(mode === 'shared' ? 'loading' : 'saved');
+  const [sharedError, setSharedError] = useState<string | null>(null);
+  const [savedAt, setSavedAt] = useState<string>();
+  const hydrated = useRef(false);
+  const isShared = mode === 'shared';
+  const eventDays = isShared ? sharedEventDays : localEventDays;
+  const setEventDays = isShared ? setSharedEventDays : setLocalEventDays;
+  const eventHours = isShared ? sharedEventHours : localEventHours;
+  const setEventHours = isShared ? setSharedEventHours : setLocalEventHours;
+  const eventMinutes = isShared ? sharedEventMinutes : localEventMinutes;
+  const setEventMinutes = isShared ? setSharedEventMinutes : setLocalEventMinutes;
+  const floors = isShared ? sharedFloors : localFloors;
+  const setFloors = isShared ? setSharedFloors : setLocalFloors;
   const totalHours = eventDays * 24 + eventHours + eventMinutes / 60;
   const assigned = floors.filter((floor) => floor.recipe_id);
   const groups = groupFloorRows(floors);
@@ -40,7 +57,35 @@ export function ProductionPlanner({ recipes, stocks, machines = [] }: Production
     [floors, eventDays, eventHours, eventMinutes, recipes, stocks]);
   const stale = !!result && result.key !== dataKey;
 
-  const changeFloor = (number: number, patch: Partial<FloorRow>) => {
+  useEffect(() => {
+    if (!isShared) return;
+    let active = true;
+    void fetchSharedPlannerPlan().then((plan) => {
+      if (!active) return;
+      if (plan) {
+        setSharedEventDays(plan.event_days); setSharedEventHours(plan.event_hours); setSharedEventMinutes(plan.event_minutes);
+        setSharedFloors([...plan.floors].sort((a, b) => a.floor_number - b.floor_number)); setSavedAt(plan.updated_at);
+      }
+      hydrated.current = true; setSharedState('saved');
+    }).catch((err) => {
+      if (!active) return;
+      hydrated.current = true; setSharedError((err as Error).message || 'โหลดแผนส่วนกลางไม่สำเร็จ'); setSharedState('error');
+    });
+    return () => { active = false; };
+  }, [isShared]);
+
+  useEffect(() => {
+    if (!isShared || !hydrated.current) return;
+    const plan: SharedPlannerPlan = { event_days: sharedEventDays, event_hours: sharedEventHours, event_minutes: sharedEventMinutes, floors: sharedFloors };
+    const timer = window.setTimeout(() => {
+      setSharedState('saving'); setSharedError(null);
+      void saveSharedPlannerPlan(plan).then((saved) => { setSavedAt(saved.updated_at); setSharedState('saved'); })
+        .catch((err) => { setSharedError((err as Error).message || 'บันทึกแผนส่วนกลางไม่สำเร็จ'); setSharedState('error'); });
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [isShared, sharedEventDays, sharedEventHours, sharedEventMinutes, sharedFloors]);
+
+  const changeFloor = (number: number, patch: Partial<PlannerFloorRow>) => {
     setFloors((current) => current.map((floor) => floor.floor_number === number ? { ...floor, ...patch } : floor));
     setError(null);
   };
@@ -64,6 +109,12 @@ export function ProductionPlanner({ recipes, stocks, machines = [] }: Production
   };
 
   return <div className="production-planner">
+    {isShared && <div className={`planner-shared-status planner-shared-status--${sharedState}`} role="status">
+      {sharedState === 'loading' && 'กำลังโหลดแผนส่วนกลาง…'}
+      {sharedState === 'saving' && 'กำลังบันทึกแผนให้ทุกคน…'}
+      {sharedState === 'saved' && `แผนนี้ใช้ร่วมกัน · บันทึกล่าสุด ${savedAt ? new Date(savedAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : 'เมื่อกี้'} น.`}
+      {sharedState === 'error' && `แผนยังไม่ถูกบันทึก · ${sharedError}`}
+    </div>}
     <div className="planner-navigation">
       <nav className="planner-view-switch" aria-label="หน้าวางแผน">
         <button type="button" aria-pressed={view === 'configure'} onClick={() => setView('configure')}>กำหนดชั้น <span>{assigned.length}/{TOTAL_FLOORS}</span></button>

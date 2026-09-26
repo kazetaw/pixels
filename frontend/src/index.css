@@ -468,6 +468,9 @@ body {
 .inventory-toolbar .ant-segmented-item { font-size: 12px; }
 .planner-starting-hint { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; padding: 10px 14px; color: #475569; background: #f0f7ff; border-left: 3px solid #2563eb; border-radius: 5px; font-size: 13px; }
 .planner-starting-hint strong { color: #1e3a8a; }
+.planner-shared-status { align-self: flex-start; margin-bottom: 12px; padding: 6px 10px; border-radius: 6px; color: #475569; background: #f1f5f9; font-size: 12px; }
+.planner-shared-status--saving { color: #1d4ed8; background: #eff6ff; }
+.planner-shared-status--error { color: #b91c1c; background: #fef2f2; }
 @media (max-width: 768px) { .inventory-toolbar { align-items: stretch; }.inventory-search { width: 100%; }.inventory-toolbar .ant-segmented { width: 100%; overflow-x: auto; }.inventory-toolbar .ant-segmented-group { display: flex; min-width: max-content; }.inventory-toolbar > .ant-typography { white-space: normal !important; } }
 
 .production-targets { display: flex; flex-direction: column; gap: 18px; }
