@@ -54,16 +54,11 @@ async function ensureSharedPlannerBucket(): Promise<void> {
 /** The planner is one shared draft, stored privately and read only through the API. */
 export async function readSharedPlannerPlan(): Promise<SharedPlannerPlan | null> {
   await ensureSharedPlannerBucket();
-  const { data: files, error: listError } = await getSupabase().storage
-    .from(SHARED_PLANNER_BUCKET)
-    .list('planner', { limit: 100 });
-  if (listError) throw new Error(`read shared planner: ${listError.message}`);
-  if (!files.some((file) => file.name === 'shared-plan.json')) return null;
-
   const { data, error } = await getSupabase().storage
     .from(SHARED_PLANNER_BUCKET)
     .download(SHARED_PLANNER_PATH);
-  if (error) {
+    if (error) {
+      if (String((error as { statusCode?: string | number }).statusCode) === '404') return null;
     throw new Error(`read shared planner: ${error.message}`);
   }
   try {
