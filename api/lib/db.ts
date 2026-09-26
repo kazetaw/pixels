@@ -32,9 +32,6 @@ export async function readItemNames(): Promise<Record<string, string>> {
   const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
   const recovered = (migrations ?? []).filter((row) => !isUuid(row.legacy_item_id) && !names[row.item_id]);
   for (const row of recovered) names[row.item_id] = row.legacy_item_id;
-  if (recovered.length) {
-    await upsertCatalogItems(recovered.map((row) => ({ item_id: row.item_id, name: row.legacy_item_id, item_type: 'raw' })));
-  }
   return names;
 }
 
