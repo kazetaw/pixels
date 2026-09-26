@@ -28,18 +28,28 @@ function resolveName(
 
 function formatNumber(value: number) { return value.toLocaleString('th-TH'); }
 
-function collectRawMaterials(
+function collectDirectIngredients(
   node: BomTreeNode,
   materials: Map<string, { name: string; quantity: number }>,
   nameMap: Map<string, string>
 ) {
-  if (node.is_raw) {
-    const current = materials.get(node.item_id);
-    const name = resolveName(node.item_id, node.item_name, nameMap);
-    materials.set(node.item_id, { name, quantity: (current?.quantity ?? 0) + node.quantity_needed });
-    return;
+  // Only walk the top-level recipe's direct children.
+  // Each child is either:
+  //   - raw (leaf) → add directly
+  //   - intermediate with produced_by_floor → add as-is (another floor handles it)
+  //   - intermediate without produced_by_floor → recurse one more level (it's a sub-recipe
+  //     the current floor must also handle, so we still want its direct ingredients)
+  // This prevents blowing through every sub-recipe down to raw leaf materials.
+  for (const child of node.children) {
+    if (child.is_raw || child.produced_by_floor !== undefined) {
+      const current = materials.get(child.item_id);
+      const name = resolveName(child.item_id, child.item_name, nameMap);
+      materials.set(child.item_id, { name, quantity: (current?.quantity ?? 0) + child.quantity_needed });
+    } else {
+      // sub-recipe without a dedicated floor: show ITS children
+      collectDirectIngredients(child, materials, nameMap);
+    }
   }
-  for (const child of node.children) collectRawMaterials(child, materials, nameMap);
 }
 
 export function ProductionTargetsBoard({ recipes, machines, stocks, itemNames = {} }: ProductionTargetsBoardProps) {
@@ -82,7 +92,7 @@ export function ProductionTargetsBoard({ recipes, machines, stocks, itemNames = 
       const current = grouped.get(recipe.machine_id) ?? { floors: [], products: new Map<string, number>(), materials: new Map<string, { name: string; quantity: number }>() };
       current.floors.push(result.floor_number);
       current.products.set(recipe.id, (current.products.get(recipe.id) ?? 0) + result.output_qty);
-      if (!result.bom_tree.is_raw) collectRawMaterials(result.bom_tree, current.materials, nameMap);
+      if (!result.bom_tree.is_raw) collectDirectIngredients(result.bom_tree, current.materials, nameMap);
       grouped.set(recipe.machine_id, current);
     }
     return Array.from(grouped, ([machineId, group]) => ({
