@@ -25,14 +25,16 @@ async function readCatalogItems(itemIds?: string[]): Promise<Map<string, Catalog
 
 export async function readItemNames(): Promise<Record<string, string>> {
   const items = await readCatalogItems();
-  const names = Object.fromEntries([...items.values()].map((item) => [item.item_id, item.name]));
-  const { data: migrations, error } = await getSupabase().from('item_id_migrations')
-    .select('legacy_item_id, item_id');
-  if (error) return names;
-  const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
-  const recovered = (migrations ?? []).filter((row) => !isUuid(row.legacy_item_id) && !names[row.item_id]);
-  for (const row of recovered) names[row.item_id] = row.legacy_item_id;
-  return names;
+  return Object.fromEntries([...items.values()].map((item) => [item.item_id, item.name]));
+}
+
+async function validateIngredientReferences(ingredients: Record<string, number>) {
+  const ids = Object.keys(ingredients);
+  if (!ids.length) return;
+  const items = await readCatalogItems(ids);
+  if (ids.some(id => !items.has(id))) {
+    throw new Error('รายการวัตถุดิบมีการเปลี่ยนแปลง กรุณารีเฟรชหน้าแล้วเลือกวัตถุดิบใหม่ก่อนบันทึก');
+  }
 }
 
 async function upsertCatalogItems(items: Array<{ item_id: string; name: string; image_url?: string | null; item_type?: 'raw' | 'processed' }>) {
@@ -208,6 +210,7 @@ export async function readRecipes(): Promise<Recipe[]> {
 export async function insertRecipe(
   r: Omit<Recipe, 'id'>
 ): Promise<Recipe> {
+  await validateIngredientReferences(r.ingredients);
   const db = getSupabase();
   const { data, error } = await db
     .from('recipes')
@@ -239,6 +242,7 @@ export async function updateRecipe(
   id: string,
   fields: Partial<Omit<Recipe, 'id'>>
 ): Promise<Recipe> {
+  if (fields.ingredients !== undefined) await validateIngredientReferences(fields.ingredients);
   const db = getSupabase();
   const patch: Record<string, unknown> = {};
   if (fields.name          !== undefined) patch.name          = fields.name;
