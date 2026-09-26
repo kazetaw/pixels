@@ -8,7 +8,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { Readable } from 'stream';
 import { getSupabase } from './lib/db.js';
 import { applyCors } from './lib/cors.js';
-import { randomUUID } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 
 // Tell Vercel NOT to parse the body — busboy needs the raw stream
 export const config = {
@@ -23,6 +23,12 @@ function extFromMime(mime: string): string {
     'image/gif': 'gif', 'image/webp': 'webp', 'image/svg+xml': 'svg',
   };
   return map[mime] ?? 'bin';
+}
+
+// Storage object keys must stay ASCII-safe.  Entity IDs may be Thai display
+// names, so hash them while keeping the path deterministic for replacements.
+function storageFileId(itemId: string): string {
+  return createHash('sha256').update(itemId).digest('hex').slice(0, 32);
 }
 
 async function parseMultipart(req: VercelRequest): Promise<{
@@ -64,7 +70,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const folder     = fields.folder ?? 'misc';
     const itemId     = fields.itemId ?? randomUUID();
     const ext        = extFromMime(mimetype);
-    const storagePath = `${folder}/${itemId}.${ext}`;
+    const storagePath = `${folder}/${storageFileId(itemId)}.${ext}`;
 
     const db = getSupabase();
     const { error: uploadErr } = await db.storage

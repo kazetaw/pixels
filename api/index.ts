@@ -28,7 +28,7 @@ import type {
   TargetItem, PlanRequest, PlanResponse,
   FloorPlanResult, BomTreeNode, RawMaterialEntry, IntermediateSupplyEntry, SharedPlannerPlan,
 } from './lib/types.js';
-import { randomUUID } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { Readable } from 'stream';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -97,6 +97,10 @@ function extFromMime(mime: string): string {
     'image/gif': 'gif', 'image/webp': 'webp',
   };
   return map[mime] ?? 'bin';
+}
+
+function storageFileId(itemId: string): string {
+  return createHash('sha256').update(itemId).digest('hex').slice(0, 32);
 }
 
 // ── plan helpers ──────────────────────────────────────────────────────────────
@@ -492,7 +496,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const folder = fields.folder ?? 'misc';
       const itemId = fields.itemId ?? randomUUID();
       const ext = extFromMime(mimetype);
-      const storagePath = `${folder}/${itemId}.${ext}`;
+      const storagePath = `${folder}/${storageFileId(itemId)}.${ext}`;
       const db = getSupabase();
       const { error: uploadErr } = await db.storage.from(bucket).upload(storagePath, file, { contentType: mimetype, upsert: true });
       if (uploadErr) return res.status(500).json({ error: uploadErr.message });
