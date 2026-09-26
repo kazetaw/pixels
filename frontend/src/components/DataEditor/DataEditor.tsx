@@ -125,6 +125,7 @@ export function DataEditor({ initialRecipes, initialMachines, initialStocks, ini
           recipes={recipes}
           machines={machines}
           stocks={stocks}
+          itemNames={itemNames}
           onChange={reload}
         />
       )}

@@ -16,6 +16,7 @@ interface RecipeEditorProps {
   recipes: Recipe[];
   machines: Machine[];
   stocks: StockMap;
+  itemNames: Record<string, string>;
   onChange: () => void;
 }
 
@@ -25,10 +26,11 @@ interface IngEditorProps {
   ingredients: Record<string, number>;
   recipes: Recipe[];
   stocks: StockMap;
+  itemNames: Record<string, string>;
   onChange: (ing: Record<string, number>) => void;
 }
 
-function IngredientEditor({ ingredients, recipes, stocks, onChange }: IngEditorProps) {
+function IngredientEditor({ ingredients, recipes, stocks, itemNames, onChange }: IngEditorProps) {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [qty, setQty] = useState<number>(1);
 
@@ -38,7 +40,7 @@ function IngredientEditor({ ingredients, recipes, stocks, onChange }: IngEditorP
   const recipeIds = new Set(recipes.map((r) => r.id));
   const rawOptions = Object.keys(stocks)
     .filter((k) => !recipeIds.has(k))
-    .map((k) => ({ label: k, value: k, type: 'raw' as const }));
+    .map((k) => ({ label: itemNames[k] ?? k, value: k, type: 'raw' as const }));
 
   const allOptions = [
     { label: '── สินค้า (Recipe) ──', options: recipeOptions },
@@ -58,7 +60,8 @@ function IngredientEditor({ ingredients, recipes, stocks, onChange }: IngEditorP
     onChange(next);
   };
 
-  const recipeMap = new Map(recipes.map((r) => [r.id, r.name]));
+  const recipeMap = new Map<string, string>(Object.entries(itemNames));
+  for (const recipe of recipes) recipeMap.set(recipe.id, recipe.name);
   const getLabel = (k: string) => recipeMap.get(k) ?? k;
 
   return (
@@ -136,11 +139,12 @@ interface RecipeFormProps {
   recipes: Recipe[];
   machines: Machine[];
   stocks: StockMap;
+  itemNames: Record<string, string>;
   onSave: (data: Omit<Recipe, 'id'>) => Promise<void>;
   onCancel: () => void;
 }
 
-function RecipeForm({ initial, recipes, machines, stocks, onSave, onCancel }: RecipeFormProps) {
+function RecipeForm({ initial, recipes, machines, stocks, itemNames, onSave, onCancel }: RecipeFormProps) {
   const [form] = Form.useForm();
   const [filterOcc, setFilterOcc] = useState<string>(() => {
     if (!initial?.machine_id) return '';
@@ -332,6 +336,7 @@ function RecipeForm({ initial, recipes, machines, stocks, onSave, onCancel }: Re
             ingredients={ingredients}
             recipes={recipes.filter((r) => r.id !== initial?.id)}
             stocks={stocks}
+            itemNames={itemNames}
             onChange={setIngredients}
           />
         </Form.Item>
@@ -347,7 +352,7 @@ function RecipeForm({ initial, recipes, machines, stocks, onSave, onCancel }: Re
 }
 
 // ── Main RecipeEditor ─────────────────────────────────────────────────────────
-export function RecipeEditor({ recipes, machines, stocks, onChange }: RecipeEditorProps) {
+export function RecipeEditor({ recipes, machines, stocks, itemNames, onChange }: RecipeEditorProps) {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Recipe | null>(null);
   const [search, setSearch] = useState('');
@@ -356,7 +361,8 @@ export function RecipeEditor({ recipes, machines, stocks, onChange }: RecipeEdit
   const [deleting, setDeleting] = useState<string | null>(null);
 
   const machineMap = new Map(machines.map((m) => [m.machine_id, `ชั้น ${m.floor_number} — ${m.machine_name}`]));
-  const recipeMap = new Map(recipes.map((r) => [r.id, r.name]));
+  const recipeMap = new Map<string, string>(Object.entries(itemNames));
+  for (const recipe of recipes) recipeMap.set(recipe.id, recipe.name);
 
   const usedMachineIds = new Set(recipes.map((r) => r.machine_id));
   const occupationOptions = Array.from(
@@ -531,6 +537,7 @@ export function RecipeEditor({ recipes, machines, stocks, onChange }: RecipeEdit
           recipes={recipes}
           machines={machines}
           stocks={stocks}
+          itemNames={itemNames}
           onSave={handleCreate}
           onCancel={() => setShowForm(false)}
         />
@@ -541,6 +548,7 @@ export function RecipeEditor({ recipes, machines, stocks, onChange }: RecipeEdit
           recipes={recipes}
           machines={machines}
           stocks={stocks}
+          itemNames={itemNames}
           onSave={handleUpdate}
           onCancel={() => setEditing(null)}
         />

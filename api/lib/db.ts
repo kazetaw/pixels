@@ -25,7 +25,17 @@ async function readCatalogItems(itemIds?: string[]): Promise<Map<string, Catalog
 
 export async function readItemNames(): Promise<Record<string, string>> {
   const items = await readCatalogItems();
-  return Object.fromEntries([...items.values()].map((item) => [item.item_id, item.name]));
+  const names = Object.fromEntries([...items.values()].map((item) => [item.item_id, item.name]));
+  const { data: migrations, error } = await getSupabase().from('item_id_migrations')
+    .select('legacy_item_id, item_id');
+  if (error) return names;
+  const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+  const recovered = (migrations ?? []).filter((row) => !isUuid(row.legacy_item_id) && !names[row.item_id]);
+  for (const row of recovered) names[row.item_id] = row.legacy_item_id;
+  if (recovered.length) {
+    await upsertCatalogItems(recovered.map((row) => ({ item_id: row.item_id, name: row.legacy_item_id, item_type: 'raw' })));
+  }
+  return names;
 }
 
 async function upsertCatalogItems(items: Array<{ item_id: string; name: string; image_url?: string | null; item_type?: 'raw' | 'processed' }>) {
