@@ -3,7 +3,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchFloorTimers } from '../../api/client';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import type { FloorTimer, Machine, Recipe, StockMap } from '../../types';
-import { machinesForProfession } from '../Floors/floorOptions';
 import { ItemLabel } from '../shared/ItemVisual';
 
 interface ProductionTargetsBoardProps {
@@ -36,18 +35,26 @@ export function ProductionTargetsBoard({ recipes, machines, stocks }: Production
 
   useEffect(() => { void load(); }, [load]);
 
-  const boards = useMemo(() => floors
-    .filter((floor) => floor.profession)
-    .sort((a, b) => a.floor_number - b.floor_number)
-    .map((floor) => {
-      const eligibleMachineIds = new Set(machinesForProfession(machines, floor.profession).map((machine) => machine.machine_id));
+  const boards = useMemo(() => {
+    const groupedFloors = new Map<string, FloorTimer[]>();
+    for (const floor of floors) {
+      if (!floor.machine_id) continue;
+      const group = groupedFloors.get(floor.machine_id) ?? [];
+      group.push(floor);
+      groupedFloors.set(floor.machine_id, group);
+    }
+    return Array.from(groupedFloors, ([machineId, assignedFloors]) => {
+      const machine = machines.find((item) => item.machine_id === machineId);
       return {
-        floor,
+        machineId,
+        machine,
+        floors: assignedFloors.sort((a, b) => a.floor_number - b.floor_number),
         recipes: recipes
-          .filter((recipe) => recipe.machine_id && eligibleMachineIds.has(recipe.machine_id))
+          .filter((recipe) => recipe.machine_id === machineId)
           .sort((a, b) => a.name.localeCompare(b.name, 'th')),
       };
-    }), [floors, machines, recipes]);
+    }).sort((a, b) => (a.machine?.machine_name ?? a.machineId).localeCompare(b.machine?.machine_name ?? b.machineId, 'th'));
+  }, [floors, machines, recipes]);
 
   const itemCount = new Set(boards.flatMap((board) => board.recipes.map((recipe) => recipe.id))).size;
   const targetedCount = Object.values(targets).filter((target) => target > 0).length;
@@ -56,27 +63,27 @@ export function ProductionTargetsBoard({ recipes, machines, stocks }: Production
     {error && <Alert type="error" showIcon message="โหลดเป้าหมายการผลิตไม่สำเร็จ" description={error} />}
 
     <section className="production-targets__summary">
-      <div><span>ชั้นที่ตั้งค่าอาชีพ</span><strong>{boards.length}</strong></div>
-      <div><span>สินค้าในชุดแปรรูป</span><strong>{itemCount}</strong></div>
+      <div><span>เครื่องที่กำลังใช้งาน</span><strong>{boards.length}</strong></div>
+      <div><span>สินค้าในเครื่องที่เลือก</span><strong>{itemCount}</strong></div>
       <div><span>ตั้งเป้าหมายแล้ว</span><strong>{targetedCount}</strong></div>
-      <p>ตั้งจำนวนที่อยากมีของแต่ละสินค้า แล้วดูยอดในคลังเทียบเป้าหมายได้ทันที</p>
+      <p>แต่ละการ์ดรวมชั้นที่ใช้เครื่องเดียวกัน เพื่อกำหนดเป้าหมายสินค้าได้ง่ายขึ้น</p>
     </section>
 
     {loading ? <div className="production-targets__loading"><Spin /><span>กำลังโหลดชั้นและชุดสินค้า…</span></div> : boards.length === 0 ? (
-      <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="ยังไม่มีชั้นที่ตั้งค่าอาชีพ" />
+      <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="ยังไม่มีชั้นที่เลือกเครื่องจักร" />
     ) : <div className="production-targets__grid">
-      {boards.map(({ floor, recipes: floorRecipes }) => <section className="production-targets__floor" key={floor.floor_number}>
+      {boards.map(({ machineId, machine, floors: assignedFloors, recipes: machineRecipes }) => <section className="production-targets__floor" key={machineId}>
         <header>
           <div>
-            <span className="production-targets__floor-number">ชั้น {String(floor.floor_number).padStart(2, '0')}</span>
-            <h3><ItemLabel id={floor.profession} name={floor.profession} size={28} /> ชุดแปรรูป</h3>
+            <span className="production-targets__floor-number">ชั้น {assignedFloors.map((floor) => floor.floor_number).join(', ')}</span>
+            <h3><ItemLabel id={machineId} name={machine?.machine_name ?? 'ไม่พบเครื่องจักร'} image={machine?.image} size={30} reserveImage /></h3>
           </div>
-          <Tag color="blue">{floorRecipes.length} รายการ</Tag>
+          <Tag color="blue">รวม {assignedFloors.length} ชั้น</Tag>
         </header>
 
-        {floorRecipes.length === 0 ? <p className="production-targets__empty">ยังไม่มี Recipe ที่ผูกกับเครื่องของอาชีพนี้</p> : (
+        {machineRecipes.length === 0 ? <p className="production-targets__empty">ยังไม่มี Recipe ที่ผูกกับเครื่องนี้</p> : (
           <div className="production-targets__items">
-            {floorRecipes.map((recipe) => {
+            {machineRecipes.map((recipe) => {
               const inStock = stocks[recipe.id] ?? 0;
               const target = targets[recipe.id] ?? 0;
               const progress = target > 0 ? Math.min(100, Math.round((inStock / target) * 100)) : 0;
