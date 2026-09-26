@@ -54,7 +54,9 @@ export function StockInventory({ stocks, stockImages, recipes, onSaveStocks }: S
   const recipeIds = useMemo(() => new Set(recipes.map((r) => r.id)), [recipes]);
 
   const rows: RowData[] = useMemo(() => {
-    const allKeys = new Set<string>([...Object.keys(draftStocks), ...nameMap.keys()]);
+    // The inventory is a list of things physically tracked in stock.  Do not
+    // add every processed product merely because it has a production record.
+    const allKeys = new Set<string>(Object.keys(draftStocks));
     return Array.from(allKeys).map((key) => ({
       key,
       name: nameMap.get(key) ?? key,
