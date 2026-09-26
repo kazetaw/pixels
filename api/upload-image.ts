@@ -10,6 +10,9 @@ import { getSupabase } from './lib/db.js';
 import { applyCors } from './lib/cors.js';
 import { createHash, randomUUID } from 'crypto';
 
+const IMAGE_FOLDERS = new Set(['machines', 'recipes', 'stocks']);
+const IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml']);
+
 // Tell Vercel NOT to parse the body — busboy needs the raw stream
 export const config = {
   api: {
@@ -69,6 +72,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const bucket     = fields.bucket ?? 'images';
     const folder     = fields.folder ?? 'misc';
     const itemId     = fields.itemId ?? randomUUID();
+    if (bucket !== 'images' || !IMAGE_FOLDERS.has(folder)) return res.status(400).json({ error: 'Invalid image folder' });
+    if (!IMAGE_MIME_TYPES.has(mimetype)) return res.status(400).json({ error: 'รองรับเฉพาะไฟล์รูปภาพ JPEG, PNG, GIF, WebP หรือ SVG' });
     const ext        = extFromMime(mimetype);
     const storagePath = `${folder}/${storageFileId(itemId)}.${ext}`;
 

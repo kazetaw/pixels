@@ -31,6 +31,9 @@ import type {
 import { createHash, randomUUID } from 'crypto';
 import { Readable } from 'stream';
 
+const IMAGE_FOLDERS = new Set(['machines', 'recipes', 'stocks']);
+const IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml']);
+
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 function enrichMachines(machines: Machine[], recipes: Recipe[]): Machine[] {
@@ -87,6 +90,7 @@ async function parseMultipart(req: VercelRequest): Promise<{
     bb.on('error', reject);
     if (Buffer.isBuffer(req.body)) Readable.from(req.body).pipe(bb);
     else if (typeof req.body === 'string') Readable.from(Buffer.from(req.body)).pipe(bb);
+    else if (typeof (req as unknown as Readable).pipe === 'function') (req as unknown as Readable).pipe(bb);
     else reject(new Error('Unexpected body type'));
   });
 }
@@ -94,7 +98,7 @@ async function parseMultipart(req: VercelRequest): Promise<{
 function extFromMime(mime: string): string {
   const map: Record<string, string> = {
     'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png',
-    'image/gif': 'gif', 'image/webp': 'webp',
+    'image/gif': 'gif', 'image/webp': 'webp', 'image/svg+xml': 'svg',
   };
   return map[mime] ?? 'bin';
 }
@@ -495,6 +499,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const bucket = fields.bucket ?? 'images';
       const folder = fields.folder ?? 'misc';
       const itemId = fields.itemId ?? randomUUID();
+      if (bucket !== 'images' || !IMAGE_FOLDERS.has(folder)) return res.status(400).json({ error: 'Invalid image folder' });
+      if (!IMAGE_MIME_TYPES.has(mimetype)) return res.status(400).json({ error: 'รองรับเฉพาะไฟล์รูปภาพ JPEG, PNG, GIF, WebP หรือ SVG' });
       const ext = extFromMime(mimetype);
       const storagePath = `${folder}/${storageFileId(itemId)}.${ext}`;
       const db = getSupabase();
