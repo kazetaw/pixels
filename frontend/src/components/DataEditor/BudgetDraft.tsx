@@ -10,6 +10,7 @@ import { PurchaseEditButton } from './PurchaseEditButton';
 
 const { Text } = Typography;
 const currencies: Currency[] = ['THB', 'G'];
+const CONTRIBUTORS = ['ตะเอ๊ย', 'เอี๊ยม', 'ป้วย', 'ตวัน', 'พี่ปาม', 'เนย', 'เมย์', 'ต้วมเตี้ยม'];
 
 function displayMoney(amount: number, currency: Currency) {
   return currency === 'THB'
@@ -175,7 +176,18 @@ export function BudgetDraft({ stocks, recipes, itemNames, onStockChanged }: Budg
               <label><span className="budget-field-label">สกุลเงิน</span><Select value={currency} onChange={setCurrency} options={[{ value: 'THB', label: 'THB · บาท' }, { value: 'G', label: 'G · เหรียญเกม' }]} style={{ width: '100%' }} /></label>
             </div>
             <label style={{ display: 'block', marginBottom: 14 }}><span className="budget-field-label">แหล่งซื้อ / หมายเหตุ</span><Input value={source} onChange={(event) => setSource(event.target.value)} placeholder={currency === 'THB' ? 'เช่น ตลาด' : 'เช่น ร้านค้าในเกม'} /></label>
-            <label style={{ display: 'block', marginBottom: 14 }}><span className="budget-field-label">งบจาก (ผู้ให้งบ)</span><Input value={contributor} onChange={(event) => setContributor(event.target.value)} placeholder="เช่น แม่, กองกลาง, ส่วนตัว" /><Text type="secondary" style={{ fontSize: 12 }}>บันทึกพร้อมรายการซื้อเมื่อกดปุ่มด้านล่าง และแสดงในประวัติช่อง “งบจาก”</Text></label>
+            <label style={{ display: 'block', marginBottom: 14 }}>
+              <span className="budget-field-label">งบจาก (ผู้ให้งบ)</span>
+              <Input value={contributor} onChange={(event) => setContributor(event.target.value)} placeholder="เช่น แม่, กองกลาง, ส่วนตัว" />
+              <Space size={[6, 6]} wrap style={{ marginTop: 8 }}>
+                {CONTRIBUTORS.map((name) => (
+                  <Button key={name} size="small" type={contributor === name ? 'primary' : 'default'} onClick={() => setContributor(name)}>
+                    {name}
+                  </Button>
+                ))}
+              </Space>
+              <Text type="secondary" style={{ display: 'block', fontSize: 12, marginTop: 6 }}>กดชื่อเพื่อกรอกทันที หรือพิมพ์ชื่ออื่นได้</Text>
+            </label>
             <div className="budget-unit-cost"><Text type="secondary" style={{ fontSize: 12 }}>ต้นทุนต่อชิ้น</Text><Text strong>{displayMoney(unitCost, currency)} / ชิ้น</Text></div>
             <Button type="primary" icon={<ShoppingCartOutlined />} onClick={() => void addPurchase()} loading={buying} disabled={!itemId || quantity <= 0}>เพิ่มสต็อกและบันทึกรายจ่าย</Button>
           </Card>
