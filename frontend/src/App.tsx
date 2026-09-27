@@ -29,6 +29,7 @@ import {
   CloudOutlined,
   CloseCircleFilled,
   TeamOutlined,
+  ApartmentOutlined,
 } from '@ant-design/icons';
 
 import { useAppState } from './hooks/useAppState';
@@ -44,11 +45,12 @@ import { FloorTimerDashboard } from './components/Floors/FloorTimerDashboard';
 import { BudgetHistory } from './components/DataEditor/BudgetHistory';
 import { ProductionTargetsBoard } from './components/Targets/ProductionTargetsBoard';
 import { OrganizationChart } from './components/Organization/OrganizationChart';
+import { ProductionFlowBoard } from './components/Planner/ProductionFlowBoard';
 import type { SaveStatus } from './hooks/useAppState';
 
 const { Sider, Content } = Layout;
 
-type MainView = 'planner' | 'shared-planner' | 'data' | 'inventory' | 'floors' | 'targets' | 'budget' | 'organization';
+type MainView = 'planner' | 'shared-planner' | 'production-flow' | 'data' | 'inventory' | 'floors' | 'targets' | 'budget' | 'organization';
 
 const NAV_ITEMS = [
   {
@@ -60,6 +62,11 @@ const NAV_ITEMS = [
     key: 'shared-planner',
     icon: <CloudOutlined />,
     label: 'แผนส่วนกลาง',
+  },
+  {
+    key: 'production-flow',
+    icon: <ApartmentOutlined />,
+    label: 'แผนส่งต่อ',
   },
   {
     key: 'data',
@@ -840,6 +847,16 @@ export default function App() {
                 sub="แผนเดียวที่ทุกคนเห็นและแก้ไขร่วมกัน ข้อมูลบันทึกในระบบอัตโนมัติ"
               />
               <ProductionPlanner recipes={recipes} stocks={stocks} machines={_machines} mode="shared" />
+            </div>
+          )}
+
+          {view === 'production-flow' && (
+            <div className="page-content planner-page-content">
+              <PageHead
+                title="แผนส่งต่อระหว่างชั้น"
+                sub="ดูการผลิตที่เชื่อมกันระหว่างชั้นจากแผนส่วนกลาง โดยไม่กระทบแผนเดิม"
+              />
+              <ProductionFlowBoard />
             </div>
           )}
 
