@@ -4,15 +4,10 @@ import { ReloadOutlined, SearchOutlined } from '@ant-design/icons';
 import type { Recipe, StockPurchase } from '../../types';
 import { fetchAllStockPurchases } from '../../api/client';
 import { ItemLabel } from '../shared/ItemVisual';
+import { CONTRIBUTOR_AVATARS } from '../shared/contributors';
 
 const { Text } = Typography;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const CONTRIBUTOR_AVATARS: Record<string, string> = {
-  'ตวัน': '/avatars/contributors/tawan.png',
-  'ตะเอ๊ย': '/avatars/contributors/taoei.png',
-  'ป้วย': '/avatars/contributors/puay.png',
-  'เอี๊ยม': '/avatars/contributors/iam.png',
-};
 
 interface ContributorItem {
   itemId: string;

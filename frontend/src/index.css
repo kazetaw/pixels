@@ -319,6 +319,38 @@ body {
   .stock-contribution-item > div:nth-child(2) { grid-column: 1 / -1; }
 }
 
+/* Company chart */
+.organization-page-content { max-width: 1120px; }
+.organization-chart { position: relative; padding: 12px 0 32px; }
+.organization-hub { position: relative; z-index: 1; width: min(520px, 100%); margin: 0 auto; display: grid; grid-template-columns: 54px minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 18px 20px; border: 1px solid #bfdbfe; border-radius: 18px; background: linear-gradient(135deg, #eff6ff 0%, #ffffff 62%, #f5f3ff 100%); box-shadow: 0 12px 32px rgba(37, 99, 235, .09); }
+.organization-hub > span { width: 54px; height: 54px; display: grid; place-items: center; border-radius: 16px; background: #2563eb; color: white; font-size: 25px; }
+.organization-hub > div { min-width: 0; }
+.organization-hub small { display: block; color: #64748b; font-size: 11px; }
+.organization-hub strong { display: block; color: #0f172a; font-size: 21px; line-height: 1.25; }
+.organization-hub p { margin: 3px 0 0; color: #64748b; font-size: 12px; }
+.organization-hub b { align-self: start; padding: 5px 9px; border-radius: 999px; background: #dbeafe; color: #1d4ed8; font-size: 11px; white-space: nowrap; }
+.organization-connector { height: 52px; width: calc(100% - 14%); margin: 0 auto; position: relative; border-bottom: 2px solid #cbd5e1; }
+.organization-connector::before { content: ''; position: absolute; left: 50%; top: 0; width: 2px; height: 52px; background: #cbd5e1; }
+.organization-connector i { position: absolute; left: 0; right: 0; bottom: -2px; height: 2px; }
+.organization-members { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.organization-member { --member-accent: #2563eb; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px solid #dbe3ee; border-top: 3px solid var(--member-accent); border-radius: 14px; background: #fff; box-shadow: 0 7px 20px rgba(15, 23, 42, .05); }
+.organization-member-avatar { width: 66px; height: 66px; flex: 0 0 auto; border-radius: 18px; overflow: hidden; display: grid; place-items: center; }
+.organization-member-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.organization-member-avatar span { font-size: 25px; font-weight: 700; }
+.organization-member > div:last-child { min-width: 0; }
+.organization-member strong { display: block; color: #0f172a; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.organization-member span { color: #64748b; font-size: 11px; }
+
+@media (max-width: 900px) { .organization-members { grid-template-columns: repeat(2, minmax(0, 1fr)); } .organization-connector { width: 76%; } }
+@media (max-width: 560px) {
+  .organization-hub { grid-template-columns: 46px minmax(0, 1fr); padding: 14px; border-radius: 14px; }
+  .organization-hub > span { width: 46px; height: 46px; border-radius: 13px; }
+  .organization-hub b { display: none; }
+  .organization-members { grid-template-columns: 1fr; gap: 10px; }
+  .organization-connector { width: 2px; height: 28px; border-bottom: 0; background: #cbd5e1; }
+  .organization-connector::before { display: none; }
+}
+
 /* ── Responsive layout ───────────────────────────────────────────── */
 
 /* Desktop: sider visible, topbar hidden, main offset */

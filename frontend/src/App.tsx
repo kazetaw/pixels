@@ -28,6 +28,7 @@ import {
   AimOutlined,
   CloudOutlined,
   CloseCircleFilled,
+  TeamOutlined,
 } from '@ant-design/icons';
 
 import { useAppState } from './hooks/useAppState';
@@ -42,11 +43,12 @@ import { StockInventory } from './components/Inventory/StockInventory';
 import { FloorTimerDashboard } from './components/Floors/FloorTimerDashboard';
 import { BudgetHistory } from './components/DataEditor/BudgetHistory';
 import { ProductionTargetsBoard } from './components/Targets/ProductionTargetsBoard';
+import { OrganizationChart } from './components/Organization/OrganizationChart';
 import type { SaveStatus } from './hooks/useAppState';
 
 const { Sider, Content } = Layout;
 
-type MainView = 'planner' | 'shared-planner' | 'data' | 'inventory' | 'floors' | 'targets' | 'budget';
+type MainView = 'planner' | 'shared-planner' | 'data' | 'inventory' | 'floors' | 'targets' | 'budget' | 'organization';
 
 const NAV_ITEMS = [
   {
@@ -83,6 +85,11 @@ const NAV_ITEMS = [
     key: 'budget',
     icon: <WalletOutlined />,
     label: 'งบประมาณ',
+  },
+  {
+    key: 'organization',
+    icon: <TeamOutlined />,
+    label: 'ผังบริษัท',
   },
 ];
 
@@ -892,6 +899,16 @@ export default function App() {
                 const { fetchAllData } = await import('./api/client');
                 applyData(await fetchAllData());
               }} />
+            </div>
+          )}
+
+          {view === 'organization' && (
+            <div className="page-content organization-page-content">
+              <PageHead
+                title="ผังบริษัท"
+                sub="สมาชิกทีม Pixel Factory"
+              />
+              <OrganizationChart />
             </div>
           )}
         </Content>

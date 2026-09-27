@@ -8,10 +8,10 @@ import { createStockPurchase, fetchBudgetData, saveBudget } from '../../api/clie
 import { BudgetPinModal } from './BudgetPinModal';
 import { PurchaseEditButton } from './PurchaseEditButton';
 import { PURCHASE_SOURCE_OPTIONS } from './purchaseOptions';
+import { CONTRIBUTOR_NAMES } from '../shared/contributors';
 
 const { Text } = Typography;
 const currencies: Currency[] = ['THB', 'G'];
-const CONTRIBUTORS = ['ตะเอ๊ย', 'เอี๊ยม', 'ป้วย', 'ตวัน', 'พี่ปาม', 'เนย', 'เมย์', 'ต้วมเตี้ยม'];
 
 function displayMoney(amount: number, currency: Currency) {
   return currency === 'THB'
@@ -184,7 +184,7 @@ export function BudgetDraft({ stocks, recipes, itemNames, onStockChanged }: Budg
               <span className="budget-field-label">งบจาก (ผู้ให้งบ)</span>
               <Input value={contributor} onChange={(event) => setContributor(event.target.value)} placeholder="เช่น แม่, กองกลาง, ส่วนตัว" />
               <Space size={[6, 6]} wrap style={{ marginTop: 8 }}>
-                {CONTRIBUTORS.map((name) => (
+                {CONTRIBUTOR_NAMES.map((name) => (
                   <Button key={name} size="small" type={contributor === name ? 'primary' : 'default'} onClick={() => setContributor(name)}>
                     {name}
                   </Button>
