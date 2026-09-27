@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Alert, Input, Modal } from 'antd';
 import { verifyBudgetPin } from '../../api/client';
+import { rememberBudgetSessionPin } from './budgetPinSession';
 
 export function BudgetPinModal({ onVerified, onCancel }: {
   onVerified: (pin: string) => void; onCancel: () => void;
@@ -11,7 +12,11 @@ export function BudgetPinModal({ onVerified, onCancel }: {
   const verify = async () => {
     if (busy || pin.length !== 4) return;
     setBusy(true); setError('');
-    try { await verifyBudgetPin(pin); onVerified(pin); }
+    try {
+      await verifyBudgetPin(pin);
+      rememberBudgetSessionPin(pin);
+      onVerified(pin);
+    }
     catch (e) { setError((e as Error).message); }
     finally { setBusy(false); }
   };

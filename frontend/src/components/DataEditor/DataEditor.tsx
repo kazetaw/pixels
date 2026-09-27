@@ -8,6 +8,7 @@ import { StockEditorFull } from './StockEditorFull';
 import { MachineEditor } from './MachineEditor';
 import { BudgetDraft } from './BudgetDraft';
 import { StockContributionSummary } from './StockContributionSummary';
+import { getBudgetSessionPin, rememberBudgetSessionPin } from './budgetPinSession';
 
 interface DataEditorProps {
   initialRecipes: Recipe[];
@@ -33,7 +34,7 @@ export function DataEditor({ initialRecipes, initialMachines, initialStocks, ini
   // ── Budget PIN lock ────────────────────────────────────────────────────────
   const BUDGET_PIN = '7774';
   const PIN_LENGTH = 4;
-  const [budgetUnlocked, setBudgetUnlocked] = useState(false);
+  const [budgetUnlocked, setBudgetUnlocked] = useState(() => Boolean(getBudgetSessionPin()));
   const [pinDigits, setPinDigits] = useState<string[]>(['', '', '', '']);
   const [pinError, setPinError] = useState(false);
   const pinRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -54,6 +55,7 @@ export function DataEditor({ initialRecipes, initialMachines, initialStocks, ini
     if (digit && index === PIN_LENGTH - 1) {
       const entered = [...next].join('');
       if (entered === BUDGET_PIN) {
+        rememberBudgetSessionPin(entered);
         setBudgetUnlocked(true);
         setPinDigits(['', '', '', '']);
       } else {

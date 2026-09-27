@@ -6,6 +6,7 @@ import { editStockPurchase } from '../../api/client';
 import { BudgetPinModal } from './BudgetPinModal';
 import { itemSelectVisuals } from '../shared/ItemVisual';
 import { PURCHASE_SOURCE_OPTIONS } from './purchaseOptions';
+import { getBudgetSessionPin } from './budgetPinSession';
 
 function localDate(value: string) {
   const d = new Date(value);
@@ -24,6 +25,11 @@ export function PurchaseEditButton({ purchase, itemNames, onSaved }: {
   const quantity = Form.useWatch('quantity', form);
   const amount = Form.useWatch('total_amount', form);
   const currency = Form.useWatch('currency', form);
+  const beginEdit = (verifiedPin: string, targetPurchase = original) => {
+    setAskingPin(false); setError('');
+    form.setFieldsValue({ ...targetPurchase, purchased_at: localDate(targetPurchase.purchased_at) });
+    setPin(verifiedPin);
+  };
   const save = async () => {
     if (!pin || busy) return;
     try {
@@ -39,10 +45,13 @@ export function PurchaseEditButton({ purchase, itemNames, onSaved }: {
     } finally { setBusy(false); }
   };
   return <>
-    <Button size="small" icon={<EditOutlined />} onClick={() => { setOriginal(purchase); setAskingPin(true); }}>แก้ไข</Button>
+    <Button size="small" icon={<EditOutlined />} onClick={() => {
+      setOriginal(purchase);
+      const savedPin = getBudgetSessionPin();
+      if (savedPin) beginEdit(savedPin, purchase); else setAskingPin(true);
+    }}>แก้ไข</Button>
     {askingPin && <BudgetPinModal onCancel={() => setAskingPin(false)} onVerified={value => {
-      setAskingPin(false); setError('');
-      form.setFieldsValue({ ...original, purchased_at: localDate(original.purchased_at) }); setPin(value);
+      beginEdit(value);
     }} />}
     <Modal open={pin !== null} title="แก้ไขรายการซื้อ" okText="บันทึกการแก้ไข" cancelText="ยกเลิก"
       confirmLoading={busy} onOk={() => void save()} onCancel={() => { if (!busy) setPin(null); }} forceRender>

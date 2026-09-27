@@ -15,6 +15,7 @@ import { fetchBudgetData, saveBudget } from '../../api/client';
 import { BudgetPinModal } from './BudgetPinModal';
 import { PurchaseEditButton } from './PurchaseEditButton';
 import { contributorLabel } from '../shared/contributors';
+import { getBudgetSessionPin } from './budgetPinSession';
 
 const { Text } = Typography;
 
@@ -40,6 +41,15 @@ export function BudgetHistory({ recipes, itemNames, onStockChanged }: BudgetHist
   const [amount, setAmount] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [editError, setEditError] = useState('');
+  const startEditingBudget = (currency: Currency) => {
+    const savedPin = getBudgetSessionPin();
+    if (savedPin) {
+      setAmount(budgets.find(b => b.currency === currency)?.limit_amount ?? 0);
+      setEditing({ currency, pin: savedPin }); setEditError('');
+    } else {
+      setPendingCurrency(currency);
+    }
+  };
 
   const save = async () => {
     if (!editing || amount === null || !Number.isFinite(amount) || amount < 0) return;
@@ -172,7 +182,7 @@ export function BudgetHistory({ recipes, itemNames, onStockChanged }: BudgetHist
                   {cur === 'THB' ? 'เงินบาท (THB)' : 'เหรียญในเกม (G)'}
                 </Tag>
                 {over && <Tag color="red">เกินงบ</Tag>}
-                <Button size="small" onClick={() => setPendingCurrency(cur)}>แก้ไขงบ</Button>
+                <Button size="small" onClick={() => startEditingBudget(cur)}>แก้ไขงบ</Button>
               </div>
               <div style={{ fontSize: 22, fontWeight: 700, color: over ? '#dc2626' : '#0f172a' }}>
                 {displayMoney(used, cur)}

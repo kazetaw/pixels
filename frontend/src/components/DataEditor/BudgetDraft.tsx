@@ -9,6 +9,7 @@ import { BudgetPinModal } from './BudgetPinModal';
 import { PurchaseEditButton } from './PurchaseEditButton';
 import { PURCHASE_SOURCE_OPTIONS } from './purchaseOptions';
 import { contributorLabel, CONTRIBUTOR_NAMES } from '../shared/contributors';
+import { getBudgetSessionPin } from './budgetPinSession';
 
 const { Text } = Typography;
 const currencies: Currency[] = ['THB', 'G'];
@@ -136,6 +137,10 @@ export function BudgetDraft({ stocks, recipes, itemNames, onStockChanged }: Budg
       setSavingCurrency(null);
     }
   };
+  const startSaveLimit = (target: Currency) => {
+    const savedPin = getBudgetSessionPin();
+    if (savedPin) void saveLimit(target, savedPin); else setPendingCurrency(target);
+  };
 
   const updateQueuedPurchase = (key: string, patch: Partial<QueuedPurchase>) => setQueuedPurchases((current) => current.map((entry) => entry.key === key ? { ...entry, ...patch } : entry));
   const addPurchaseLine = () => setQueuedPurchases((current) => [...current, newQueuedPurchase()]);
@@ -247,7 +252,7 @@ export function BudgetDraft({ stocks, recipes, itemNames, onStockChanged }: Budg
                   const breakdown = contributorBreakdown(target);
                   return <div key={target}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}><Text strong>{target === 'THB' ? 'เงินบาท (THB)' : 'เหรียญในเกม (G)'}</Text><Text type="secondary" style={{ fontSize: 12 }}>ใช้ {displayMoney(used, target)}</Text></div>
-                    <Space.Compact style={{ width: '100%' }}><InputNumber min={0} value={limitInput[target]} onChange={(value) => setLimitInput((current) => ({ ...current, [target]: value ?? 0 }))} style={{ width: '100%' }} /><Button icon={<SaveOutlined />} loading={savingCurrency === target} onClick={() => setPendingCurrency(target)}>บันทึก</Button></Space.Compact>
+                    <Space.Compact style={{ width: '100%' }}><InputNumber min={0} value={limitInput[target]} onChange={(value) => setLimitInput((current) => ({ ...current, [target]: value ?? 0 }))} style={{ width: '100%' }} /><Button icon={<SaveOutlined />} loading={savingCurrency === target} onClick={() => startSaveLimit(target)}>บันทึก</Button></Space.Compact>
                     {limit !== undefined && <Text type={used > limit ? 'danger' : 'secondary'} style={{ fontSize: 12 }}>คงเหลือ {displayMoney(Math.max(0, limit - used), target)} จากงบ {displayMoney(limit, target)}</Text>}
                     {breakdown.length > 0 && (
                       <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 3 }}>
