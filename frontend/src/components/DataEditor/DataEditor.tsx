@@ -156,6 +156,7 @@ export function DataEditor({ initialRecipes, initialMachines, initialStocks, ini
             setRecipes(nextRecipes);
             onDataChanged({ recipes: nextRecipes, machines, stocks, stockImages, itemNames });
           }}
+          onItemRenamed={reload}
         />
       )}
 

@@ -5,11 +5,11 @@ import {
   Popconfirm, Tag, Space, message, Typography,
 } from 'antd';
 import {
-  PlusOutlined, DeleteOutlined, SearchOutlined, SaveOutlined,
+  PlusOutlined, DeleteOutlined, SearchOutlined, SaveOutlined, EditOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { StockMap, StockImageMap, Recipe, Machine } from '../../types';
-import { createCatalogItem, saveStocks, updateRecipe } from '../../api/client';
+import { createCatalogItem, renameCatalogItem, saveStocks, updateRecipe } from '../../api/client';
 import { ImagePicker } from '../shared/ImagePicker';
 
 const { Text } = Typography;
@@ -22,6 +22,7 @@ interface StockEditorFullProps {
   itemNames: Record<string, string>;
   onSaved: (newStocks: StockMap, newImages: StockImageMap) => void;
   onRecipeImageChanged: (recipe: Recipe) => void;
+  onItemRenamed: () => Promise<void>;
 }
 
 const normalizedItemKey = (value: string) => value.trim().normalize('NFKC').toLocaleLowerCase('th');
@@ -195,12 +196,15 @@ interface RowData {
   image?: string;
 }
 
-export function StockEditorFull({ stocks, stockImages, recipes, machines, itemNames, onSaved, onRecipeImageChanged }: StockEditorFullProps) {
+export function StockEditorFull({ stocks, stockImages, recipes, machines, itemNames, onSaved, onRecipeImageChanged, onItemRenamed }: StockEditorFullProps) {
   const [local, setLocal] = useState<StockMap>({ ...stocks });
   const [localImages, setLocalImages] = useState<StockImageMap>({ ...stockImages });
   const [search, setSearch] = useState('');
   const [addOpen, setAddOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [renameTarget, setRenameTarget] = useState<RowData | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [renaming, setRenaming] = useState(false);
   const [msgApi, msgCtx] = message.useMessage();
 
   const nameMap = useMemo(() => buildItemNames(recipes, itemNames), [recipes, itemNames]);
@@ -264,6 +268,35 @@ export function StockEditorFull({ stocks, stockImages, recipes, machines, itemNa
     setLocalImages((prev) => { const n = { ...prev }; delete n[key]; return n; });
   };
 
+  const openRename = (row: RowData) => {
+    setRenameTarget(row);
+    setRenameValue(row.name);
+  };
+
+  const handleRename = async () => {
+    if (!renameTarget) return;
+    const name = renameValue.trim();
+    if (!name) {
+      msgApi.error('กรุณากรอกชื่อรายการ');
+      return;
+    }
+    if (name === renameTarget.name) {
+      setRenameTarget(null);
+      return;
+    }
+    setRenaming(true);
+    try {
+      await renameCatalogItem(renameTarget.key, name);
+      await onItemRenamed();
+      msgApi.success('แก้ชื่อรายการแล้ว');
+      setRenameTarget(null);
+    } catch (e: unknown) {
+      msgApi.error((e as Error).message || 'แก้ชื่อไม่สำเร็จ');
+    } finally {
+      setRenaming(false);
+    }
+  };
+
   const handleAdd = async (key: string, qty: number, image?: string) => {
     setLocal((prev) => ({ ...prev, [key]: qty }));
     const recipe = recipeForStockItem(recipes, key);
@@ -313,7 +346,18 @@ export function StockEditorFull({ stocks, stockImages, recipes, machines, itemNa
       dataIndex: 'name',
       render: (name, row) => (
         <Space direction="vertical" size={0}>
-          <Text strong style={{ fontSize: 13 }}>{name}</Text>
+          <Space size={2}>
+            <Text strong style={{ fontSize: 13 }}>{name}</Text>
+            {!row.isRecipe && (
+              <Button
+                type="text"
+                size="small"
+                icon={<EditOutlined />}
+                aria-label={`แก้ชื่อ ${name}`}
+                onClick={() => openRename(row)}
+              />
+            )}
+          </Space>
           {row.isRecipe && (
             <Tag color="blue" style={{ fontSize: 11, marginTop: 2 }}>สินค้ากึ่งสำเร็จรูป</Tag>
           )}
@@ -412,6 +456,25 @@ export function StockEditorFull({ stocks, stockImages, recipes, machines, itemNa
         onAdd={handleAdd}
         onClose={() => setAddOpen(false)}
       />
+
+      <Modal
+        open={Boolean(renameTarget)}
+        title="แก้ชื่อวัตถุดิบ"
+        okText="บันทึกชื่อ"
+        cancelText="ยกเลิก"
+        confirmLoading={renaming}
+        onOk={handleRename}
+        onCancel={() => setRenameTarget(null)}
+        destroyOnClose
+      >
+        <Input
+          value={renameValue}
+          onChange={(event) => setRenameValue(event.target.value)}
+          onPressEnter={handleRename}
+          placeholder="ชื่อวัตถุดิบ"
+          autoFocus
+        />
+      </Modal>
     </div>
   );
 }

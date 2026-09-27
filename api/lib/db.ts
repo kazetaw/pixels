@@ -59,6 +59,18 @@ export async function createCatalogItem(item: { item_id: string; name: string; i
   return data as CatalogItem;
 }
 
+/** Rename a catalog item without changing its stable item_id references. */
+export async function renameCatalogItem(itemId: string, name: string) {
+  const { data, error } = await getSupabase().from('items')
+    .update({ name })
+    .eq('item_id', itemId)
+    .select('item_id, name, image_url')
+    .maybeSingle();
+  if (error) throw new Error(`renameItem: ${error.message}`);
+  if (!data) throw new Error('ไม่พบรายการที่ต้องการแก้ไข');
+  return data as CatalogItem;
+}
+
 async function ensureCatalogItems(items: Array<{ item_id: string; name: string }>) {
   if (!items.length) return;
   const { error } = await getSupabase().from('items').upsert(items, { onConflict: 'item_id', ignoreDuplicates: true });

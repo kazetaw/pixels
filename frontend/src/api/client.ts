@@ -41,6 +41,14 @@ export async function createCatalogItem(name: string, image?: string): Promise<C
   }));
 }
 
+/** Rename a raw-material item in the central catalog. */
+export async function renameCatalogItem(itemId: string, name: string): Promise<CatalogItem> {
+  return handleResponse<CatalogItem>(await fetch(`/api/items/${itemId}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  }));
+}
+
 export async function fetchBudgetData(): Promise<{ budgets: Budget[]; purchases: StockPurchase[] }> {
   return handleResponse(await fetch('/api/budgets'));
 }

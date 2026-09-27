@@ -19,7 +19,7 @@ import {
   readPurchases, insertPurchase,
   readFloorTimers, insertFloorTimer, patchFloorTimer,
   readSharedPlannerPlan, writeSharedPlannerPlan,
-  createCatalogItem,
+  createCatalogItem, renameCatalogItem,
   readItemNames,
 } from './lib/db.js';
 import { parseTimeToHours } from './lib/time.js';
@@ -333,6 +333,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // ── POST /api/stocks ─────────────────────────────────────────────────────────
   if (segments[0] === 'items' && segments[1] === 'reconcile' && method === 'POST') {
     return res.status(410).json({ error: 'This legacy merge operation has been retired.' });
+  }
+
+  // PUT /api/items/:id — raw material names are stored in the shared catalog.
+  // Their IDs stay unchanged, so stock, recipes, and purchase history keep pointing
+  // to the same item after a rename.
+  if (segments[0] === 'items' && segments[1] && method === 'PUT') {
+    const itemId = segments[1];
+    const name = (req.body as { name?: string })?.name?.trim();
+    if (!name) return res.status(400).json({ error: 'ชื่อรายการต้องไม่ว่าง' });
+    try {
+      const [recipes, machines, catalogRows] = await Promise.all([
+        readRecipes(), readMachines(), getSupabase().from('items').select('item_id, name'),
+      ]);
+      if (catalogRows.error) throw new Error(`readItems: ${catalogRows.error.message}`);
+      const current = (catalogRows.data ?? []).find((item) => item.item_id === itemId);
+      if (!current) return res.status(404).json({ error: 'ไม่พบรายการที่ต้องการแก้ไข' });
+      if (recipes.some((recipe) => recipe.id === itemId)) {
+        return res.status(409).json({ error: 'สินค้าจากสูตรการผลิตให้แก้ชื่อในหน้าสูตรการผลิต' });
+      }
+      const normalized = normalizeName(name);
+      const existing = (catalogRows.data ?? []).find((item) => item.item_id !== itemId && normalizeName(item.name) === normalized);
+      if (existing) return res.status(409).json({ error: `มีรายการชื่อ "${existing.name}" อยู่แล้ว` });
+      const conflict = findNameConflict(name, { recipes, machines, stocks: {} });
+      if (conflict) return res.status(409).json({ error: duplicateNameError(conflict) });
+      return res.json(await renameCatalogItem(itemId, name));
+    } catch (e) { return res.status(500).json({ error: (e as Error).message }); }
   }
 
   if (segments[0] === 'items' && method === 'POST') {
