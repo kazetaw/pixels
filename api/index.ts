@@ -19,7 +19,7 @@ import {
   readPurchases, insertPurchase,
   readFloorTimers, insertFloorTimer, patchFloorTimer,
   readSharedPlannerPlan, writeSharedPlannerPlan,
-  createCatalogItem, renameCatalogItem,
+  createCatalogItem, renameCatalogItem, updateCatalogItemImage,
   readItemNames,
 } from './lib/db.js';
 import { parseTimeToHours } from './lib/time.js';
@@ -362,6 +362,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const conflict = findNameConflict(name, { recipes, machines, stocks: {} });
       if (conflict) return res.status(409).json({ error: duplicateNameError(conflict) });
       return res.json(await renameCatalogItem(itemId, name));
+    } catch (e) { return res.status(500).json({ error: (e as Error).message }); }
+  }
+
+  // PATCH /api/items/:id — images are shared item metadata.  Save them
+  // immediately so an uploaded stock image survives refresh/navigation.
+  if (segments[0] === 'items' && segments[1] && method === 'PATCH') {
+    const image = (req.body as { image?: unknown })?.image;
+    if (image !== null && (typeof image !== 'string' || !image.trim())) {
+      return res.status(400).json({ error: 'รูปภาพไม่ถูกต้อง' });
+    }
+    try {
+      return res.json(await updateCatalogItemImage(segments[1], typeof image === 'string' ? image : null));
     } catch (e) { return res.status(500).json({ error: (e as Error).message }); }
   }
 

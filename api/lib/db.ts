@@ -71,6 +71,18 @@ export async function renameCatalogItem(itemId: string, name: string) {
   return data as CatalogItem;
 }
 
+/** Change an item's shared image without touching its name or references. */
+export async function updateCatalogItemImage(itemId: string, imageUrl: string | null) {
+  const { data, error } = await getSupabase().from('items')
+    .update({ image_url: imageUrl })
+    .eq('item_id', itemId)
+    .select('item_id, name, image_url')
+    .maybeSingle();
+  if (error) throw new Error(`updateItemImage: ${error.message}`);
+  if (!data) throw new Error('ไม่พบรายการที่ต้องการแก้ไขรูป');
+  return data as CatalogItem;
+}
+
 async function ensureCatalogItems(items: Array<{ item_id: string; name: string }>) {
   if (!items.length) return;
   const { error } = await getSupabase().from('items').upsert(items, { onConflict: 'item_id', ignoreDuplicates: true });

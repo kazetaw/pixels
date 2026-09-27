@@ -156,6 +156,13 @@ export function DataEditor({ initialRecipes, initialMachines, initialStocks, ini
             setRecipes(nextRecipes);
             onDataChanged({ recipes: nextRecipes, machines, stocks, stockImages, itemNames });
           }}
+          onStockImageChanged={(itemId, image) => {
+            const nextImages = { ...stockImages };
+            if (image) nextImages[itemId] = image;
+            else delete nextImages[itemId];
+            setStockImages(nextImages);
+            onDataChanged({ recipes, machines, stocks, stockImages: nextImages, itemNames });
+          }}
           onItemRenamed={reload}
         />
       )}

@@ -57,6 +57,14 @@ export async function renameCatalogItem(itemId: string, name: string): Promise<C
   }));
 }
 
+/** Save or remove an item's shared image immediately. */
+export async function updateCatalogItemImage(itemId: string, image?: string): Promise<CatalogItem> {
+  return handleResponse<CatalogItem>(await fetch(`/api/items/${itemId}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ image: image ?? null }),
+  }));
+}
+
 export async function fetchBudgetData(): Promise<{ budgets: Budget[]; purchases: StockPurchase[] }> {
   return handleResponse(await fetch('/api/budgets'));
 }

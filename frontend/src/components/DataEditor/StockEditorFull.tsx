@@ -9,7 +9,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { StockMap, StockImageMap, Recipe, Machine } from '../../types';
-import { createCatalogItem, patchStockItem, renameCatalogItem, updateRecipe } from '../../api/client';
+import { createCatalogItem, patchStockItem, renameCatalogItem, updateCatalogItemImage, updateRecipe } from '../../api/client';
 import { ImagePicker } from '../shared/ImagePicker';
 
 const { Text } = Typography;
@@ -22,6 +22,7 @@ interface StockEditorFullProps {
   itemNames: Record<string, string>;
   onSaved: (newStocks: StockMap, newImages: StockImageMap) => void;
   onRecipeImageChanged: (recipe: Recipe) => void;
+  onStockImageChanged: (itemId: string, image: string | undefined) => void;
   onItemRenamed: () => Promise<void>;
 }
 
@@ -219,7 +220,7 @@ interface RowData {
   image?: string;
 }
 
-export function StockEditorFull({ stocks, stockImages, recipes, machines, itemNames, onSaved, onRecipeImageChanged, onItemRenamed }: StockEditorFullProps) {
+export function StockEditorFull({ stocks, stockImages, recipes, machines, itemNames, onSaved, onRecipeImageChanged, onStockImageChanged, onItemRenamed }: StockEditorFullProps) {
   const [local, setLocal] = useState<StockMap>({ ...stocks });
   const [loadedStocks, setLoadedStocks] = useState<StockMap>({ ...stocks });
   const [localImages, setLocalImages] = useState<StockImageMap>({ ...stockImages });
@@ -279,17 +280,19 @@ export function StockEditorFull({ stocks, stockImages, recipes, machines, itemNa
       onRecipeImageChanged(updated);
       return;
     }
+    await updateCatalogItemImage(key, img);
     setLocalImages((prev) => {
       const next = { ...prev };
       if (img) next[key] = img;
       else delete next[key];
       return next;
     });
+    onStockImageChanged(key, img);
   };
 
   const handleDelete = (key: string) => {
     setLocal((prev) => { const n = { ...prev }; delete n[key]; return n; });
-    setLocalImages((prev) => { const n = { ...prev }; delete n[key]; return n; });
+    // Removing a stock row must not erase the shared image in the catalog.
   };
 
   const openRename = (row: RowData) => {
@@ -331,7 +334,13 @@ export function StockEditorFull({ stocks, stockImages, recipes, machines, itemNa
       });
       setLocalImages((prev) => ({ ...prev, [key]: image }));
       onRecipeImageChanged(updated);
-    } else if (image) setLocalImages((prev) => ({ ...prev, [key]: image }));
+    } else if (image) {
+      // New items already received the image on creation; existing catalog
+      // items selected from the modal need their shared image saved here.
+      await updateCatalogItemImage(key, image);
+      setLocalImages((prev) => ({ ...prev, [key]: image }));
+      onStockImageChanged(key, image);
+    }
     msgApi.success('เพิ่มรายการแล้ว');
   };
 
