@@ -14,6 +14,7 @@ import { Budget, Currency, Recipe, StockPurchase } from '../../types';
 import { fetchBudgetData, saveBudget } from '../../api/client';
 import { BudgetPinModal } from './BudgetPinModal';
 import { PurchaseEditButton } from './PurchaseEditButton';
+import { contributorLabel } from '../shared/contributors';
 
 const { Text } = Typography;
 
@@ -122,7 +123,7 @@ export function BudgetHistory({ recipes, itemNames, onStockChanged }: BudgetHist
       dataIndex: 'contributor',
       width: 130,
       render: (v) =>
-        v ? <Text strong style={{ color: '#2563eb' }}>{v}</Text> : <Text type="secondary">—</Text>,
+        v ? <Text strong style={{ color: '#2563eb' }}>{contributorLabel(v)}</Text> : <Text type="secondary">—</Text>,
     },
     {
       title: 'แหล่งซื้อ',

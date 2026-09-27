@@ -4,7 +4,7 @@ import { ReloadOutlined, SearchOutlined } from '@ant-design/icons';
 import type { Recipe, StockPurchase } from '../../types';
 import { fetchAllStockPurchases } from '../../api/client';
 import { ItemLabel } from '../shared/ItemVisual';
-import { CONTRIBUTOR_AVATARS } from '../shared/contributors';
+import { contributorLabel, CONTRIBUTOR_AVATARS } from '../shared/contributors';
 
 const { Text } = Typography;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -101,7 +101,7 @@ export function StockContributionSummary({ open, onClose, recipes, itemNames }: 
             {CONTRIBUTOR_AVATARS[group.name]
               ? <img className="stock-contribution-avatar" src={CONTRIBUTOR_AVATARS[group.name]} alt={`รูป ${group.name}`} />
               : <span className="stock-contribution-avatar">{group.name.slice(0, 1)}</span>}
-            <div><strong>{group.name}</strong><span>{group.items.size} สินค้า · {group.entries} ครั้ง</span></div>
+            <div><strong>{contributorLabel(group.name)}</strong><span>{group.items.size} สินค้า · {group.entries} ครั้ง</span></div>
           </div>,
           extra: <div className="stock-contribution-total"><strong>+{group.quantity.toLocaleString('th-TH')}</strong><span>ชิ้น</span></div>,
           children: <div className="stock-contribution-items">

@@ -8,7 +8,7 @@ import { createStockPurchase, fetchBudgetData, saveBudget } from '../../api/clie
 import { BudgetPinModal } from './BudgetPinModal';
 import { PurchaseEditButton } from './PurchaseEditButton';
 import { PURCHASE_SOURCE_OPTIONS } from './purchaseOptions';
-import { CONTRIBUTOR_NAMES } from '../shared/contributors';
+import { contributorLabel, CONTRIBUTOR_NAMES } from '../shared/contributors';
 
 const { Text } = Typography;
 const currencies: Currency[] = ['THB', 'G'];
@@ -145,7 +145,7 @@ export function BudgetDraft({ stocks, recipes, itemNames, onStockChanged }: Budg
     { title: 'เพิ่มสต็อก', dataIndex: 'quantity', align: 'right', width: 108, render: (value) => `+${value} ชิ้น` },
     { title: 'จ่ายทั้งหมด', dataIndex: 'total_amount', align: 'right', width: 140, render: (value, row) => <Text strong>{displayMoney(value, row.currency)}</Text> },
     { title: 'ต้นทุน/ชิ้น', align: 'right', width: 130, render: (_, row) => displayMoney(row.total_amount / row.quantity, row.currency) },
-    { title: 'งบจาก', dataIndex: 'contributor', width: 130, render: (value) => value ? <Text strong style={{ color: '#2563eb' }}>{value}</Text> : <Text type="secondary">—</Text> },
+    { title: 'งบจาก', dataIndex: 'contributor', width: 150, render: (value) => value ? <Text strong style={{ color: '#2563eb' }}>{contributorLabel(value)}</Text> : <Text type="secondary">—</Text> },
     { title: 'แหล่งซื้อ', dataIndex: 'source', width: 140, render: (value) => value || '—' },
     { title: 'เมื่อ', dataIndex: 'purchased_at', width: 145, render: (value) => new Date(value).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }) },
   ];
@@ -186,7 +186,7 @@ export function BudgetDraft({ stocks, recipes, itemNames, onStockChanged }: Budg
               <Space size={[6, 6]} wrap style={{ marginTop: 8 }}>
                 {CONTRIBUTOR_NAMES.map((name) => (
                   <Button key={name} size="small" type={contributor === name ? 'primary' : 'default'} onClick={() => setContributor(name)}>
-                    {name}
+                    {contributorLabel(name)}
                   </Button>
                 ))}
               </Space>
@@ -212,7 +212,7 @@ export function BudgetDraft({ stocks, recipes, itemNames, onStockChanged }: Budg
                         <Text type="secondary" style={{ fontSize: 11 }}>งบได้มาจาก</Text>
                         {breakdown.map(({ name, total: t }) => (
                           <div key={name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Text style={{ fontSize: 12 }}>{name}</Text>
+                            <Text style={{ fontSize: 12 }}>{contributorLabel(name)}</Text>
                             <Text strong style={{ fontSize: 12, color: '#2563eb' }}>{displayMoney(t, target)}</Text>
                           </div>
                         ))}

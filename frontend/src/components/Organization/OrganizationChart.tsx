@@ -1,4 +1,4 @@
-import { CONTRIBUTOR_PROFILES, type ContributorProfile } from '../shared/contributors';
+import { contributorLabel, CONTRIBUTOR_PROFILES, type ContributorProfile } from '../shared/contributors';
 
 function PersonNode({ profile, ceo = false }: { profile: ContributorProfile; ceo?: boolean }) {
   return <article className={`organization-person${ceo ? ' organization-person-ceo' : ''}`}>
@@ -7,7 +7,7 @@ function PersonNode({ profile, ceo = false }: { profile: ContributorProfile; ceo
         ? <img className={ceo || profile.flipAvatar ? 'is-flipped' : undefined} src={profile.avatar} alt={`รูป ${profile.name}`} />
         : <span>{profile.name.slice(0, 1)}</span>}
     </div>
-    <strong>{profile.name}</strong>
+    <strong>{contributorLabel(profile.name)}</strong>
   </article>;
 }
 
