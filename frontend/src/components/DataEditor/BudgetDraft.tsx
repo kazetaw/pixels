@@ -30,12 +30,22 @@ interface QueuedPurchase {
   key: string;
   itemId: string;
   quantity: number;
+  quantityExpression: string;
   total: number;
   currency: Currency;
 }
 
-const newQueuedPurchase = (): QueuedPurchase => ({ key: `${Date.now()}-${Math.random().toString(36).slice(2)}`, itemId: '', quantity: 0, total: 0, currency: 'THB' });
+const newQueuedPurchase = (): QueuedPurchase => ({ key: `${Date.now()}-${Math.random().toString(36).slice(2)}`, itemId: '', quantity: 0, quantityExpression: '', total: 0, currency: 'THB' });
 const newPurchaseLines = (count = 3) => Array.from({ length: count }, newQueuedPurchase);
+
+/** Allow quick stack arithmetic such as "99 + 22", while persisting only its numeric result. */
+function parseQuantityExpression(expression: string): number | null {
+  const compact = expression.trim();
+  if (!compact) return 0;
+  if (!/^\d+(?:\s*\+\s*\d+)*$/.test(compact)) return null;
+  const total = compact.split('+').reduce((sum, part) => sum + Number(part.trim()), 0);
+  return Number.isSafeInteger(total) ? total : null;
+}
 
 export function BudgetDraft({ stocks, recipes, itemNames, onStockChanged }: BudgetDraftProps) {
   const [budgets, setBudgets] = useState<Budget[]>([]);
@@ -130,6 +140,17 @@ export function BudgetDraft({ stocks, recipes, itemNames, onStockChanged }: Budg
   const updateQueuedPurchase = (key: string, patch: Partial<QueuedPurchase>) => setQueuedPurchases((current) => current.map((entry) => entry.key === key ? { ...entry, ...patch } : entry));
   const addPurchaseLine = () => setQueuedPurchases((current) => [...current, newQueuedPurchase()]);
   const removePurchaseLine = (key: string) => setQueuedPurchases((current) => current.length === 1 ? [newQueuedPurchase()] : current.filter((entry) => entry.key !== key));
+  const setQuantityExpression = (entry: QueuedPurchase, quantityExpression: string) => {
+    updateQueuedPurchase(entry.key, { quantityExpression, quantity: parseQuantityExpression(quantityExpression) ?? 0 });
+  };
+  const finalizeQuantityExpression = (entry: QueuedPurchase) => {
+    const quantity = parseQuantityExpression(entry.quantityExpression);
+    if (quantity !== null && entry.quantityExpression.trim()) updateQueuedPurchase(entry.key, { quantity, quantityExpression: String(quantity) });
+  };
+  const appendNinetyNine = (entry: QueuedPurchase) => {
+    const next = entry.quantityExpression.trim() ? `${entry.quantityExpression} + 99` : '99';
+    setQuantityExpression(entry, next);
+  };
 
   const saveQueuedPurchases = async () => {
     if (!validQueuedPurchases.length) return;
@@ -204,7 +225,7 @@ export function BudgetDraft({ stocks, recipes, itemNames, onStockChanged }: Budg
               <div className="budget-purchase-lines__head"><span>รายการ</span><span>จำนวน</span><span>จ่าย (ฟรี = 0)</span><span>สกุล</span><span /></div>
               {queuedPurchases.map((entry) => <div className="budget-purchase-line" key={entry.key}>
                 <Select {...itemSelectVisuals} showSearch optionFilterProp="label" value={entry.itemId || undefined} onChange={(value) => updateQueuedPurchase(entry.key, { itemId: value ?? '' })} placeholder="ค้นหาสินค้า" options={itemOptions} />
-                <div><InputNumber min={0} precision={0} value={entry.quantity || undefined} onChange={(value) => updateQueuedPurchase(entry.key, { quantity: value ?? 0 })} placeholder="0" /><Button size="small" type="text" onClick={() => updateQueuedPurchase(entry.key, { quantity: entry.quantity + 99 })}>+99</Button></div>
+                <div><Input value={entry.quantityExpression} inputMode="numeric" onChange={(event) => setQuantityExpression(entry, event.target.value)} onBlur={() => finalizeQuantityExpression(entry)} onPressEnter={() => finalizeQuantityExpression(entry)} placeholder="99 + 22" aria-label="จำนวนที่ซื้อ" /><Button size="small" type="text" onClick={() => appendNinetyNine(entry)}>+99</Button></div>
                 <InputNumber min={0} value={entry.total || undefined} onChange={(value) => updateQueuedPurchase(entry.key, { total: value ?? 0 })} placeholder="ฟรี / 0" />
                 <Select value={entry.currency} onChange={(value) => updateQueuedPurchase(entry.key, { currency: value })} options={[{ value: 'THB', label: 'บาท' }, { value: 'G', label: 'G' }]} />
                 <Button type="text" danger aria-label="ลบบรรทัดนี้" icon={<DeleteOutlined />} onClick={() => removePurchaseLine(entry.key)} />
