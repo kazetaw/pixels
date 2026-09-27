@@ -1,6 +1,6 @@
 import { ItemLabel, itemSelectVisuals } from '../shared/ItemVisual';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Card, Input, InputNumber, Select, Space, Spin, Table, Tag, Typography, message } from 'antd';
+import { Button, Card, Input, InputNumber, Select, Space, Spin, Table, Tag, Typography, message } from 'antd';
 import { DeleteOutlined, PlusOutlined, SaveOutlined, ShoppingCartOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { Budget, Currency, Recipe, StockMap, StockPurchase } from '../../types';
@@ -35,6 +35,7 @@ interface QueuedPurchase {
 }
 
 const newQueuedPurchase = (): QueuedPurchase => ({ key: `${Date.now()}-${Math.random().toString(36).slice(2)}`, itemId: '', quantity: 0, total: 0, currency: 'THB' });
+const newPurchaseLines = (count = 3) => Array.from({ length: count }, newQueuedPurchase);
 
 export function BudgetDraft({ stocks, recipes, itemNames, onStockChanged }: BudgetDraftProps) {
   const [budgets, setBudgets] = useState<Budget[]>([]);
@@ -45,7 +46,7 @@ export function BudgetDraft({ stocks, recipes, itemNames, onStockChanged }: Budg
   const [buying, setBuying] = useState(false);
   const [source, setSource] = useState('');
   const [contributor, setContributor] = useState('');
-  const [queuedPurchases, setQueuedPurchases] = useState<QueuedPurchase[]>(() => [newQueuedPurchase()]);
+  const [queuedPurchases, setQueuedPurchases] = useState<QueuedPurchase[]>(() => newPurchaseLines());
   const [limitInput, setLimitInput] = useState<Record<Currency, number>>({ THB: 0, G: 0 });
   const [messageApi, contextHolder] = message.useMessage();
 
@@ -149,7 +150,7 @@ export function BudgetDraft({ stocks, recipes, itemNames, onStockChanged }: Budg
         savedKeys.push(entry.key);
       }
       setPurchases((current) => [...saved, ...current]);
-      setQueuedPurchases([newQueuedPurchase()]);
+      setQueuedPurchases(newPurchaseLines());
       await onStockChanged();
       messageApi.success(`เพิ่มสต็อก ${saved.length} รายการแล้ว`);
     } catch (error) {
@@ -186,12 +187,14 @@ export function BudgetDraft({ stocks, recipes, itemNames, onStockChanged }: Budg
       {pendingCurrency && <BudgetPinModal onCancel={() => setPendingCurrency(null)} onVerified={pin => {
         const target = pendingCurrency; setPendingCurrency(null); void saveLimit(target, pin);
       }} />}
-      <Alert type="info" showIcon message="เพิ่มหลายรายการก่อน แล้วค่อยบันทึกสต็อกครั้งเดียว" description="THB และ G แยกงบกันโดยสมบูรณ์ ระบบจะไม่แปลงค่าเงินเอง" />
-
       {loading ? <div style={{ textAlign: 'center', padding: 48 }}><Spin /></div> : <>
         <div className="budget-content-grid">
           <Card title="ซื้อเพื่อเติมสต็อก" size="small">
-            <Text type="secondary" style={{ display: 'block', fontSize: 12, marginBottom: 10 }}>คีย์ทีละหลายบรรทัดได้เลย เช่น กระดาษ 20 30 G แล้วกดบันทึกทั้งหมดครั้งเดียว</Text>
+            <div className="budget-purchase-context">
+              <label><span>งบจาก</span><Input value={contributor} onChange={(event) => setContributor(event.target.value)} placeholder="เลือกหรือพิมพ์ชื่อ" /></label>
+              <label><span>แหล่งซื้อ</span><Select value={source || undefined} onChange={(value) => setSource(value)} placeholder="เลือก" options={[...PURCHASE_SOURCE_OPTIONS]} /></label>
+              <div className="budget-purchase-people"><span>เลือกคน</span><Space size={[4, 4]} wrap>{CONTRIBUTOR_NAMES.map((name) => <Button key={name} size="small" type={contributor === name ? 'primary' : 'default'} onClick={() => setContributor(name)}>{contributorLabel(name)}</Button>)}</Space></div>
+            </div>
             <div className="budget-purchase-lines" aria-label="รายการซื้อรอบนี้">
               <div className="budget-purchase-lines__head"><span>รายการ</span><span>จำนวน</span><span>จ่ายทั้งหมด</span><span>สกุล</span><span /></div>
               {queuedPurchases.map((entry) => <div className="budget-purchase-line" key={entry.key}>
@@ -203,22 +206,6 @@ export function BudgetDraft({ stocks, recipes, itemNames, onStockChanged }: Budg
               </div>)}
             </div>
             <Button size="small" type="dashed" icon={<PlusOutlined />} onClick={addPurchaseLine} style={{ marginTop: 9 }}>เพิ่มบรรทัด</Button>
-            <label style={{ display: 'block', marginBottom: 14 }}>
-              <span className="budget-field-label">แหล่งซื้อ / หมายเหตุ (ใช้กับทุกรายการในรอบนี้)</span>
-              <Select value={source || undefined} onChange={(value) => setSource(value)} placeholder="เลือกแหล่งที่มา" options={[...PURCHASE_SOURCE_OPTIONS]} style={{ width: '100%' }} />
-            </label>
-            <label style={{ display: 'block', marginBottom: 14 }}>
-              <span className="budget-field-label">งบจาก (ใช้กับทุกรายการในรอบนี้)</span>
-              <Input value={contributor} onChange={(event) => setContributor(event.target.value)} placeholder="เช่น แม่, กองกลาง, ส่วนตัว" />
-              <Space size={[6, 6]} wrap style={{ marginTop: 8 }}>
-                {CONTRIBUTOR_NAMES.map((name) => (
-                  <Button key={name} size="small" type={contributor === name ? 'primary' : 'default'} onClick={() => setContributor(name)}>
-                    {contributorLabel(name)}
-                  </Button>
-                ))}
-              </Space>
-              <Text type="secondary" style={{ display: 'block', fontSize: 12, marginTop: 6 }}>กดชื่อเพื่อกรอกทันที หรือพิมพ์ชื่ออื่นได้</Text>
-            </label>
             <div className="budget-purchase-save"><div><strong>{validQueuedPurchases.length} รายการพร้อมบันทึก</strong><span>เพิ่มสต็อกและประวัติซื้อเมื่อกดปุ่มนี้</span></div><Button type="primary" icon={<ShoppingCartOutlined />} loading={buying} disabled={!validQueuedPurchases.length} onClick={() => void saveQueuedPurchases()}>บันทึกทั้งหมด</Button></div>
           </Card>
 
