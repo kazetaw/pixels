@@ -52,9 +52,14 @@ export function PurchaseEditButton({ purchase, itemNames, onSaved }: {
             .map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label, 'th'))} />
         </Form.Item>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <Form.Item name="quantity" label="จำนวนที่เพิ่มสต็อก" rules={[{ required: true }, { type: 'integer', min: 1, max: 2147483647 }]}>
-            <InputNumber min={1} precision={0} style={{ width: '100%' }} />
-          </Form.Item>
+          <div>
+            <Form.Item name="quantity" label="จำนวนที่เพิ่มสต็อก" rules={[{ required: true }, { type: 'integer', min: 1, max: 2147483647 }]} style={{ marginBottom: 6 }}>
+              <InputNumber min={1} precision={0} style={{ width: '100%' }} />
+            </Form.Item>
+            <Button size="small" type="dashed" block onClick={() => form.setFieldValue('quantity', (Number(form.getFieldValue('quantity')) || 0) + 99)}>
+              +99 ชิ้น
+            </Button>
+          </div>
           <Form.Item name="total_amount" label="จ่ายทั้งหมด" rules={[{ required: true }, { type: 'number', min: 0 }]}>
             <InputNumber min={0} precision={2} style={{ width: '100%' }} />
           </Form.Item>

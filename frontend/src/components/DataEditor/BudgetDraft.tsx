@@ -32,7 +32,7 @@ export function BudgetDraft({ stocks, recipes, itemNames, onStockChanged }: Budg
   const [pendingCurrency, setPendingCurrency] = useState<Currency | null>(null);
   const [buying, setBuying] = useState(false);
   const [itemId, setItemId] = useState('');
-  const [quantity, setQuantity] = useState<number>(1);
+  const [quantity, setQuantity] = useState<number>(0);
   const [total, setTotal] = useState<number>(0);
   const [currency, setCurrency] = useState<Currency>('THB');
   const [source, setSource] = useState('');
@@ -123,7 +123,7 @@ export function BudgetDraft({ stocks, recipes, itemNames, onStockChanged }: Budg
       const purchase = await createStockPurchase({ item_id: itemId, quantity, total_amount: total, currency, source: source.trim() || undefined, contributor: contributor.trim() || undefined });
       setPurchases((current) => [purchase, ...current]);
       await onStockChanged();
-      setQuantity(1); setTotal(0); setSource(''); setContributor('');
+      setQuantity(0); setTotal(0); setSource(''); setContributor('');
       messageApi.success(`เพิ่ม ${itemName(itemId)} ${purchase.quantity} ชิ้นในสต็อกแล้ว`);
     } catch (error) {
       messageApi.error((error as Error).message || 'บันทึกรายการซื้อไม่สำเร็จ');
@@ -161,7 +161,13 @@ export function BudgetDraft({ stocks, recipes, itemNames, onStockChanged }: Budg
           <Card title="ซื้อเพื่อเติมสต็อก" size="small">
             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 110px', gap: 12, marginBottom: 12 }}>
               <label><span className="budget-field-label">รายการ</span><Select {...itemSelectVisuals} showSearch optionFilterProp="label" value={itemId || undefined} onChange={setItemId} placeholder="ค้นหาวัตถุดิบหรือสินค้าแปรรูป" options={itemOptions} style={{ width: '100%' }} /></label>
-              <label><span className="budget-field-label">จำนวนที่ซื้อ</span><InputNumber min={1} value={quantity} onChange={(value) => setQuantity(value ?? 1)} style={{ width: '100%' }} /></label>
+              <label>
+                <span className="budget-field-label">จำนวนที่ซื้อ</span>
+                <InputNumber min={0} precision={0} value={quantity} onChange={(value) => setQuantity(value ?? 0)} style={{ width: '100%' }} />
+                <Button size="small" type="dashed" onClick={() => setQuantity((current) => current + 99)} style={{ marginTop: 6, width: '100%' }}>
+                  +99 ชิ้น
+                </Button>
+              </label>
             </div>
             <Text type="secondary" style={{ display: 'block', fontSize: 12, marginBottom: 12 }}>เลือกซื้อได้ทั้งวัตถุดิบและสินค้าแปรรูปจากทุกสูตร แม้ยังไม่มีในสต็อก</Text>
             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 120px', gap: 12, marginBottom: 12 }}>
