@@ -1,5 +1,5 @@
 import { Alert, Button, Empty, Spin, Tag } from 'antd';
-import { ReloadOutlined } from '@ant-design/icons';
+import { DownOutlined, ReloadOutlined, RightOutlined } from '@ant-design/icons';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchSharedPlannerPlan, runPlan } from '../../api/client';
 import type { BomTreeNode, Machine, PlanRequest, PlanResponse, Recipe, StockMap } from '../../types';
@@ -28,21 +28,64 @@ function resolveName(
 
 function formatNumber(value: number) { return value.toLocaleString('th-TH'); }
 
-function collectDirectIngredients(
+interface MaterialNeed {
+  id: string;
+  name: string;
+  quantity: number;
+  children: Map<string, MaterialNeed>;
+}
+
+interface DisplayMaterialNeed extends Omit<MaterialNeed, 'children'> {
+  children: DisplayMaterialNeed[];
+}
+
+function addMaterialNeed(
+  materials: Map<string, MaterialNeed>,
   node: BomTreeNode,
-  materials: Map<string, { name: string; quantity: number }>,
   nameMap: Map<string, string>
 ) {
-  // Show only the DIRECT children of this floor's recipe.
-  // We do NOT recurse further — if a child is itself a recipe (e.g. ไวท์ช็อค),
-  // it still appears as a single line item here. The floor needs to obtain those
-  // items (either from stock or from another floor); it is not our job here to
-  // expand every sub-recipe down to its raw leaves.
-  for (const child of node.children) {
-    const current = materials.get(child.item_id);
-    const name = resolveName(child.item_id, child.item_name, nameMap);
-    materials.set(child.item_id, { name, quantity: (current?.quantity ?? 0) + child.quantity_needed });
-  }
+  const current = materials.get(node.item_id) ?? {
+    id: node.item_id,
+    name: resolveName(node.item_id, node.item_name, nameMap),
+    quantity: 0,
+    children: new Map<string, MaterialNeed>(),
+  };
+  current.quantity += node.quantity_needed;
+  materials.set(node.item_id, current);
+  for (const child of node.children) addMaterialNeed(current.children, child, nameMap);
+}
+
+function collectDirectIngredients(node: BomTreeNode, materials: Map<string, MaterialNeed>, nameMap: Map<string, string>) {
+  // Each direct ingredient stays at the top level. Its full BOM is kept as
+  // nested children so users can expand only the product they need to inspect.
+  for (const child of node.children) addMaterialNeed(materials, child, nameMap);
+}
+
+function displayMaterialNeeds(materials: Map<string, MaterialNeed>): DisplayMaterialNeed[] {
+  return Array.from(materials.values())
+    .map(({ children, ...material }) => ({ ...material, children: displayMaterialNeeds(children) }))
+    .sort((a, b) => b.quantity - a.quantity || a.name.localeCompare(b.name, 'th'));
+}
+
+function MaterialNeedRow({ material, stocks, depth = 0 }: { material: DisplayMaterialNeed; stocks: StockMap; depth?: number }) {
+  const [open, setOpen] = useState(false);
+  const hasChildren = material.children.length > 0;
+  const inStock = stocks[material.id] ?? 0;
+  const isSufficient = inStock >= material.quantity;
+
+  return <div>
+    <div className="production-targets__material" style={depth ? { paddingLeft: 16 + depth * 18, background: '#fafcff' } : undefined}>
+      <div style={{ display: 'flex', alignItems: 'center', minWidth: 0, flex: 1 }}>
+        {hasChildren ? <Button type="text" size="small" onClick={() => setOpen((value) => !value)} icon={open ? <DownOutlined /> : <RightOutlined />} aria-label={`${open ? 'ย่อ' : 'ขยาย'}วัตถุดิบของ ${material.name}`} style={{ marginLeft: -8, marginRight: 2 }} /> : <span style={{ width: 20 }} />}
+        <ItemLabel id={material.id} name={material.name} size={depth ? 22 : 26} reserveImage />
+      </div>
+      <span className="production-targets__material-stock" style={{ color: isSufficient ? '#16a34a' : '#dc2626', fontVariantNumeric: 'tabular-nums' }}>
+        {formatNumber(inStock)}<span style={{ color: '#94a3b8', margin: '0 2px' }}>/</span><strong>{formatNumber(material.quantity)}</strong>
+      </span>
+      <span style={{ color: '#64748b', fontSize: 12, whiteSpace: 'nowrap' }}>{Math.ceil(material.quantity / 99)} กอง</span>
+    </div>
+    {hasChildren && open && <div style={{ borderLeft: '2px solid #dbeafe', marginLeft: 20 + depth * 18 }}>{material.children.map((child) => <MaterialNeedRow key={child.id} material={child} stocks={stocks} depth={depth + 1} />)}</div>}
+  </div>;
 }
 
 export function ProductionTargetsBoard({ recipes, machines, stocks, itemNames = {} }: ProductionTargetsBoardProps) {
@@ -78,11 +121,11 @@ export function ProductionTargetsBoard({ recipes, machines, stocks, itemNames = 
     );
     for (const r of recipes) nameMap.set(r.id, r.name);
 
-    const grouped = new Map<string, { floors: number[]; products: Map<string, number>; materials: Map<string, { name: string; quantity: number }> }>();
+    const grouped = new Map<string, { floors: number[]; products: Map<string, number>; materials: Map<string, MaterialNeed> }>();
     for (const result of plan?.floor_results ?? []) {
       const recipe = recipes.find((item) => item.id === result.recipe_id);
       if (!recipe?.machine_id) continue;
-      const current = grouped.get(recipe.machine_id) ?? { floors: [], products: new Map<string, number>(), materials: new Map<string, { name: string; quantity: number }>() };
+      const current = grouped.get(recipe.machine_id) ?? { floors: [], products: new Map<string, number>(), materials: new Map<string, MaterialNeed>() };
       current.floors.push(result.floor_number);
       current.products.set(recipe.id, (current.products.get(recipe.id) ?? 0) + result.output_qty);
       if (!result.bom_tree.is_raw) collectDirectIngredients(result.bom_tree, current.materials, nameMap);
@@ -95,8 +138,7 @@ export function ProductionTargetsBoard({ recipes, machines, stocks, itemNames = 
       products: Array.from(group.products, ([recipeId, target]) => ({ recipe: recipes.find((item) => item.id === recipeId)!, target }))
         .filter((product) => !!product.recipe)
         .sort((a, b) => a.recipe.name.localeCompare(b.recipe.name, 'th')),
-      materials: Array.from(group.materials, ([id, material]) => ({ id, ...material }))
-        .sort((a, b) => b.quantity - a.quantity || a.name.localeCompare(b.name, 'th')),
+      materials: displayMaterialNeeds(group.materials),
     })).sort((a, b) => (a.machine?.machine_name ?? a.machineId).localeCompare(b.machine?.machine_name ?? b.machineId, 'th'));
   }, [machines, plan, recipes, itemNames]);
 
@@ -131,20 +173,7 @@ export function ProductionTargetsBoard({ recipes, machines, stocks, itemNames = 
         </div>
         <section className="production-targets__materials">
           <div className="production-targets__materials-heading"><h4>ต้องเตรียมวัตถุดิบ</h4><span>สต็อก / ต้องการ · กอง (÷99)</span></div>
-          {materials.length === 0 ? <p className="production-targets__materials-empty">สูตรในเครื่องนี้ไม่มีวัตถุดิบที่ต้องเตรียมเพิ่ม</p> : materials.map((material) => {
-            const inStock = stocks[material.id] ?? 0;
-            const isSufficient = inStock >= material.quantity;
-            return <div className="production-targets__material" key={material.id}>
-              <ItemLabel id={material.id} name={material.name} size={26} reserveImage />
-              <span
-                className="production-targets__material-stock"
-                style={{ color: isSufficient ? '#16a34a' : '#dc2626', fontVariantNumeric: 'tabular-nums' }}
-              >
-                {formatNumber(inStock)}<span style={{ color: '#94a3b8', margin: '0 2px' }}>/</span><strong>{formatNumber(material.quantity)}</strong>
-              </span>
-              <span style={{ color: '#64748b', fontSize: 12, whiteSpace: 'nowrap' }}>{Math.ceil(material.quantity / 99)} กอง</span>
-            </div>;
-          })}
+          {materials.length === 0 ? <p className="production-targets__materials-empty">สูตรในเครื่องนี้ไม่มีวัตถุดิบที่ต้องเตรียมเพิ่ม</p> : materials.map((material) => <MaterialNeedRow key={material.id} material={material} stocks={stocks} />)}
         </section>
       </section>)}
     </div>}
