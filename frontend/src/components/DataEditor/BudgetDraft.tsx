@@ -148,8 +148,11 @@ export function BudgetDraft({ stocks, recipes, itemNames, onStockChanged }: Budg
     if (quantity !== null && entry.quantityExpression.trim()) updateQueuedPurchase(entry.key, { quantity, quantityExpression: String(quantity) });
   };
   const appendNinetyNine = (entry: QueuedPurchase) => {
-    const next = entry.quantityExpression.trim() ? `${entry.quantityExpression} + 99` : '99';
-    setQuantityExpression(entry, next);
+    // The shortcut is for quick entry, so show the new total immediately instead
+    // of leaving a growing expression such as "99 + 99 + 99" in the field.
+    const quantity = parseQuantityExpression(entry.quantityExpression) ?? entry.quantity;
+    const next = quantity + 99;
+    updateQueuedPurchase(entry.key, { quantity: next, quantityExpression: String(next) });
   };
 
   const saveQueuedPurchases = async () => {
@@ -225,7 +228,7 @@ export function BudgetDraft({ stocks, recipes, itemNames, onStockChanged }: Budg
               <div className="budget-purchase-lines__head"><span>รายการ</span><span>จำนวน</span><span>จ่าย (ฟรี = 0)</span><span>สกุล</span><span /></div>
               {queuedPurchases.map((entry) => <div className="budget-purchase-line" key={entry.key}>
                 <Select {...itemSelectVisuals} showSearch optionFilterProp="label" value={entry.itemId || undefined} onChange={(value) => updateQueuedPurchase(entry.key, { itemId: value ?? '' })} placeholder="ค้นหาสินค้า" options={itemOptions} />
-                <div><Input value={entry.quantityExpression} inputMode="numeric" onChange={(event) => setQuantityExpression(entry, event.target.value)} onBlur={() => finalizeQuantityExpression(entry)} onPressEnter={() => finalizeQuantityExpression(entry)} placeholder="99 + 22" aria-label="จำนวนที่ซื้อ" /><Button size="small" type="text" onClick={() => appendNinetyNine(entry)}>+99</Button></div>
+                <div><Input value={entry.quantityExpression} inputMode="numeric" onChange={(event) => setQuantityExpression(entry, event.target.value)} onBlur={() => finalizeQuantityExpression(entry)} onPressEnter={(event) => { event.preventDefault(); event.stopPropagation(); finalizeQuantityExpression(entry); }} placeholder="99 + 22" aria-label="จำนวนที่ซื้อ" /><Button size="small" type="text" onClick={() => appendNinetyNine(entry)}>+99</Button></div>
                 <InputNumber min={0} value={entry.total || undefined} onChange={(value) => updateQueuedPurchase(entry.key, { total: value ?? 0 })} placeholder="ฟรี / 0" />
                 <Select value={entry.currency} onChange={(value) => updateQueuedPurchase(entry.key, { currency: value })} options={[{ value: 'THB', label: 'บาท' }, { value: 'G', label: 'G' }]} />
                 <Button type="text" danger aria-label="ลบบรรทัดนี้" icon={<DeleteOutlined />} onClick={() => removePurchaseLine(entry.key)} />
