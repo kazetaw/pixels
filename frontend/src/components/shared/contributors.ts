@@ -1,6 +1,7 @@
 export interface ContributorProfile {
   name: string;
   avatar?: string;
+  flipAvatar?: boolean;
 }
 
 export const CONTRIBUTOR_PROFILES: ContributorProfile[] = [
@@ -8,7 +9,7 @@ export const CONTRIBUTOR_PROFILES: ContributorProfile[] = [
   { name: 'เอี๊ยม', avatar: '/avatars/contributors/iam.png' },
   { name: 'ป้วย', avatar: '/avatars/contributors/puay.png' },
   { name: 'ตวัน', avatar: '/avatars/contributors/tawan.png' },
-  { name: 'พี่ปาม' },
+  { name: 'พี่ปาม', avatar: '/avatars/contributors/pam.png', flipAvatar: true },
   { name: 'เนย' },
   { name: 'เมย์' },
   { name: 'ต้วมเตี้ยม' },

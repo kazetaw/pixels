@@ -4,7 +4,7 @@ function PersonNode({ profile, ceo = false }: { profile: ContributorProfile; ceo
   return <article className={`organization-person${ceo ? ' organization-person-ceo' : ''}`}>
     <div className="organization-member-avatar">
       {profile.avatar
-        ? <img className={ceo ? 'is-flipped' : undefined} src={profile.avatar} alt={`รูป ${profile.name}`} />
+        ? <img className={ceo || profile.flipAvatar ? 'is-flipped' : undefined} src={profile.avatar} alt={`รูป ${profile.name}`} />
         : <span>{profile.name.slice(0, 1)}</span>}
     </div>
     <strong>{profile.name}</strong>
