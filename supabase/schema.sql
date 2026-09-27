@@ -156,7 +156,8 @@ create or replace function record_stock_purchase(
   p_quantity integer,
   p_total_amount numeric,
   p_currency text,
-  p_source text default null
+  p_source text default null,
+  p_contributor text default null
 )
 returns stock_purchases
 language plpgsql
@@ -190,8 +191,12 @@ begin
     end if;
   end if;
 
-  insert into stock_purchases (item_id, quantity, total_amount, currency, source)
-  values (btrim(p_item_id), p_quantity, p_total_amount, p_currency, nullif(btrim(coalesce(p_source, '')), ''))
+  insert into stock_purchases (item_id, quantity, total_amount, currency, source, contributor)
+  values (
+    btrim(p_item_id), p_quantity, p_total_amount, p_currency,
+    nullif(btrim(coalesce(p_source, '')), ''),
+    nullif(btrim(coalesce(p_contributor, '')), '')
+  )
   returning * into v_purchase;
 
   insert into stocks (item_id, quantity)

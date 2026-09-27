@@ -514,35 +514,51 @@ export async function readAllPurchases(): Promise<PurchaseRow[]> {
   }
 }
 
-/** Insert a purchase and increment the corresponding stock item */
+/**
+ * Insert a purchase and increase its stock as one database transaction.
+ * The previous two-request implementation could save the purchase even when
+ * the stock upsert failed, leaving budget history and inventory out of sync.
+ */
 export async function insertPurchase(p: Omit<PurchaseRow, 'id' | 'purchased_at'>): Promise<PurchaseRow> {
   const db = getSupabase();
   const { data, error } = await db
+    .rpc('record_stock_purchase', {
+      p_item_id: p.item_id,
+      p_quantity: p.quantity,
+      p_total_amount: p.total_amount,
+      p_currency: p.currency,
+      p_source: p.source ?? null,
+      p_contributor: p.contributor ?? null,
+    })
+    .single();
+  if (!error) return data as PurchaseRow;
+  if (error.code !== 'PGRST202') throw new Error(`insertPurchase: ${error.message}`);
+
+  // Keep current deployments working until the migration above is installed.
+  // Unlike the old version, every write is checked and a failed stock update
+  // removes its just-created purchase record instead of silently desyncing it.
+  const { data: purchase, error: purchaseError } = await db
     .from('stock_purchases')
     .insert({
-      item_id:      p.item_id,
-      quantity:     p.quantity,
-      total_amount: p.total_amount,
-      currency:     p.currency,
-      source:       p.source ?? null,
-      contributor:  p.contributor ?? null,
+      item_id: p.item_id, quantity: p.quantity, total_amount: p.total_amount,
+      currency: p.currency, source: p.source ?? null, contributor: p.contributor ?? null,
     })
     .select('id, item_id, quantity, total_amount, currency, source, contributor, purchased_at')
     .single();
-  if (error) throw new Error(`insertPurchase: ${error.message}`);
+  if (purchaseError || !purchase) throw new Error(`insertPurchase: ${purchaseError?.message ?? 'สร้างรายการซื้อไม่สำเร็จ'}`);
 
-  // Increment stock
-  const { data: existing } = await db
-    .from('stocks')
-    .select('quantity')
-    .eq('item_id', p.item_id)
-    .single();
-  await db.from('stocks').upsert(
+  const { data: existing, error: stockReadError } = await db
+    .from('stocks').select('quantity').eq('item_id', p.item_id).maybeSingle();
+  const { error: stockWriteError } = await db.from('stocks').upsert(
     { item_id: p.item_id, quantity: (existing?.quantity ?? 0) + p.quantity },
-    { onConflict: 'item_id' }
+    { onConflict: 'item_id' },
   );
+  if (stockReadError || stockWriteError) {
+    await db.from('stock_purchases').delete().eq('id', purchase.id);
+    throw new Error(`เพิ่มสต็อกไม่สำเร็จ: ${(stockReadError ?? stockWriteError)?.message}`);
+  }
 
-  return data as PurchaseRow;
+  return purchase as PurchaseRow;
 }
 
 // ── Floor Timers ──────────────────────────────────────────────────────────────

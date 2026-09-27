@@ -14,3 +14,7 @@
 3. Run it in Supabase SQL Editor.
 
 Restoring replaces stock quantities for the items in that backup. Do this before recording new purchases if you want the exact previous balance.
+
+## Rebuild stock that was entered after a reset
+
+If purchase history contains entries after the reset but their stock quantities remain zero, use [rebuild_stock_from_purchases_after_reset.sql](rebuild_stock_from_purchases_after_reset.sql). Replace `YOUR_BACKUP_ID` with the same reset backup ID. The script recalculates quantities from purchases recorded after that reset and can be run again safely.
