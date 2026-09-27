@@ -18,3 +18,7 @@ Restoring replaces stock quantities for the items in that backup. Do this before
 ## Rebuild stock that was entered after a reset
 
 If purchase history contains entries after the reset but their stock quantities remain zero, use [rebuild_stock_from_purchases_after_reset.sql](rebuild_stock_from_purchases_after_reset.sql). Replace `YOUR_BACKUP_ID` with the same reset backup ID. The script recalculates quantities from purchases recorded after that reset and can be run again safely.
+
+## Recover the purchases before the 27 September reset
+
+[recover_purchases_before_2026_09_27_reset.sql](recover_purchases_before_2026_09_27_reset.sql) restores only purchases recorded from the start of 27 September 2569 until the reset at 18:39. It does not create purchase history and records each restored purchase so the script cannot add it twice.
