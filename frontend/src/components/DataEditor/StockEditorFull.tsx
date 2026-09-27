@@ -1,5 +1,5 @@
 import { itemSelectVisuals } from '../shared/ItemVisual';
-import { useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import {
   Table, Button, Input, InputNumber, Select, Modal, Form,
   Popconfirm, Tag, Space, message, Typography,
@@ -21,6 +21,7 @@ interface StockEditorFullProps {
   machines: Machine[];
   itemNames: Record<string, string>;
   onSaved: (newStocks: StockMap, newImages: StockImageMap) => void;
+  onStockDeleted: (itemId: string) => void;
   onRecipeImageChanged: (recipe: Recipe) => void;
   onStockImageChanged: (itemId: string, image: string | undefined) => void;
   onItemRenamed: () => Promise<void>;
@@ -220,7 +221,7 @@ interface RowData {
   image?: string;
 }
 
-export function StockEditorFull({ stocks, stockImages, recipes, machines, itemNames, onSaved, onRecipeImageChanged, onStockImageChanged, onItemRenamed }: StockEditorFullProps) {
+export function StockEditorFull({ stocks, stockImages, recipes, machines, itemNames, onSaved, onStockDeleted, onRecipeImageChanged, onStockImageChanged, onItemRenamed }: StockEditorFullProps) {
   const [local, setLocal] = useState<StockMap>({ ...stocks });
   const [loadedStocks, setLoadedStocks] = useState<StockMap>({ ...stocks });
   const [localImages, setLocalImages] = useState<StockImageMap>({ ...stockImages });
@@ -231,6 +232,13 @@ export function StockEditorFull({ stocks, stockImages, recipes, machines, itemNa
   const [renameValue, setRenameValue] = useState('');
   const [renaming, setRenaming] = useState(false);
   const [msgApi, msgCtx] = message.useMessage();
+
+  // Pick up server refreshes after another person changes the shared list.
+  useEffect(() => {
+    setLocal({ ...stocks });
+    setLoadedStocks({ ...stocks });
+    setLocalImages({ ...stockImages });
+  }, [stocks, stockImages]);
 
   const nameMap = useMemo(() => buildItemNames(recipes, itemNames), [recipes, itemNames]);
 
@@ -290,9 +298,21 @@ export function StockEditorFull({ stocks, stockImages, recipes, machines, itemNa
     onStockImageChanged(key, img);
   };
 
-  const handleDelete = (key: string) => {
-    setLocal((prev) => { const n = { ...prev }; delete n[key]; return n; });
-    // Removing a stock row must not erase the shared image in the catalog.
+  const handleDelete = async (key: string) => {
+    try {
+      const expectedQuantity = loadedStocks[key];
+      // A row that was added locally has not reached the server yet, so it
+      // only needs to be removed from this draft. Existing rows delete now.
+      if (expectedQuantity !== undefined) await patchStockItem(key, null, expectedQuantity);
+      setLocal((prev) => { const next = { ...prev }; delete next[key]; return next; });
+      setLoadedStocks((prev) => { const next = { ...prev }; delete next[key]; return next; });
+      if (expectedQuantity !== undefined) onStockDeleted(key);
+      msgApi.success('ลบออกจากสต็อกแล้ว');
+    } catch (e: unknown) {
+      await onItemRenamed();
+      msgApi.error((e as Error).message ?? 'ลบออกจากสต็อกไม่สำเร็จ');
+    }
+    // Removing a stock row does not erase the shared catalog image.
   };
 
   const openRename = (row: RowData) => {
@@ -429,7 +449,7 @@ export function StockEditorFull({ stocks, stockImages, recipes, machines, itemNa
           okText="ลบ"
           cancelText="ยกเลิก"
           okType="danger"
-          onConfirm={() => handleDelete(row.key)}
+          onConfirm={() => void handleDelete(row.key)}
         >
           <Button
             type="text"

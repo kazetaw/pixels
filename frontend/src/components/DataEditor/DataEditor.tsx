@@ -151,6 +151,12 @@ export function DataEditor({ initialRecipes, initialMachines, initialStocks, ini
             setStockImages(newImages);
             onDataChanged({ recipes, machines, stocks: newStocks, stockImages: newImages, itemNames });
           }}
+          onStockDeleted={(itemId) => {
+            const nextStocks = { ...stocks };
+            delete nextStocks[itemId];
+            setStocks(nextStocks);
+            onDataChanged({ recipes, machines, stocks: nextStocks, stockImages, itemNames });
+          }}
           onRecipeImageChanged={(updatedRecipe) => {
             const nextRecipes = recipes.map((recipe) => recipe.id === updatedRecipe.id ? updatedRecipe : recipe);
             setRecipes(nextRecipes);

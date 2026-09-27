@@ -14,7 +14,7 @@ import {
   readMachines, readRecipes, readStocks, readStockImages,
   insertMachine, updateMachine as dbUpdateMachine, deleteMachine as dbDeleteMachine,
   insertRecipe, updateRecipe as dbUpdateRecipe, deleteRecipe as dbDeleteRecipe,
-  writeStocks, writeStockImages, patchStockItem, ensureStockRows, getSupabase,
+  writeStocks, writeStockImages, patchStockItem, getSupabase,
   readBudgets, upsertBudget,
   readPurchases, insertPurchase,
   readFloorTimers, insertFloorTimer, patchFloorTimer,
@@ -166,11 +166,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // ── GET /api/data ───────────────────────────────────────────────────────────
   if (segments[0] === 'data' && method === 'GET') {
     try {
-      const recipes = await readRecipes();
-      // Backfill old recipes too: any ingredient that exists in a recipe is a
-      // stock item, even before somebody has entered a quantity for it.
-      await ensureStockRows(recipes.flatMap((recipe) => Object.keys(recipe.ingredients)));
-      const [machines, stocks, stockImages, itemNames] = await Promise.all([
+      const [recipes, machines, stocks, stockImages, itemNames] = await Promise.all([
+        readRecipes(),
         readMachines(), readStocks(), readStockImages(), readItemNames(),
       ]);
       return res.json({ recipes, machines: enrichMachines(machines, recipes), stocks, stockImages, itemNames });
