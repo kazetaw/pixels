@@ -1,5 +1,5 @@
 import { ItemVisualProvider } from './components/shared/ItemVisual';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Layout,
   Menu,
@@ -657,9 +657,21 @@ function BomWorkspace({
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const [view, setView] = useState<MainView>('data');
+  const isInventoryPath = () => window.location.pathname.replace(/\/+$/, '') === '/inventory';
+  const [publicInventory, setPublicInventory] = useState(isInventoryPath);
+  const [view, setView] = useState<MainView>(() => isInventoryPath() ? 'inventory' : 'data');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [bomOpen, setBomOpen] = useState(false);
+
+  useEffect(() => {
+    const updateRoute = () => {
+      const inventoryOnly = isInventoryPath();
+      setPublicInventory(inventoryOnly);
+      if (inventoryOnly) setView('inventory');
+    };
+    window.addEventListener('popstate', updateRoute);
+    return () => window.removeEventListener('popstate', updateRoute);
+  }, []);
 
   const {
     recipes,
@@ -711,6 +723,20 @@ export default function App() {
         }}
       /></ItemVisualProvider>
     );
+  }
+
+  // A compact share link for teammates who only need to check the current stock.
+  // It intentionally renders the same Inventory component and app data, without
+  // exposing the surrounding navigation UI.
+  if (publicInventory) {
+    return <ItemVisualProvider recipes={recipes} machines={_machines} stockImages={stockImages} itemNames={itemNames}>
+      <main className="public-inventory-page">
+        <div className="public-inventory-page__content">
+          <PageHead title="คลังสต็อก" sub="รายการวัตถุดิบและสินค้าที่มีอยู่ในคลังตอนนี้" />
+          <StockInventory stocks={stocks} stockImages={stockImages} itemNames={itemNames} recipes={recipes} />
+        </div>
+      </main>
+    </ItemVisualProvider>;
   }
 
   return (
