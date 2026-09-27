@@ -245,6 +245,7 @@ export async function insertRecipe(
 
   if (error) throw new Error(`insertRecipe: ${error.message}`);
   await upsertCatalogItems([{ item_id: data.id, name: r.name, image_url: r.image ?? null, item_type: 'processed' }]);
+  await ensureStockRows(Object.keys(r.ingredients));
 
   return {
     id:            data.id,
@@ -280,6 +281,7 @@ export async function updateRecipe(
   if (error) throw new Error(`updateRecipe: ${error.message}`);
   await upsertCatalogItems([{ item_id: data.id, name: fields.name ?? data.name,
     image_url: fields.image !== undefined ? fields.image : data.image_url, item_type: 'processed' }]);
+  await ensureStockRows(Object.keys((data.ingredients as Record<string, number>) ?? {}));
 
   return {
     id:            data.id,
@@ -299,6 +301,15 @@ export async function deleteRecipe(id: string): Promise<void> {
 }
 
 // ── Stocks ────────────────────────────────────────────────────────────────────
+
+/** Create a zero-quantity stock row for every item used by a recipe. */
+export async function ensureStockRows(itemIds: string[]): Promise<void> {
+  const uniqueIds = [...new Set(itemIds)];
+  if (!uniqueIds.length) return;
+  const { error } = await getSupabase().from('stocks')
+    .upsert(uniqueIds.map((item_id) => ({ item_id, quantity: 0 })), { onConflict: 'item_id', ignoreDuplicates: true });
+  if (error) throw new Error(`ensureStockRows: ${error.message}`);
+}
 
 /** Read all stocks as a flat { item_id: quantity } map */
 export async function readStocks(): Promise<StockMap> {
