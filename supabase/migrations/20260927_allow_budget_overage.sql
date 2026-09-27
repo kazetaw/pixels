@@ -1,6 +1,5 @@
--- Save a budget purchase and add it to stock in one transaction.
--- This replaces the previous API-side two-step write, which could leave a
--- purchase record behind when the stock update failed.
+-- Budgets are for reporting, not a purchase limit.
+-- Run once in Supabase SQL Editor after 20260927_atomic_stock_purchase.sql.
 
 create or replace function public.record_stock_purchase(
   p_item_id text,
@@ -36,18 +35,15 @@ begin
 
   lock table public.stock_purchases, public.stocks in share row exclusive mode;
 
-  insert into public.stock_purchases (
-    item_id, quantity, total_amount, currency, source, contributor
-  ) values (
-    btrim(p_item_id), p_quantity, p_total_amount, p_currency,
+  insert into public.stock_purchases (item_id, quantity, total_amount, currency, source, contributor)
+  values (btrim(p_item_id), p_quantity, p_total_amount, p_currency,
     nullif(btrim(coalesce(p_source, '')), ''),
-    nullif(btrim(coalesce(p_contributor, '')), '')
-  ) returning * into v_purchase;
+    nullif(btrim(coalesce(p_contributor, '')), ''))
+  returning * into v_purchase;
 
   insert into public.stocks (item_id, quantity)
   values (btrim(p_item_id), p_quantity)
-  on conflict (item_id) do update
-  set quantity = public.stocks.quantity + excluded.quantity;
+  on conflict (item_id) do update set quantity = public.stocks.quantity + excluded.quantity;
 
   return v_purchase;
 end;

@@ -150,7 +150,7 @@ alter table budgets disable row level security;
 alter table stock_purchases disable row level security;
 
 -- Call this from the API instead of separately inserting a purchase and
--- updating stocks. It protects the budget and prevents partial writes.
+-- updating stocks. It prevents partial writes; budgets are tracking only.
 create or replace function record_stock_purchase(
   p_item_id text,
   p_quantity integer,
@@ -164,8 +164,6 @@ language plpgsql
 security definer
 as $$
 declare
-  v_budget numeric;
-  v_spent numeric;
   v_purchase stock_purchases;
 begin
   if p_item_id is null or btrim(p_item_id) = '' then
@@ -179,16 +177,6 @@ begin
   end if;
   if p_currency not in ('THB', 'G') then
     raise exception 'currency must be THB or G';
-  end if;
-
-  -- Lock the budget row so two simultaneous purchases cannot overspend it.
-  select limit_amount into v_budget from budgets where currency = p_currency for update;
-  if v_budget is not null then
-    select coalesce(sum(total_amount), 0) into v_spent
-      from stock_purchases where currency = p_currency;
-    if v_spent + p_total_amount > v_budget then
-      raise exception 'Budget exceeded for %', p_currency;
-    end if;
   end if;
 
   insert into stock_purchases (item_id, quantity, total_amount, currency, source, contributor)

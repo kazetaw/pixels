@@ -159,7 +159,12 @@ export function BudgetDraft({ stocks, recipes, itemNames, onStockChanged }: Budg
         setQueuedPurchases((current) => current.filter((entry) => !savedKeys.includes(entry.key)));
         await onStockChanged();
       }
-      messageApi.error(`${saved.length ? `บันทึกแล้ว ${saved.length} รายการ · ` : ''}${(error as Error).message || 'บันทึกรายการซื้อไม่สำเร็จ'}`);
+      const rawMessage = (error as Error).message || 'บันทึกรายการซื้อไม่สำเร็จ';
+      const currencyMatch = rawMessage.match(/Budget exceeded for (THB|G)/);
+      const friendlyMessage = currencyMatch
+        ? `ฐานข้อมูลยังใช้กติกางบแบบเก่า · รัน migration ปลดการล็อกงบก่อน`
+        : rawMessage;
+      messageApi.error(`${saved.length ? `บันทึกแล้ว ${saved.length} รายการ · ` : ''}${friendlyMessage}`);
     } finally {
       setBuying(false);
     }
@@ -196,17 +201,17 @@ export function BudgetDraft({ stocks, recipes, itemNames, onStockChanged }: Budg
               <div className="budget-purchase-people"><span>เลือกคน</span><Space size={[4, 4]} wrap>{CONTRIBUTOR_NAMES.map((name) => <Button key={name} size="small" type={contributor === name ? 'primary' : 'default'} onClick={() => setContributor(name)}>{contributorLabel(name)}</Button>)}</Space></div>
             </div>
             <div className="budget-purchase-lines" aria-label="รายการซื้อรอบนี้">
-              <div className="budget-purchase-lines__head"><span>รายการ</span><span>จำนวน</span><span>จ่ายทั้งหมด</span><span>สกุล</span><span /></div>
+              <div className="budget-purchase-lines__head"><span>รายการ</span><span>จำนวน</span><span>จ่าย (ฟรี = 0)</span><span>สกุล</span><span /></div>
               {queuedPurchases.map((entry) => <div className="budget-purchase-line" key={entry.key}>
                 <Select {...itemSelectVisuals} showSearch optionFilterProp="label" value={entry.itemId || undefined} onChange={(value) => updateQueuedPurchase(entry.key, { itemId: value ?? '' })} placeholder="ค้นหาสินค้า" options={itemOptions} />
                 <div><InputNumber min={0} precision={0} value={entry.quantity || undefined} onChange={(value) => updateQueuedPurchase(entry.key, { quantity: value ?? 0 })} placeholder="0" /><Button size="small" type="text" onClick={() => updateQueuedPurchase(entry.key, { quantity: entry.quantity + 99 })}>+99</Button></div>
-                <InputNumber min={0} value={entry.total || undefined} onChange={(value) => updateQueuedPurchase(entry.key, { total: value ?? 0 })} placeholder="0" />
+                <InputNumber min={0} value={entry.total || undefined} onChange={(value) => updateQueuedPurchase(entry.key, { total: value ?? 0 })} placeholder="ฟรี / 0" />
                 <Select value={entry.currency} onChange={(value) => updateQueuedPurchase(entry.key, { currency: value })} options={[{ value: 'THB', label: 'บาท' }, { value: 'G', label: 'G' }]} />
                 <Button type="text" danger aria-label="ลบบรรทัดนี้" icon={<DeleteOutlined />} onClick={() => removePurchaseLine(entry.key)} />
               </div>)}
             </div>
             <Button size="small" type="dashed" icon={<PlusOutlined />} onClick={addPurchaseLine} style={{ marginTop: 9 }}>เพิ่มบรรทัด</Button>
-            <div className="budget-purchase-save"><div><strong>{validQueuedPurchases.length} รายการพร้อมบันทึก</strong><span>เพิ่มสต็อกและประวัติซื้อเมื่อกดปุ่มนี้</span></div><Button type="primary" icon={<ShoppingCartOutlined />} loading={buying} disabled={!validQueuedPurchases.length} onClick={() => void saveQueuedPurchases()}>บันทึกทั้งหมด</Button></div>
+            <div className="budget-purchase-save"><div><strong>{validQueuedPurchases.length} รายการพร้อมบันทึก</strong><span>เกินงบได้ · ช่องจ่ายปล่อยว่างได้สำหรับของฟรี</span></div><Button type="primary" icon={<ShoppingCartOutlined />} loading={buying} disabled={!validQueuedPurchases.length} onClick={() => void saveQueuedPurchases()}>บันทึกทั้งหมด</Button></div>
           </Card>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -235,7 +240,7 @@ export function BudgetDraft({ stocks, recipes, itemNames, onStockChanged }: Budg
                 })}
               </Space>
             </Card>
-            <Card size="small" title="หลักการ"><Space direction="vertical" size={6}><Text style={{ fontSize: 12 }}><Tag color="blue">THB</Tag> และ <Tag color="purple">G</Tag> แยกงบ ไม่แปลงค่าเงิน</Text><Text style={{ fontSize: 12 }}>งบที่ตั้งไว้จะกันการซื้อเกินงบตั้งแต่ฝั่งฐานข้อมูล</Text><Text style={{ fontSize: 12 }}>การแก้ยอดสต็อกด้วยมือไม่สร้างรายการรายจ่าย</Text></Space></Card>
+            <Card size="small" title="หลักการ"><Space direction="vertical" size={6}><Text style={{ fontSize: 12 }}><Tag color="blue">THB</Tag> และ <Tag color="purple">G</Tag> แยกงบ ไม่แปลงค่าเงิน</Text><Text style={{ fontSize: 12 }}>งบใช้ติดตามยอดได้ แต่ไม่ล็อกการซื้อเมื่อเกินวงเงิน</Text><Text style={{ fontSize: 12 }}>ช่องจ่ายปล่อยว่างได้ ระบบบันทึกเป็น 0 สำหรับของฟรี</Text></Space></Card>
           </div>
         </div>
 
