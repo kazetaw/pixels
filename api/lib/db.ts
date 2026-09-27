@@ -345,6 +345,39 @@ export async function writeStocks(stocks: StockMap): Promise<void> {
   if (delErr) throw new Error(`writeStocks(delete): ${delErr.message}`);
 }
 
+/**
+ * Change one stock row only when it still has the quantity the editor loaded.
+ * This optimistic lock prevents an old browser tab from overwriting another
+ * user's later change to the same item.
+ */
+export async function patchStockItem(itemId: string, quantity: number | null, expectedQuantity: number | null) {
+  const db = getSupabase();
+  if (expectedQuantity === null) {
+    if (quantity === null) return null;
+    const { data, error } = await db.from('stocks').insert({ item_id: itemId, quantity })
+      .select('item_id, quantity').maybeSingle();
+    if (error) {
+      if (error.code === '23505') throw new Error('รายการนี้ถูกเพิ่มโดยคนอื่นแล้ว กรุณาโหลดข้อมูลใหม่');
+      throw new Error(`patchStock(insert): ${error.message}`);
+    }
+    return data;
+  }
+
+  if (quantity === null) {
+    const { data, error } = await db.from('stocks').delete().eq('item_id', itemId).eq('quantity', expectedQuantity)
+      .select('item_id').maybeSingle();
+    if (error) throw new Error(`patchStock(delete): ${error.message}`);
+    if (!data) throw new Error('รายการนี้ถูกแก้ไขโดยคนอื่นแล้ว กรุณาโหลดข้อมูลใหม่');
+    return null;
+  }
+
+  const { data, error } = await db.from('stocks').update({ quantity }).eq('item_id', itemId).eq('quantity', expectedQuantity)
+    .select('item_id, quantity').maybeSingle();
+  if (error) throw new Error(`patchStock(update): ${error.message}`);
+  if (!data) throw new Error('รายการนี้ถูกแก้ไขโดยคนอื่นแล้ว กรุณาโหลดข้อมูลใหม่');
+  return data;
+}
+
 /** Upsert a single stock item (used during BOM sync) */
 export async function upsertStockItem(itemId: string, quantity: number): Promise<void> {
   const db = getSupabase();

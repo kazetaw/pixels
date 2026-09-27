@@ -14,7 +14,7 @@ import {
   readMachines, readRecipes, readStocks, readStockImages,
   insertMachine, updateMachine as dbUpdateMachine, deleteMachine as dbDeleteMachine,
   insertRecipe, updateRecipe as dbUpdateRecipe, deleteRecipe as dbDeleteRecipe,
-  writeStocks, writeStockImages, getSupabase,
+  writeStocks, writeStockImages, patchStockItem, getSupabase,
   readBudgets, upsertBudget,
   readPurchases, insertPurchase,
   readFloorTimers, insertFloorTimer, patchFloorTimer,
@@ -408,6 +408,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (imageMap !== undefined) await writeStockImages(imageMap);
       return res.json({ ok: true });
     } catch (e) { return res.status(500).json({ error: (e as Error).message }); }
+  }
+
+  // PATCH /api/stocks/:item_id — optimistic, single-row stock update.
+  if (segments[0] === 'stocks' && segments[1] && method === 'PATCH') {
+    const itemId = segments[1];
+    const body = req.body as { quantity?: number | null; expected_quantity?: number | null };
+    const quantity = body?.quantity;
+    const expectedQuantity = body?.expected_quantity;
+    if ((quantity !== null && (!Number.isSafeInteger(quantity) || quantity < 0))
+      || (expectedQuantity !== null && (!Number.isSafeInteger(expectedQuantity) || expectedQuantity < 0))) {
+      return res.status(400).json({ error: 'จำนวนสต็อกต้องเป็นจำนวนเต็มตั้งแต่ 0 ขึ้นไป' });
+    }
+    if (quantity === undefined || expectedQuantity === undefined)
+      return res.status(400).json({ error: 'ต้องระบุจำนวนเดิมและจำนวนใหม่' });
+    try {
+      const result = await patchStockItem(itemId, quantity, expectedQuantity);
+      return res.json({ stock: result });
+    } catch (e) {
+      const message = (e as Error).message;
+      return res.status(message.includes('ถูกแก้ไขโดยคนอื่น') || message.includes('ถูกเพิ่มโดยคนอื่น') ? 409 : 500).json({ error: message });
+    }
   }
 
   // ── GET /api/stock-images ─────────────────────────────────────────────────────

@@ -29,10 +29,10 @@ interface StockInventoryProps {
   stockImages: StockImageMap;
   recipes: Recipe[];
   itemNames: Record<string, string>;
-  onSaveStocks: (stocks: StockMap) => Promise<void>;
+  onUpdateStock: (itemId: string, quantity: number | null, expectedQuantity: number | null) => Promise<void>;
 }
 
-export function StockInventory({ stocks, stockImages, recipes, itemNames, onSaveStocks }: StockInventoryProps) {
+export function StockInventory({ stocks, stockImages, recipes, itemNames, onUpdateStock }: StockInventoryProps) {
   const [search, setSearch] = useState('');
   const [stockFilter, setStockFilter] = useState<'available' | 'all' | 'empty'>('available');
   const [draftStocks, setDraftStocks] = useState<StockMap>(stocks);
@@ -69,7 +69,7 @@ export function StockInventory({ stocks, stockImages, recipes, itemNames, onSave
 
   const persist = async (key: string, next: StockMap) => {
     setSavingKey(key); setSaveError(null);
-    try { await onSaveStocks(next); }
+    try { await onUpdateStock(key, next[key] ?? null, stocks[key] ?? null); }
     catch (error) { setSaveError((error as Error).message || 'บันทึกสต็อกไม่สำเร็จ'); }
     finally { setSavingKey(undefined); }
   };

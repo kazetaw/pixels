@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { fetchAllData, saveStocks as apiSaveStocks, runCalculation } from '../api/client';
+import { fetchAllData, saveStocks as apiSaveStocks, patchStockItem as apiPatchStockItem, runCalculation } from '../api/client';
 import {
   Recipe,
   Machine,
@@ -30,6 +30,7 @@ export interface AppState {
   updateStock: (itemId: string, qty: number) => void;
   saveStocks: () => Promise<void>;
   replaceStocks: (stocks: StockMap) => Promise<void>;
+  patchStockItem: (itemId: string, quantity: number | null, expectedQuantity: number | null) => Promise<void>;
 
   // Calculation
   runCalculation: () => Promise<void>;
@@ -123,6 +124,15 @@ export function useAppState(): AppState {
     setStocks(nextStocks);
   }, [stockImages]);
 
+  const patchStockItem = useCallback(async (itemId: string, quantity: number | null, expectedQuantity: number | null) => {
+    await apiPatchStockItem(itemId, quantity, expectedQuantity);
+    setStocks((current) => {
+      const next = { ...current };
+      if (quantity === null) delete next[itemId]; else next[itemId] = quantity;
+      return next;
+    });
+  }, []);
+
   const calculate = useCallback(async () => {
     setLoading(true);
     setCalcError(null);
@@ -150,6 +160,7 @@ export function useAppState(): AppState {
     updateStock,
     saveStocks,
     replaceStocks,
+    patchStockItem,
     runCalculation: calculate,
     calculationResult,
     loading,

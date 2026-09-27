@@ -16,7 +16,10 @@ Open **SQL Editor** in Supabase Dashboard and paste + run the contents of:
 ```
 supabase/schema.sql
 ```
-This creates 4 tables: `machines`, `recipes`, `stocks`, `stock_images`.
+This creates the complete baseline: `machines`, `items`, `recipes`, `stocks`,
+`stock_images`, `floor_timers`, `shared_production_plans`, `budgets`, and
+`stock_purchases`. For an existing database, run each file in
+`supabase/migrations/` once in filename order.
 
 ### 1.3 Create the Storage bucket
 In Supabase Dashboard → **Storage** → New bucket:
@@ -117,7 +120,7 @@ Access the app at: http://localhost:3000
 
 ```
 pixels/
-├── api/                        ← Vercel Functions (all API routes)
+├── api/                        ← Vercel Functions
 │   ├── lib/
 │   │   ├── db.ts               ← Supabase client + CRUD helpers
 │   │   ├── types.ts            ← Shared TypeScript types
@@ -125,19 +128,7 @@ pixels/
 │   │   ├── names.ts            ← Name deduplication
 │   │   ├── time.ts             ← HH:MM:SS helpers
 │   │   └── cors.ts             ← CORS headers helper
-│   ├── recipes/
-│   │   ├── index.ts            ← GET + POST /api/recipes
-│   │   └── [id].ts             ← PUT + DELETE /api/recipes/:id
-│   ├── machines/
-│   │   ├── index.ts            ← GET + POST /api/machines
-│   │   └── [id].ts             ← PUT + DELETE /api/machines/:id
-│   ├── data.ts                 ← GET /api/data
-│   ├── stocks.ts               ← POST /api/stocks
-│   ├── stock-images.ts         ← GET /api/stock-images
-│   ├── calculate.ts            ← POST /api/calculate
-│   ├── plan.ts                 ← POST /api/plan
-│   ├── diagnose.ts             ← GET /api/diagnose
-│   ├── migrate.ts              ← POST /api/migrate
+│   ├── index.ts                ← API router
 │   └── upload-image.ts         ← POST /api/upload-image
 ├── frontend/                   ← React + Vite app (unchanged UI)
 ├── supabase/

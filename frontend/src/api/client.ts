@@ -31,6 +31,14 @@ export async function saveStocks(stocks: StockMap, images?: StockImageMap): Prom
   }));
 }
 
+/** Change a single stock row without replacing the shared stock list. */
+export async function patchStockItem(itemId: string, quantity: number | null, expectedQuantity: number | null): Promise<void> {
+  await handleResponse(await fetch(`/api/stocks/${itemId}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ quantity, expected_quantity: expectedQuantity }),
+  }));
+}
+
 export interface CatalogItem { item_id: string; name: string; image_url: string | null }
 
 /** Create raw stock materials in the shared catalog so references always use UUIDs. */

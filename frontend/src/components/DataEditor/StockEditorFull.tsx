@@ -9,7 +9,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { StockMap, StockImageMap, Recipe, Machine } from '../../types';
-import { createCatalogItem, renameCatalogItem, saveStocks, updateRecipe } from '../../api/client';
+import { createCatalogItem, patchStockItem, renameCatalogItem, updateRecipe } from '../../api/client';
 import { ImagePicker } from '../shared/ImagePicker';
 
 const { Text } = Typography;
@@ -52,16 +52,25 @@ interface AddModalProps {
   open: boolean;
   recipes: Recipe[];
   machines: Machine[];
+  itemNames: Record<string, string>;
   existingKeys: string[];
   onAdd: (key: string, qty: number, image?: string) => void | Promise<void>;
   onClose: () => void;
 }
 
-function AddItemModal({ open, recipes, machines, existingKeys, onAdd, onClose }: AddModalProps) {
+function AddItemModal({ open, recipes, machines, itemNames, existingKeys, onAdd, onClose }: AddModalProps) {
   const [form] = Form.useForm();
   const [mode, setMode] = useState<'raw' | 'recipe'>('raw');
   const [image, setImage] = useState<string | undefined>();
   const [adding, setAdding] = useState(false);
+  const rawName = Form.useWatch('raw_name', form) as string | undefined;
+
+  const existingCatalogItem = useMemo(() => {
+    const normalized = rawName?.trim().normalize('NFKC').toLocaleLowerCase('th');
+    if (!normalized) return undefined;
+    return Object.entries(itemNames).find(([, name]) =>
+      name.trim().normalize('NFKC').toLocaleLowerCase('th') === normalized);
+  }, [itemNames, rawName]);
 
   const recipeOptions = recipes
     .filter((r) => !existingKeys.includes(r.id))
@@ -78,21 +87,30 @@ function AddItemModal({ open, recipes, machines, existingKeys, onAdd, onClose }:
         key = values.recipe_id;
       } else {
         const rawName = values.raw_name.trim();
-        // duplicate check
         const norm = rawName.normalize('NFKC').toLocaleLowerCase('th');
-        const recipeIds = new Set(recipes.map((r) => r.id));
-        const conflict = [
-          ...recipes.map((r) => r.name),
-          ...machines.map((m) => m.machine_name),
-          ...existingKeys.filter((k) => !recipeIds.has(k)),
-        ].find((n) => n.trim().normalize('NFKC').toLocaleLowerCase('th') === norm);
-        if (conflict) {
-          form.setFields([{ name: 'raw_name', errors: [`ชื่อนี้ซ้ำกับ "${conflict}"`] }]);
-          setAdding(false);
-          return;
+        // The catalog is the single source of truth for an item. If a name
+        // already exists there but is not in stock yet, add that same item_id
+        // instead of creating a duplicate record (for example, ว่านหางจระเข้).
+        const existing = Object.entries(itemNames).find(([, name]) =>
+          name.trim().normalize('NFKC').toLocaleLowerCase('th') === norm);
+        if (existing) {
+          if (existingKeys.includes(existing[0])) {
+            form.setFields([{ name: 'raw_name', errors: [`"${existing[1]}" มีอยู่ในสต็อกแล้ว`] }]);
+            setAdding(false);
+            return;
+          }
+          key = existing[0];
+        } else {
+          const conflict = [...recipes.map((r) => r.name), ...machines.map((m) => m.machine_name)]
+            .find((n) => n.trim().normalize('NFKC').toLocaleLowerCase('th') === norm);
+          if (conflict) {
+            form.setFields([{ name: 'raw_name', errors: [`ชื่อนี้ซ้ำกับ "${conflict}"`] }]);
+            setAdding(false);
+            return;
+          }
+          const item = await createCatalogItem(rawName, image);
+          key = item.item_id;
         }
-        const item = await createCatalogItem(rawName, image);
-        key = item.item_id;
       }
 
       await onAdd(key, values.qty ?? 0, image);
@@ -132,7 +150,7 @@ function AddItemModal({ open, recipes, machines, existingKeys, onAdd, onClose }:
             value={mode}
             onChange={(v) => { setMode(v); form.resetFields(['raw_name', 'recipe_id']); }}
             options={[
-              { label: 'วัตถุดิบดิบ (พิมพ์ชื่อเอง)', value: 'raw' },
+              { label: 'วัตถุดิบดิบ (ค้นหาหรือพิมพ์ชื่อ)', value: 'raw' },
               { label: 'สินค้าจาก Recipe', value: 'recipe' },
             ]}
           />
@@ -144,8 +162,13 @@ function AddItemModal({ open, recipes, machines, existingKeys, onAdd, onClose }:
             name="raw_name"
             label="ชื่อวัตถุดิบ"
             rules={[{ required: true, message: 'กรุณากรอกชื่อ' }]}
+            extra={existingCatalogItem
+              ? existingKeys.includes(existingCatalogItem[0])
+                ? `รายการ "${existingCatalogItem[1]}" มีอยู่ในสต็อกแล้ว`
+                : `พบ "${existingCatalogItem[1]}" ในข้อมูลกลาง ระบบจะใช้รายการเดิม`
+              : 'หากมีชื่ออยู่ในข้อมูลกลาง ระบบจะใช้รายการเดิมอัตโนมัติ'}
           >
-            <Input placeholder="เช่น แร่เหล็ก, ใบไม้สีเขียว" autoFocus />
+            <Input placeholder="เช่น ว่านหางจระเข้, แร่เหล็ก" autoFocus />
           </Form.Item>
         )}
 
@@ -198,6 +221,7 @@ interface RowData {
 
 export function StockEditorFull({ stocks, stockImages, recipes, machines, itemNames, onSaved, onRecipeImageChanged, onItemRenamed }: StockEditorFullProps) {
   const [local, setLocal] = useState<StockMap>({ ...stocks });
+  const [loadedStocks, setLoadedStocks] = useState<StockMap>({ ...stocks });
   const [localImages, setLocalImages] = useState<StockImageMap>({ ...stockImages });
   const [search, setSearch] = useState('');
   const [addOpen, setAddOpen] = useState(false);
@@ -314,10 +338,16 @@ export function StockEditorFull({ stocks, stockImages, recipes, machines, itemNa
   const handleSave = async () => {
     setSaving(true);
     try {
-      await saveStocks(local, localImages);
+      const keys = new Set([...Object.keys(loadedStocks), ...Object.keys(local)]);
+      const changes = [...keys].filter((key) => local[key] !== loadedStocks[key]);
+      for (const key of changes) {
+        await patchStockItem(key, local[key] ?? null, loadedStocks[key] ?? null);
+      }
+      setLoadedStocks({ ...local });
       onSaved(local, localImages);
-      msgApi.success('บันทึกสต็อกสำเร็จ');
+      msgApi.success(changes.length ? `บันทึกสต็อก ${changes.length} รายการแล้ว` : 'ไม่มีรายการที่ต้องบันทึก');
     } catch (e: unknown) {
+      await onItemRenamed();
       msgApi.error((e as Error).message ?? 'บันทึกไม่สำเร็จ');
     } finally {
       setSaving(false);
@@ -452,6 +482,7 @@ export function StockEditorFull({ stocks, stockImages, recipes, machines, itemNa
         open={addOpen}
         recipes={recipes}
         machines={machines}
+        itemNames={itemNames}
         existingKeys={Object.keys(local)}
         onAdd={handleAdd}
         onClose={() => setAddOpen(false)}
