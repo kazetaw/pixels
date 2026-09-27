@@ -1,11 +1,13 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Recipe, Machine, StockMap, StockImageMap, AppData } from '../../types';
 import { fetchAllData } from '../../api/client';
-import { LockOutlined } from '@ant-design/icons';
+import { BarChartOutlined, LockOutlined } from '@ant-design/icons';
+import { Button } from 'antd';
 import { RecipeEditor } from './RecipeEditor';
 import { StockEditorFull } from './StockEditorFull';
 import { MachineEditor } from './MachineEditor';
 import { BudgetDraft } from './BudgetDraft';
+import { StockContributionSummary } from './StockContributionSummary';
 
 interface DataEditorProps {
   initialRecipes: Recipe[];
@@ -26,6 +28,7 @@ export function DataEditor({ initialRecipes, initialMachines, initialStocks, ini
   const [stockImages, setStockImages] = useState<StockImageMap>(initialStockImages);
   const [itemNames, setItemNames] = useState<Record<string, string>>(initialItemNames);
   const [reloading, setReloading] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
 
   // ── Budget PIN lock ────────────────────────────────────────────────────────
   const BUDGET_PIN = '7774';
@@ -104,20 +107,18 @@ export function DataEditor({ initialRecipes, initialMachines, initialStocks, ini
   return (
     <div>
       {/* Sub-tabs */}
-      <nav className="tab-nav">
-        {tabs.map(({ key, label }) => (
-          <button
-            key={key}
-            onClick={() => setTab(key)}
-            className={tab === key ? 'active' : ''}
-          >
-            {label}
-            {reloading && tab === key && (
-              <span style={{ fontSize: 11, color: '#94a3b8', marginLeft: 6 }}>โหลด…</span>
-            )}
-          </button>
-        ))}
-      </nav>
+      <div className="data-editor-toolbar">
+        <nav className="tab-nav">
+          {tabs.map(({ key, label }) => (
+            <button key={key} onClick={() => setTab(key)} className={tab === key ? 'active' : ''}>
+              {label}
+              {reloading && tab === key && <span style={{ fontSize: 11, color: '#94a3b8', marginLeft: 6 }}>โหลด…</span>}
+            </button>
+          ))}
+        </nav>
+        <Button icon={<BarChartOutlined />} onClick={() => setSummaryOpen(true)}>สรุปการเติมสต็อก</Button>
+      </div>
+      <StockContributionSummary open={summaryOpen} onClose={() => setSummaryOpen(false)} recipes={recipes} itemNames={itemNames} />
 
       {/* Content */}
       {tab === 'recipes' && (

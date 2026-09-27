@@ -497,6 +497,23 @@ export async function readPurchases(): Promise<PurchaseRow[]> {
   return (data ?? []) as PurchaseRow[];
 }
 
+/** Read the complete purchase log in pages for stock-contribution summaries. */
+export async function readAllPurchases(): Promise<PurchaseRow[]> {
+  const db = getSupabase();
+  const pageSize = 1000;
+  const rows: PurchaseRow[] = [];
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await db
+      .from('stock_purchases')
+      .select('id, item_id, quantity, total_amount, currency, source, contributor, purchased_at')
+      .order('purchased_at', { ascending: false })
+      .range(from, from + pageSize - 1);
+    if (error) throw new Error(`readAllPurchases: ${error.message}`);
+    rows.push(...((data ?? []) as PurchaseRow[]));
+    if ((data ?? []).length < pageSize) return rows;
+  }
+}
+
 /** Insert a purchase and increment the corresponding stock item */
 export async function insertPurchase(p: Omit<PurchaseRow, 'id' | 'purchased_at'>): Promise<PurchaseRow> {
   const db = getSupabase();

@@ -16,7 +16,7 @@ import {
   insertRecipe, updateRecipe as dbUpdateRecipe, deleteRecipe as dbDeleteRecipe,
   writeStocks, writeStockImages, patchStockItem, getSupabase,
   readBudgets, upsertBudget,
-  readPurchases, insertPurchase,
+  readPurchases, readAllPurchases, insertPurchase,
   readFloorTimers, insertFloorTimer, patchFloorTimer,
   readSharedPlannerPlan, writeSharedPlannerPlan,
   createCatalogItem, renameCatalogItem, updateCatalogItemImage,
@@ -650,7 +650,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     // GET /api/purchases
     if (method === 'GET') {
-      try { return res.json(await readPurchases()); }
+      try { return res.json(req.query.all === '1' ? await readAllPurchases() : await readPurchases()); }
       catch (e) { return res.status(500).json({ error: (e as Error).message }); }
     }
     // POST /api/purchases — log a purchase and increment stock

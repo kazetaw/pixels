@@ -88,6 +88,11 @@ export async function createStockPurchase(input: Omit<StockPurchase, 'id' | 'pur
   }));
 }
 
+/** Complete stock purchase log for the contributor summary. */
+export async function fetchAllStockPurchases(): Promise<StockPurchase[]> {
+  return handleResponse<StockPurchase[]>(await fetch('/api/purchases?all=1'));
+}
+
 export async function editStockPurchase(expected: StockPurchase, changes: Omit<StockPurchase, 'id'>, pin: string): Promise<StockPurchase> {
   return handleResponse(await fetch(`/api/purchases/${expected.id}`, {
     method: 'PUT', headers: { 'Content-Type': 'application/json' },
