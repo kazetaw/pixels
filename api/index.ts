@@ -367,12 +367,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!name) return res.status(400).json({ error: 'ชื่อรายการต้องไม่ว่าง' });
     try {
       const [recipes, machines, catalogRows] = await Promise.all([
-        readRecipes(), readMachines(), getSupabase().from('items').select('name'),
+        readRecipes(), readMachines(), getSupabase().from('items').select('item_id, name, image_url'),
       ]);
       if (catalogRows.error) throw new Error(`readItems: ${catalogRows.error.message}`);
       const normalized = normalizeName(name);
       const existing = (catalogRows.data ?? []).find((item) => normalizeName(item.name) === normalized);
-      if (existing) return res.status(409).json({ error: `มีรายการชื่อ "${existing.name}" อยู่แล้ว` });
+      // Creating a catalog item is idempotent. A matching name means this
+      // browser should reuse the central item, not fail or create a duplicate.
+      if (existing) return res.status(200).json(existing);
       const conflict = findNameConflict(name, { recipes, machines, stocks: {} });
       if (conflict) return res.status(409).json({ error: duplicateNameError(conflict) });
       return res.status(201).json(await createCatalogItem({ item_id: randomUUID(), name, image_url: body.image }));
