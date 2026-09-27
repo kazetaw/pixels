@@ -1,12 +1,13 @@
 import { ItemLabel, itemSelectVisuals } from '../shared/ItemVisual';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Button, Popconfirm, Select } from 'antd';
-import { ArrowLeftOutlined, PlayCircleOutlined } from '@ant-design/icons';
+import { Alert, Button, Popconfirm, Select, message } from 'antd';
+import { ArrowLeftOutlined, DownloadOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import type { Recipe, Machine, PlanRequest, PlanResponse, PlannerFloorRow, SharedPlannerPlan } from '../../types';
 import { fetchSharedPlannerPlan, runPlan, saveSharedPlannerPlan } from '../../api/client';
 import { PlanSummary } from './PlanSummary';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { groupFloorRows, recipesForOccupation } from './planPresentation';
+import { exportPlanToExcel } from './planExcelExport';
 
 interface ProductionPlannerProps {
   recipes: Recipe[];
@@ -30,7 +31,9 @@ export function ProductionPlanner({ recipes, stocks, machines = [], mode = 'loca
   const [result, setResult] = useState<{ data: PlanResponse; key: string } | null>(null);
   const [view, setView] = useState<'configure' | 'summary'>('configure');
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [messageApi, messageContext] = message.useMessage();
   const [sharedState, setSharedState] = useState<'loading' | 'saved' | 'saving' | 'error'>(mode === 'shared' ? 'loading' : 'saved');
   const [sharedError, setSharedError] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<string>();
@@ -110,26 +113,49 @@ export function ProductionPlanner({ recipes, stocks, machines = [], mode = 'loca
     setFloors((current) => current.map((floor) => floor.floor_number === number ? { ...floor, ...patch } : floor));
     setError(null);
   };
-  const calculate = async () => {
-    if (!assigned.length) { setError('เลือกสูตรอย่างน้อย 1 ชั้นก่อนคำนวณ'); return; }
+  const currentPlanRequest = (): PlanRequest | null => {
+    if (!assigned.length) { setError('เลือกสูตรอย่างน้อย 1 ชั้นก่อนคำนวณ'); return null; }
     if (!Number.isFinite(totalHours) || eventDays < 1 || totalHours <= 0) {
-      setError('กำหนดระยะเวลา Event อย่างน้อย 1 วัน'); return;
+      setError('กำหนดระยะเวลา Event อย่างน้อย 1 วัน'); return null;
     }
     const valid = new Set(recipesForOccupation(recipes, machines, '').map((recipe) => recipe.id));
     const invalid = assigned.filter((floor) => !valid.has(floor.recipe_id));
-    if (invalid.length) { setError(`กรุณาเลือกสูตรที่มีเวลาผลิตใหม่สำหรับชั้น ${invalid.map((floor) => floor.floor_number).join(', ')}`); return; }
+    if (invalid.length) { setError(`กรุณาเลือกสูตรที่มีเวลาผลิตใหม่สำหรับชั้น ${invalid.map((floor) => floor.floor_number).join(', ')}`); return null; }
+    return { event_days: eventDays, event_hours: eventHours, event_minutes: eventMinutes,
+      slots_per_floor: SLOTS_PER_FLOOR, floor_assignments: assigned.map(({ floor_number, recipe_id }) => ({ floor_number, recipe_id })) };
+  };
+  const calculate = async () => {
+    const request = currentPlanRequest();
+    if (!request) return;
     setLoading(true); setError(null);
     try {
-      const request: PlanRequest = { event_days: eventDays, event_hours: eventHours, event_minutes: eventMinutes,
-        slots_per_floor: SLOTS_PER_FLOOR, floor_assignments: assigned.map(({ floor_number, recipe_id }) => ({ floor_number, recipe_id })) };
       const data = await runPlan(request);
       setResult({ data, key: dataKey });
       setView('summary');
     } catch (err) { setError((err as Error).message || 'คำนวณไม่สำเร็จ กรุณาลองอีกครั้ง'); }
     finally { setLoading(false); }
   };
+  const exportExcel = async () => {
+    const request = currentPlanRequest();
+    if (!request) return;
+    setExporting(true); setError(null);
+    try {
+      // Always recalculate before export so the workbook matches the shared
+      // floor assignments currently visible on screen.
+      const data = await runPlan(request);
+      setResult({ data, key: dataKey });
+      await exportPlanToExcel(data, Object.fromEntries(floors.map((floor) => [floor.floor_number, floor.occupation])));
+      messageApi.success('ดาวน์โหลดไฟล์ Excel จากแผนล่าสุดแล้ว');
+    } catch (err) {
+      const detail = (err as Error).message || 'สร้างไฟล์ Excel ไม่สำเร็จ';
+      setError(detail); messageApi.error(detail);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return <div className="production-planner">
+    {messageContext}
     {isShared && <div className={`planner-shared-status planner-shared-status--${sharedState}`} role="status">
       {sharedState === 'loading' && 'กำลังโหลดแผนส่วนกลาง…'}
       {sharedState === 'saving' && 'กำลังบันทึกแผนให้ทุกคน…'}
@@ -143,7 +169,13 @@ export function ProductionPlanner({ recipes, stocks, machines = [], mode = 'loca
         <button type="button" aria-pressed={view === 'configure'} onClick={() => setView('configure')}>กำหนดชั้น <span>{assigned.length}/{TOTAL_FLOORS}</span></button>
         <button type="button" aria-pressed={view === 'summary'} disabled={!result} onClick={() => setView('summary')}>ผลการคำนวณ {stale && <span>ต้องคำนวณใหม่</span>}</button>
       </nav>
-      {view === 'summary' && <Button icon={<ArrowLeftOutlined />} onClick={() => setView('configure')}>แก้ไขแผน</Button>}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+        <Button icon={<DownloadOutlined />} loading={exporting} disabled={!assigned.length || loading}
+          title={!assigned.length ? 'เลือกสูตรอย่างน้อย 1 ชั้นก่อน Export' : 'คำนวณแผนล่าสุดและดาวน์โหลด Excel'} onClick={() => void exportExcel()}>
+          Export Excel
+        </Button>
+        {view === 'summary' && <Button icon={<ArrowLeftOutlined />} onClick={() => setView('configure')}>แก้ไขแผน</Button>}
+      </div>
     </div>
     {error && <Alert type="error" showIcon message={error} />}
     {stale && <Alert type="warning" showIcon message="แผนหรือข้อมูลเปลี่ยนแล้ว ผลด้านล่างยังเป็นรอบก่อนหน้า" action={<Button loading={loading} onClick={() => void calculate()}>คำนวณใหม่</Button>} />}
