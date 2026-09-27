@@ -1,11 +1,11 @@
 import { itemSelectVisuals } from '../shared/ItemVisual';
 import { useEffect, useState, useMemo } from 'react';
 import {
-  Table, Button, Input, InputNumber, Select, Modal, Form,
+  Table, Button, Input, Select, Modal, Form,
   Popconfirm, Tag, Space, message, Typography,
 } from 'antd';
 import {
-  PlusOutlined, DeleteOutlined, SearchOutlined, SaveOutlined, EditOutlined,
+  PlusOutlined, DeleteOutlined, SearchOutlined, EditOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { StockMap, StockImageMap, Recipe, Machine } from '../../types';
@@ -56,7 +56,7 @@ interface AddModalProps {
   machines: Machine[];
   itemNames: Record<string, string>;
   existingKeys: string[];
-  onAdd: (key: string, qty: number, image?: string) => void | Promise<void>;
+  onAdd: (key: string, image?: string) => void | Promise<void>;
   onClose: () => void;
 }
 
@@ -115,7 +115,7 @@ function AddItemModal({ open, recipes, machines, itemNames, existingKeys, onAdd,
         }
       }
 
-      await onAdd(key, values.qty ?? 0, image);
+      await onAdd(key, image);
       form.resetFields();
       setImage(undefined);
       setMode('raw');
@@ -192,11 +192,6 @@ function AddItemModal({ open, recipes, machines, itemNames, existingKeys, onAdd,
           </Form.Item>
         )}
 
-        {/* Quantity */}
-        <Form.Item name="qty" label="จำนวนเริ่มต้น" initialValue={0}>
-          <InputNumber min={0} style={{ width: '100%' }} />
-        </Form.Item>
-
         {/* Image */}
         <Form.Item label="รูปภาพ (ไม่บังคับ)">
           <ImagePicker
@@ -227,7 +222,6 @@ export function StockEditorFull({ stocks, stockImages, recipes, machines, itemNa
   const [localImages, setLocalImages] = useState<StockImageMap>({ ...stockImages });
   const [search, setSearch] = useState('');
   const [addOpen, setAddOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [renameTarget, setRenameTarget] = useState<RowData | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [renaming, setRenaming] = useState(false);
@@ -267,10 +261,6 @@ export function StockEditorFull({ stocks, stockImages, recipes, machines, itemNa
       qty: local[k] ?? 0,
       image: recipeForStockItem(recipes, k)?.image ?? localImages[k],
     }));
-
-  const handleQtyChange = (key: string, val: number | null) => {
-    setLocal((prev) => ({ ...prev, [key]: val ?? 0 }));
-  };
 
   const handleImageChange = async (key: string, img: string | undefined) => {
     const recipe = recipeForStockItem(recipes, key);
@@ -344,8 +334,13 @@ export function StockEditorFull({ stocks, stockImages, recipes, machines, itemNa
     }
   };
 
-  const handleAdd = async (key: string, qty: number, image?: string) => {
-    setLocal((prev) => ({ ...prev, [key]: qty }));
+  const handleAdd = async (key: string, image?: string) => {
+    // Stock rows are created at zero. Quantity can only increase through a
+    // budget purchase, keeping the stock balance and expense history aligned.
+    await patchStockItem(key, 0, null);
+    const nextStocks = { ...local, [key]: 0 };
+    setLocal(nextStocks);
+    setLoadedStocks(nextStocks);
     const recipe = recipeForStockItem(recipes, key);
     if (image && recipe) {
       const updated = await updateRecipe(recipe.id, {
@@ -361,26 +356,8 @@ export function StockEditorFull({ stocks, stockImages, recipes, machines, itemNa
       setLocalImages((prev) => ({ ...prev, [key]: image }));
       onStockImageChanged(key, image);
     }
-    msgApi.success('เพิ่มรายการแล้ว');
-  };
-
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      const keys = new Set([...Object.keys(loadedStocks), ...Object.keys(local)]);
-      const changes = [...keys].filter((key) => local[key] !== loadedStocks[key]);
-      for (const key of changes) {
-        await patchStockItem(key, local[key] ?? null, loadedStocks[key] ?? null);
-      }
-      setLoadedStocks({ ...local });
-      onSaved(local, localImages);
-      msgApi.success(changes.length ? `บันทึกสต็อก ${changes.length} รายการแล้ว` : 'ไม่มีรายการที่ต้องบันทึก');
-    } catch (e: unknown) {
-      await onItemRenamed();
-      msgApi.error((e as Error).message ?? 'บันทึกไม่สำเร็จ');
-    } finally {
-      setSaving(false);
-    }
+    onSaved(nextStocks, localImages);
+    msgApi.success('เพิ่มรายการที่จำนวน 0 แล้ว กรุณาเพิ่มจำนวนผ่านงบประมาณ');
   };
 
   const columns: ColumnsType<RowData> = [
@@ -428,15 +405,7 @@ export function StockEditorFull({ stocks, stockImages, recipes, machines, itemNa
       dataIndex: 'qty',
       width: 140,
       align: 'right',
-      render: (_, row) => (
-        <InputNumber
-          min={0}
-          value={local[row.key] ?? 0}
-          onChange={(v) => handleQtyChange(row.key, v)}
-          style={{ width: 100 }}
-          size="small"
-        />
-      ),
+      render: (_, row) => <Text strong>{(local[row.key] ?? 0).toLocaleString('th-TH')}</Text>,
     },
     {
       title: '',
@@ -486,13 +455,7 @@ export function StockEditorFull({ stocks, stockImages, recipes, machines, itemNa
         >
           เพิ่มรายการ
         </Button>
-        <Button
-          icon={<SaveOutlined />}
-          loading={saving}
-          onClick={handleSave}
-        >
-          บันทึกสต็อก
-        </Button>
+        <Text type="secondary" style={{ fontSize: 12 }}>จำนวนเพิ่มได้จากแท็บงบประมาณเท่านั้น</Text>
       </Space>
 
       {/* Table */}

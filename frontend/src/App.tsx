@@ -666,7 +666,6 @@ export default function App() {
     removeTargetItem,
     updateStock,
     saveStocks,
-    patchStockItem,
     runCalculation,
     calculationResult,
     loading,
@@ -856,7 +855,6 @@ export default function App() {
               stockImages={stockImages}
               itemNames={itemNames}
               recipes={recipes}
-              onUpdateStock={patchStockItem}
             />
             </div>
           )}
