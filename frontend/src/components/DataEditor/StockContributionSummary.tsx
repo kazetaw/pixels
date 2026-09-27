@@ -7,6 +7,12 @@ import { ItemLabel } from '../shared/ItemVisual';
 
 const { Text } = Typography;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const CONTRIBUTOR_AVATARS: Record<string, string> = {
+  'ตวัน': '/avatars/contributors/tawan.png',
+  'ตะเอ๊ย': '/avatars/contributors/taoei.png',
+  'ป้วย': '/avatars/contributors/puay.png',
+  'เอี๊ยม': '/avatars/contributors/iam.png',
+};
 
 interface ContributorItem {
   itemId: string;
@@ -96,7 +102,12 @@ export function StockContributionSummary({ open, onClose, recipes, itemNames }: 
       : <Collapse className="stock-contribution-groups" defaultActiveKey={groups.slice(0, 1).map((group) => group.name)}
         items={groups.map((group) => ({
           key: group.name,
-          label: <div className="stock-contribution-person"><span className="stock-contribution-avatar">{group.name.slice(0, 1)}</span><div><strong>{group.name}</strong><span>{group.items.size} สินค้า · {group.entries} ครั้ง</span></div></div>,
+          label: <div className="stock-contribution-person">
+            {CONTRIBUTOR_AVATARS[group.name]
+              ? <img className="stock-contribution-avatar" src={CONTRIBUTOR_AVATARS[group.name]} alt={`รูป ${group.name}`} />
+              : <span className="stock-contribution-avatar">{group.name.slice(0, 1)}</span>}
+            <div><strong>{group.name}</strong><span>{group.items.size} สินค้า · {group.entries} ครั้ง</span></div>
+          </div>,
           extra: <div className="stock-contribution-total"><strong>+{group.quantity.toLocaleString('th-TH')}</strong><span>ชิ้น</span></div>,
           children: <div className="stock-contribution-items">
             <div className="stock-contribution-item-head"><span>สินค้า</span><span>แหล่งที่มา</span><span>จำนวนรวม</span></div>
