@@ -5,6 +5,7 @@ import type { StockPurchase } from '../../types';
 import { editStockPurchase } from '../../api/client';
 import { BudgetPinModal } from './BudgetPinModal';
 import { itemSelectVisuals } from '../shared/ItemVisual';
+import { PURCHASE_SOURCE_OPTIONS } from './purchaseOptions';
 
 function localDate(value: string) {
   const d = new Date(value);
@@ -69,7 +70,7 @@ export function PurchaseEditButton({ purchase, itemNames, onSaved }: {
         </Form.Item>
         <Typography.Text type="secondary">ต้นทุน/ชิ้น: {quantity > 0 ? (amount / quantity).toLocaleString('th-TH', { maximumFractionDigits: 3 }) : '—'} {currency}</Typography.Text>
         <Form.Item name="contributor" label="งบจาก"><Input maxLength={200} /></Form.Item>
-        <Form.Item name="source" label="แหล่งซื้อ"><Input maxLength={500} /></Form.Item>
+        <Form.Item name="source" label="แหล่งซื้อ"><Select allowClear placeholder="เลือกแหล่งที่มา" options={[...PURCHASE_SOURCE_OPTIONS]} /></Form.Item>
         <Form.Item name="purchased_at" label="วันและเวลาที่ซื้อ" rules={[{ required: true }]}>
           <Input type="datetime-local" step="1" />
         </Form.Item>

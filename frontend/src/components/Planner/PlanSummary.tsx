@@ -1,11 +1,12 @@
 import { ItemLabel } from '../shared/ItemVisual';
 import { useMemo, useState } from 'react';
-import { Button, Checkbox, Drawer, Empty, Input, Table } from 'antd';
-import { CheckCircleOutlined, RightOutlined, SearchOutlined, WarningOutlined } from '@ant-design/icons';
+import { Button, Checkbox, Drawer, Empty, Input, Table, message } from 'antd';
+import { CheckCircleOutlined, DownloadOutlined, RightOutlined, SearchOutlined, WarningOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { BomTreeNode, PlanResponse, FloorPlanResult } from '../../types';
 import { BomTree } from './BomTree';
 import { formatPlanDuration, groupFloorRows, summarizeProducts } from './planPresentation';
+import { exportPlanToExcel } from './planExcelExport';
 
 type SummaryView = 'overview' | 'floors' | 'occupations' | 'raw' | 'intermediate';
 interface MaterialRow { key: string; name: string; needed: number; available: number; shortfall: number }
@@ -48,6 +49,8 @@ function MaterialTable({ rows, type }: { rows: MaterialRow[]; type: 'raw' | 'int
 export function PlanSummary({ result, occupationByFloor = {} }: { result: PlanResponse; occupationByFloor?: Record<number, string> }) {
   const [view, setView] = useState<SummaryView>('overview');
   const [selected, setSelected] = useState<FloorPlanResult | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [messageApi, messageContext] = message.useMessage();
   const products = useMemo(() => summarizeProducts(result.floor_results), [result]);
   const floors = useMemo(() => [...result.floor_results].sort((a, b) => a.floor_number - b.floor_number), [result]);
   const raw: MaterialRow[] = result.raw_materials.map((row) => ({ key: row.item_id, name: row.item_name, needed: row.total_needed, available: row.in_stock, shortfall: row.net_required }));
@@ -72,9 +75,25 @@ export function PlanSummary({ result, occupationByFloor = {} }: { result: PlanRe
     { title: 'จำนวน (ชิ้น)', dataIndex: 'quantity', align: 'right', width: 120, render: (value) => <strong>{number(value)}</strong> },
   ];
 
+  const exportExcel = async () => {
+    setExporting(true);
+    try {
+      await exportPlanToExcel(result, occupationByFloor);
+      messageApi.success('ดาวน์โหลดไฟล์ Excel แล้ว');
+    } catch (error) {
+      messageApi.error((error as Error).message || 'สร้างไฟล์ Excel ไม่สำเร็จ');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return <div className="plan-summary">
+    {messageContext}
     <div className="plan-summary-heading"><div><h3>สรุปแผนการผลิต</h3><p>Event {formatPlanDuration(result.event_total_hours)} · {number(result.event_total_hours)} ชั่วโมง</p></div>
-      <span className={`plan-status ${hasShortfall ? 'plan-status--warning' : 'plan-status--ok'}`}>{hasShortfall ? <WarningOutlined /> : <CheckCircleOutlined />}{hasShortfall ? 'มีรายการที่ต้องจัดหาเพิ่ม' : 'วัตถุดิบครบตามผลคำนวณ'}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+        <Button icon={<DownloadOutlined />} loading={exporting} onClick={() => void exportExcel()}>Export Excel</Button>
+        <span className={`plan-status ${hasShortfall ? 'plan-status--warning' : 'plan-status--ok'}`}>{hasShortfall ? <WarningOutlined /> : <CheckCircleOutlined />}{hasShortfall ? 'มีรายการที่ต้องจัดหาเพิ่ม' : 'วัตถุดิบครบตามผลคำนวณ'}</span>
+      </div>
     </div>
     <dl className="plan-metrics">
       <div><dt>ผลผลิตรวมทุกชั้น</dt><dd>{number(totalOutput)} <small>ชิ้น</small></dd><span>ก่อนหักส่วนที่ใช้ผลิตต่อ</span></div>

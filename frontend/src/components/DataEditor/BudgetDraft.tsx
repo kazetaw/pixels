@@ -7,6 +7,7 @@ import { Budget, Currency, Recipe, StockMap, StockPurchase } from '../../types';
 import { createStockPurchase, fetchBudgetData, saveBudget } from '../../api/client';
 import { BudgetPinModal } from './BudgetPinModal';
 import { PurchaseEditButton } from './PurchaseEditButton';
+import { PURCHASE_SOURCE_OPTIONS } from './purchaseOptions';
 
 const { Text } = Typography;
 const currencies: Currency[] = ['THB', 'G'];
@@ -175,7 +176,10 @@ export function BudgetDraft({ stocks, recipes, itemNames, onStockChanged }: Budg
               <label><span className="budget-field-label">จ่ายทั้งหมด</span><InputNumber min={0} value={total} onChange={(value) => setTotal(value ?? 0)} style={{ width: '100%' }} /></label>
               <label><span className="budget-field-label">สกุลเงิน</span><Select value={currency} onChange={setCurrency} options={[{ value: 'THB', label: 'THB · บาท' }, { value: 'G', label: 'G · เหรียญเกม' }]} style={{ width: '100%' }} /></label>
             </div>
-            <label style={{ display: 'block', marginBottom: 14 }}><span className="budget-field-label">แหล่งซื้อ / หมายเหตุ</span><Input value={source} onChange={(event) => setSource(event.target.value)} placeholder={currency === 'THB' ? 'เช่น ตลาด' : 'เช่น ร้านค้าในเกม'} /></label>
+            <label style={{ display: 'block', marginBottom: 14 }}>
+              <span className="budget-field-label">แหล่งซื้อ</span>
+              <Select value={source || undefined} onChange={(value) => setSource(value)} placeholder="เลือกแหล่งที่มา" options={[...PURCHASE_SOURCE_OPTIONS]} style={{ width: '100%' }} />
+            </label>
             <label style={{ display: 'block', marginBottom: 14 }}>
               <span className="budget-field-label">งบจาก (ผู้ให้งบ)</span>
               <Input value={contributor} onChange={(event) => setContributor(event.target.value)} placeholder="เช่น แม่, กองกลาง, ส่วนตัว" />
