@@ -1,3 +1,4 @@
+import { DailyTargets } from './DailyTargets';
 import { fetchAssignments, type ContributorAssignment } from '../../api/client';
 import { useEffect, useState } from 'react';
 import { Alert, Modal } from 'antd';
@@ -13,6 +14,11 @@ interface OrganizationChartProps {
   itemNames?: Record<string, string>;
   nameToId?: Record<string, string>;
 }
+
+const WAREHOUSE_WITHDRAWAL_ITEMS = [
+  'เห็ดพิษ', 'นมแกะ', 'เนย', 'ไส้เดือนดิน', 'ขี้ไก่', 'ไข่หนอนผีเสื้อ',
+  'ละอองผีเสื้อ', 'ดิน', 'โซดา', 'ก้อนโคลน', 'น้ำกรด', 'เมล็ดพืชพันธุ์ดี',
+];
 
 // ── Occupation colours ────────────────────────────────────────────────────────
 
@@ -221,6 +227,15 @@ export function OrganizationChart({ stocks = {}, itemNames = {}, nameToId = {} }
       <div className="org-team-grid">
         {members.map((p) => <MemberCard key={p.name} profile={p} {...cardProps} />)}
       </div>
+      {!loadError && <DailyTargets assignments={assignments} stocks={stocks} itemNames={itemNames} />}
+      <aside className="org-warehouse-note" aria-labelledby="org-warehouse-note-title">
+        <h3 id="org-warehouse-note-title">รายการที่เบิกจากคลังได้</h3>
+        <ul>
+          {WAREHOUSE_WITHDRAWAL_ITEMS.map(name => <li key={name}>
+            <ItemLabel id={nameToId[name] ?? name} name={name} size={28} reserveImage />
+          </li>)}
+        </ul>
+      </aside>
     </section>
   );
 }

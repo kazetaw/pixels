@@ -324,6 +324,10 @@ body {
 
 /* ── New org-chart ──────────────────────────────────────────────────── */
 .org-chart { padding: 4px 0 40px; }
+.org-warehouse-note { margin-top: 28px; padding: 20px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; }
+.org-warehouse-note h3 { margin: 0 0 14px; font-size: 15px; color: #1e3a8a; }
+.org-warehouse-note ul { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); gap: 12px 20px; list-style: none; margin: 0; padding: 0; }
+.org-warehouse-note li { min-width: 0; overflow-wrap: anywhere; }
 
 /* CEO row */
 .org-ceo-row { display: flex; justify-content: center; margin-bottom: 0; }
@@ -981,3 +985,12 @@ body {
 .budget-purchase-save .purchase-save-button:not(:disabled):hover { background: #1d4ed8 !important; border-color: #1d4ed8 !important; box-shadow: 0 3px 8px #2563eb26; }
 .budget-purchase-save .purchase-save-button:focus-visible { outline: 3px solid #93c5fd; outline-offset: 3px; }
 .budget-purchase-save .purchase-save-button:disabled { color: #64748b !important; background: #e2e8f0 !important; border-color: #cbd5e1 !important; box-shadow: none; cursor: not-allowed; }
+
+.org-daily-targets { margin-top: 24px; padding: 20px; background: white; border: 1px solid #dbeafe; border-radius: 12px; }
+.org-daily-targets h3 { margin: 0; color: #1e3a8a; }
+.org-daily-targets p { color: #64748b; font-size: 13px; }
+.org-deadline-form { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin: 16px 0; }
+.org-deadline-form label { display: grid; gap: 6px; max-width: 100%; }
+.org-daily-list { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,240px),1fr)); gap: 16px; }
+.org-daily-list article { min-width: 0; display: grid; gap: 8px; padding: 14px; background: #f8fafc; border-radius: 8px; overflow-wrap: anywhere; }
+.org-daily-list small { color: #64748b; }

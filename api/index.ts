@@ -177,6 +177,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (segments[0] === 'assignments') {
     try {
       const db = getSupabase();
+      if (segments[1] === 'deadline') {
+        if (method === 'GET') {
+          const { data, error } = await db.from('assignment_settings').select('deadline').eq('id', 'default').maybeSingle();
+          if (error) throw error;
+          return res.json({ deadline: data?.deadline ?? null });
+        }
+        if (method === 'PUT') {
+          const deadline = req.body?.deadline;
+          if (typeof deadline !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(deadline)
+            || !Number.isFinite(Date.parse(deadline)) || new Date(deadline).toISOString().slice(0, 10) !== deadline)
+            return res.status(400).json({ error: 'วันครบกำหนดไม่ถูกต้อง' });
+          const { error } = await db.from('assignment_settings').upsert({ id: 'default', deadline });
+          if (error) throw error;
+          return res.json({ deadline });
+        }
+        return res.status(405).json({ error: 'Method not allowed' });
+      }
       if (method === 'GET') {
         const { data, error } = await db.from('contributor_assignments').select('*').order('contributor');
         if (error) throw error;

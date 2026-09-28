@@ -214,3 +214,9 @@ create table if not exists public.contributor_assignments (
 );
 alter table public.contributor_assignments enable row level security;
 -- Access through the server API using its service role only.
+
+create table if not exists public.assignment_settings (
+  id text primary key check (id = 'default'),
+  deadline date not null
+);
+alter table public.assignment_settings enable row level security;
