@@ -1,3 +1,4 @@
+import { Withdrawals } from './components/Withdrawals/Withdrawals';
 import { ItemVisualProvider } from './components/shared/ItemVisual';
 import { useEffect, useState } from 'react';
 import {
@@ -51,9 +52,10 @@ import type { SaveStatus } from './hooks/useAppState';
 
 const { Sider, Content } = Layout;
 
-type MainView = 'assignments' | 'planner' | 'shared-planner' | 'production-flow' | 'data' | 'inventory' | 'floors' | 'targets' | 'budget' | 'organization';
+type MainView = 'withdrawals' | 'assignments' | 'planner' | 'shared-planner' | 'production-flow' | 'data' | 'inventory' | 'floors' | 'targets' | 'budget' | 'organization';
 
 const NAV_ITEMS = [
+  { key: 'withdrawals', icon: <InboxOutlined />, label: 'เบิกสินค้า' },
   { key: 'assignments', icon: <TeamOutlined />, label: 'มอบหมายงาน' },
   {
     key: 'planner',
@@ -731,6 +733,10 @@ export default function App() {
   // A compact share link for teammates who only need to check the current stock.
   // It intentionally renders the same Inventory component and app data, without
   // exposing the surrounding navigation UI.
+  if (window.location.pathname.replace(/\/+$/, '') === '/admin') {
+    return <ItemVisualProvider recipes={recipes} machines={_machines} stockImages={stockImages} itemNames={itemNames}><main className="page-content"><Withdrawals admin onData={applyData} /></main></ItemVisualProvider>;
+  }
+
   if (publicInventory) {
     return <ItemVisualProvider recipes={recipes} machines={_machines} stockImages={stockImages} itemNames={itemNames}>
       <main className="public-inventory-page">
@@ -831,6 +837,7 @@ export default function App() {
             overflowY: 'auto',
           }}
         >
+          {view === 'withdrawals' && <div className="page-content"><Withdrawals onData={applyData} /></div>}
           {view === 'data' && (
             <div className="page-content">
               <div className="page-head-with-action">

@@ -174,6 +174,57 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } catch (e) { return res.status(500).json({ error: (e as Error).message }); }
   }
 
+  if (segments[0] === 'withdrawals') {
+    try {
+      const db = getSupabase();
+      if (segments[1] === 'catalog') {
+        if (method === 'GET') {
+          const { data, error } = await db.from('withdrawal_catalog').select('item_id,enabled');
+          if (error) throw error;
+          return res.json(data);
+        }
+        if (method === 'PUT') {
+          const { item_id, enabled } = req.body ?? {};
+          if (typeof item_id !== 'string' || typeof enabled !== 'boolean') return res.status(400).json({ error: 'ข้อมูลสินค้าไม่ถูกต้อง' });
+          const { data: stock, error: stockError } = await db.from('stocks').select('item_id').eq('item_id', item_id).maybeSingle();
+          if (stockError) throw stockError;
+          if (!stock && enabled) return res.status(400).json({ error: 'ไม่พบรายการในสต็อก' });
+          const { error } = await db.from('withdrawal_catalog').upsert({ item_id, enabled });
+          if (error) throw error;
+          return res.json({ ok: true });
+        }
+        return res.status(405).json({ error: 'Method not allowed' });
+      }
+      if (method === 'GET') {
+        const { data, error } = await db.from('withdrawals').select('*, withdrawal_lines(*)').order('created_at', { ascending: false });
+        if (error) throw error;
+        return res.json(data);
+      }
+      if (method === 'POST') {
+        const { id, character_id, note, lines, requester_name, recipient_name } = req.body ?? {};
+        if (typeof requester_name !== 'string' || !requester_name.trim() || requester_name.length > 100
+          || typeof recipient_name !== 'string' || !recipient_name.trim() || recipient_name.length > 100
+          || typeof id !== 'string' || !/^[0-9a-f-]{36}$/i.test(id) || typeof character_id !== 'string' || !/^\d{1,30}$/.test(character_id)
+          || typeof note !== 'string' || note.length > 1000 || !Array.isArray(lines) || !lines.length || lines.length > 50
+          || lines.some(l => !l || typeof l.item_id !== 'string' || !Number.isSafeInteger(l.quantity) || l.quantity <= 0 || l.quantity > 2147483647))
+          return res.status(400).json({ error: 'กรุณาระบุไอดีตัวละคร สินค้า และจำนวนเต็มมากกว่า 0' });
+        const { data: allowed, error: allowedError } = await db.from('withdrawal_catalog').select('item_id').eq('enabled', true);
+        if (allowedError) throw allowedError;
+        if (lines.some(l => !allowed?.some(a => a.item_id === l.item_id))) return res.status(400).json({ error: 'สินค้านี้ไม่เปิดให้เบิก' });
+        const { error } = await db.rpc('create_withdrawal', { p_id: id, p_character: character_id, p_note: note, p_lines: lines, p_requester: requester_name, p_recipient: recipient_name });
+        if (error) throw error;
+        return res.json({ id });
+      }
+      if (method === 'PATCH' && segments[1]) {
+        if (!['sent', 'cancelled'].includes(req.body?.status)) return res.status(400).json({ error: 'สถานะไม่ถูกต้อง' });
+        const { error } = await db.rpc('finish_withdrawal', { p_id: segments[1], p_status: req.body.status });
+        if (error) throw error;
+        return res.json({ ok: true });
+      }
+      return res.status(405).json({ error: 'Method not allowed' });
+    } catch (e) { return res.status(400).json({ error: (e as Error).message }); }
+  }
+
   if (segments[0] === 'assignments') {
     try {
       const db = getSupabase();

@@ -6,6 +6,10 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
+      '/api/withdrawals': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
       '/api/data': {
         // The local editor needs this read-only endpoint for its catalogue.
         // Keep write endpoints local so localhost cannot accidentally change production data.

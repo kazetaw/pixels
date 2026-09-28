@@ -994,3 +994,19 @@ body {
 .org-daily-list { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,240px),1fr)); gap: 16px; }
 .org-daily-list article { min-width: 0; display: grid; gap: 8px; padding: 14px; background: #f8fafc; border-radius: 8px; overflow-wrap: anywhere; }
 .org-daily-list small { color: #64748b; }
+
+.org-target-warning { padding: 8px 10px; background: #fffbeb; color: #92400e; border-radius: 6px; font-size: 12px; overflow-wrap: anywhere; }
+.org-target-warning.is-complete { background: #f0fdf4; color: #166534; }
+.org-chart > .org-daily-targets { margin: 0 0 24px; }
+
+.withdrawals { display: grid; gap: 16px; max-width: 1000px; margin: auto; }
+.withdrawal-form { display: grid; gap: 14px; min-width: 0; border: 1px solid #dbeafe; padding: 16px; border-radius: 10px; background: white; }
+.withdrawal-form label { display: grid; gap: 6px; }
+.withdrawal-line { display: grid; grid-template-columns: minmax(0,1fr) 110px auto auto; gap: 8px; }
+.withdrawal-line small { grid-column: 1/-1; color: #64748b; }
+.withdrawal-line .ant-input-number { width: 100%; }
+.withdrawal-toolbar, .withdrawal-ticket header, .withdrawal-ticket-line { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.withdrawal-toolbar .ant-input { width: min(100%,240px); }
+.withdrawal-ticket { background: white; border: 1px solid #e2e8f0; padding: 16px; border-radius: 10px; overflow-wrap: anywhere; }
+.withdrawal-ticket-line { justify-content: space-between; margin: 12px 0; }
+@media(max-width:540px) { .withdrawal-line { grid-template-columns: minmax(0,1fr) auto auto; } .withdrawal-line .ant-select { grid-column: 1/-1; } }

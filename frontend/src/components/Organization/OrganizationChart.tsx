@@ -1,6 +1,7 @@
+import { dailyTargets } from './dailyTargetMath';
 import { DailyTargets } from './DailyTargets';
 import { fetchAssignments, type ContributorAssignment } from '../../api/client';
-import { useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { Alert, Modal } from 'antd';
 import { UnorderedListOutlined } from '@ant-design/icons';
 import { contributorLabel, CONTRIBUTOR_PROFILES, type ContributorProfile } from '../shared/contributors';
@@ -14,6 +15,8 @@ interface OrganizationChartProps {
   itemNames?: Record<string, string>;
   nameToId?: Record<string, string>;
 }
+
+const TargetContext = createContext<{ days: number | null; totals: ReturnType<typeof dailyTargets> }>({ days: null, totals: [] });
 
 const WAREHOUSE_WITHDRAWAL_ITEMS = [
   'เห็ดพิษ', 'นมแกะ', 'เนย', 'ไส้เดือนดิน', 'ขี้ไก่', 'ไข่หนอนผีเสื้อ',
@@ -56,8 +59,14 @@ function AvatarCircle({ profile, size = 56 }: { profile: ContributorProfile; siz
 // ── Assignment row (used inside modal) ───────────────────────────────────────
 
 function AssignmentRow({ itemId, label, inStock, target }: { itemId: string; label: string; inStock: number; target: number }) {
-  const pct = target > 0 ? Math.min(100, Math.round((inStock / target) * 100)) : 0;
-  const done = inStock >= target;
+  const { days, totals } = useContext(TargetContext);
+  const total = totals.find(row => row.id === itemId);
+  const shared = !!total && total.target > target;
+  const combinedTarget = total?.target ?? target;
+  const remaining = Math.max(0, combinedTarget - inStock);
+  const daily = days && days > 0 ? Math.ceil(remaining / days) : null;
+  const pct = combinedTarget > 0 ? Math.min(100, Math.round((inStock / combinedTarget) * 100)) : 0;
+  const done = inStock >= combinedTarget;
   return (
     <div className="org-assignment">
       <div className="org-assignment-header">
@@ -65,8 +74,13 @@ function AssignmentRow({ itemId, label, inStock, target }: { itemId: string; lab
         <span className="org-assignment-count" style={{ color: done ? '#16a34a' : '#dc2626' }}>
           {inStock.toLocaleString('th-TH')}
           <span className="org-assignment-sep">/</span>
-          <strong>{target.toLocaleString('th-TH')}</strong>
+          <strong>{combinedTarget.toLocaleString('th-TH')}</strong>
         </span>
+      </div>
+      {shared && <small>รับผิดชอบ {target.toLocaleString()} ชิ้น · ตัวเลขด้านบนเป็นคลัง / เป้ารวมทีม</small>}
+      <div className={`org-target-warning${done ? ' is-complete' : ''}`} role="status">
+        {done ? '✓ คลังครบเป้าแล้ว' : <>ยังขาด {remaining.toLocaleString()} ชิ้น{shared ? ' (รวมทีม)' : ''} · {days === null ? 'ตั้งวันครบกำหนดเพื่อดูขั้นต่ำต่อวัน' : daily === null ? 'ถึงกำหนดแล้ว ต้องเติมให้ครบ' : <>ขั้นต่ำ <strong>{daily.toLocaleString()} ชิ้น/วัน</strong> ({Math.floor(daily / 99).toLocaleString()} กอง + {daily % 99} ชิ้น)</>}</>}
+        {shared && !done && <div>เป้าร่วมกับผู้รับผิดชอบคนอื่น · ขั้นต่ำนี้เป็นยอดรวมทีม ไม่ต้องทำซ้ำทุกคน</div>}
       </div>
       <div className="org-assignment-bar" aria-label={`${pct}%`}>
         <div className={`org-assignment-fill${done ? ' is-done' : ''}`} style={{ width: `${pct}%` }} />
@@ -209,6 +223,7 @@ function MemberCard({
 export function OrganizationChart({ stocks = {}, itemNames = {}, nameToId = {} }: OrganizationChartProps) {
   const [assignments, setAssignments] = useState<ContributorAssignment[]>([]);
   const [loadError, setLoadError] = useState('');
+  const [days, setDays] = useState<number | null>(null);
   useEffect(() => { fetchAssignments().then(setAssignments).catch(e => setLoadError(e.message)); }, []);
   const profiles = CONTRIBUTOR_PROFILES.map(profile => ({ ...profile, assignments: assignments.filter(a => a.contributor === profile.name).map(a => ({ item_id: a.item_id, label: itemNames[a.item_id] || 'ไม่พบชื่อสินค้า', target: a.target })) }));
   const ceo = profiles.find((p) => p.name === 'เอี๊ยม');
@@ -216,8 +231,9 @@ export function OrganizationChart({ stocks = {}, itemNames = {}, nameToId = {} }
   const cardProps = { stocks, itemNames, nameToId };
 
   return (
-    <section className="org-chart" aria-label="ผังทีม Pixel Factory">
+    <TargetContext.Provider value={{ days, totals: dailyTargets(assignments, stocks, days ?? 0) }}><section className="org-chart" aria-label="ผังทีม Pixel Factory">
       {loadError && <Alert type="error" message="โหลดงานส่วนกลางไม่สำเร็จ" description={loadError} />}
+      <DailyTargets onDaysChange={setDays} />
       {ceo && (
         <div className="org-ceo-row">
           <MemberCard profile={ceo} isCeo {...cardProps} />
@@ -227,7 +243,6 @@ export function OrganizationChart({ stocks = {}, itemNames = {}, nameToId = {} }
       <div className="org-team-grid">
         {members.map((p) => <MemberCard key={p.name} profile={p} {...cardProps} />)}
       </div>
-      {!loadError && <DailyTargets assignments={assignments} stocks={stocks} itemNames={itemNames} />}
       <aside className="org-warehouse-note" aria-labelledby="org-warehouse-note-title">
         <h3 id="org-warehouse-note-title">รายการที่เบิกจากคลังได้</h3>
         <ul>
@@ -236,6 +251,6 @@ export function OrganizationChart({ stocks = {}, itemNames = {}, nameToId = {} }
           </li>)}
         </ul>
       </aside>
-    </section>
+    </section></TargetContext.Provider>
   );
 }
