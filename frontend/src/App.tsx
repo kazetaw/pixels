@@ -412,6 +412,7 @@ function SidebarContent({
         selectedKeys={[view]}
         onClick={({ key }) => {
           setView(key as MainView);
+          window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
           onNavClick?.();
         }}
         items={NAV_ITEMS}
@@ -949,7 +950,13 @@ export default function App() {
                 title="ผังบริษัท"
                 sub="สมาชิกทีม Pixel Factory"
               />
-              <OrganizationChart />
+              <OrganizationChart
+                stocks={stocks}
+                itemNames={itemNames}
+                nameToId={Object.fromEntries(
+                  Object.entries(itemNames).map(([id, name]) => [name, id])
+                )}
+              />
             </div>
           )}
         </Content>
