@@ -24,3 +24,9 @@ Regression: install `@electric-sql/pglite` in a temporary directory, then run
 `PGLITE_MODULE=/path/to/node_modules/@electric-sql/pglite node scripts/tests/withdrawals.cjs`.
 The organization deadline is fixed to 2026-10-29; assignment_settings is no longer
 needed by its UI.
+
+### Withdrawal history and availability
+Run `20260929_04_withdrawal_dashboard.sql` before deploying the new paginated
+withdrawal API. The RPC returns 10 receipts per page, global filter choices, and
+available quantities computed from all pending reservations (independent of the
+current search/page). It does not modify inventory.

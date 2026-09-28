@@ -196,7 +196,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(405).json({ error: 'Method not allowed' });
       }
       if (method === 'GET') {
-        const { data, error } = await db.from('withdrawals').select('*, withdrawal_lines(*)').order('created_at', { ascending: false });
+        const params = new URL(req.url ?? '', 'http://localhost').searchParams;
+        const page = Number(params.get('page') ?? 1);
+        if (!Number.isSafeInteger(page) || page < 1 || page > 1000000) return res.status(400).json({ error: 'เลขหน้าไม่ถูกต้อง' });
+        const { data, error } = await db.rpc('withdrawal_dashboard', {
+          p_page: page, p_query: (params.get('q') ?? '').trim().slice(0, 200),
+          p_status: params.get('status') ?? '', p_person: params.get('person') ?? '', p_item: params.get('item') ?? '',
+        });
         if (error) throw error;
         return res.json(data);
       }

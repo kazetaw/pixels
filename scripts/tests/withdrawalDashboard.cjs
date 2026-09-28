@@ -1,0 +1,17 @@
+const {PGlite}=require(process.env.PGLITE_MODULE || '@electric-sql/pglite');
+const fs=require('node:fs');const assert=require('node:assert/strict');
+(async()=>{const db=new PGlite();
+await db.exec("create role anon;create role authenticated;create role service_role;create table items(item_id text primary key,name text);create table stocks(item_id text primary key,quantity integer);insert into items values('a','เห็ดพิษ');insert into stocks values('a',5000);");
+for(const file of ['01_withdrawals','02_withdrawal_catalog','03_withdrawal_people','04_withdrawal_dashboard']) await db.exec(fs.readFileSync(`supabase/migrations/20260929_${file}.sql`,'utf8'));
+await db.exec("insert into withdrawals(id,character_id,requester_name,recipient_name) select ('00000000-0000-0000-0000-'||lpad(n::text,12,'0'))::uuid,'3236','ตวัน','ตัวรอง' from generate_series(1,1205) n;insert into withdrawal_lines select id,'a',1 from withdrawals;");
+const get=async(page=1,q='',status='',person='',item='')=>(await db.query('select withdrawal_dashboard($1,$2,$3,$4,$5) result',[page,q,status,person,item])).rows[0].result;
+let r=await get();assert.equal(r.total,1205);assert.equal(r.tickets.length,10);assert.equal(r.availability.a,3795);
+const next=await get(2);assert.equal(next.tickets.length,10);assert.notEqual(r.tickets[0].id,next.tickets[0].id);
+assert.equal((await get(121)).tickets.length,5);
+assert.equal((await get(1,'เห็ดพิษ','pending','ตวัน','a')).matched,1205);
+assert.equal((await get(1,'ไม่มี')).matched,0);
+assert.equal((await get(1,'','sent')).matched,0);
+assert.equal((await get(1,'','sent')).availability.a,3795);
+assert.deepEqual(r.people,['ตวัน']);assert.deepEqual(r.products,['a']);
+await db.close();console.log('PASS dashboard: 1,205 receipts, pagination, search, filters, global reservation count independent of filters');
+})().catch(e=>{console.error(e);process.exitCode=1});
