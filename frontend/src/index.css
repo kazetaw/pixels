@@ -437,7 +437,7 @@ body {
 .org-assignment-header {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
   gap: 8px;
 }
 .org-assignment-name {

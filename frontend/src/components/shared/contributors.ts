@@ -34,7 +34,7 @@ export const CONTRIBUTOR_PROFILES: ContributorProfile[] = [
     memberId: '85865',
     avatar: '/avatars/contributors/pam.png',
     flipAvatar: true,
-    occupations: ['เชฟ'],
+    occupations: ['เชฟ','ทุกอาชีพ'],
     role: 'ตำราเครื่องดื่มและขนม',
 assignments: [
       { item_id: 'ขนมโมจิ', label: 'ขนมโมจิ', target: 693 },
@@ -60,25 +60,23 @@ assignments: [
     memberId: '3236',
     avatar: '/avatars/contributors/tawan.png',
     occupations: ['เชฟ'],
-    role: 'ช็อคโกแลต',
-        assignments: [
-      { item_id: 'คลิปท่าเต้นสไตล์ใหม่', label: 'คลิปท่าเต้นสไตล์ใหม่', target: 693 },
-    ],
+    role: 'ฟามของมอน และ ทำช็อค และซัพพอร์ต',
+       
   },
   {
     name: 'ตะเอ๊ย',
     memberId: '11612',
     avatar: '/avatars/contributors/taoei.png',
-    occupations: ['ไอดอล'],
+    occupations: ['ไอดอล','ทุกอาชีพ','วิศวะกร','หมอ'],
     role: '',
     assignments: [
       { item_id: 'คลิปท่าเต้นสไตล์ใหม่', label: 'คลิปท่าเต้นสไตล์ใหม่', target: 693 },
     ],
   },
-  {
-    name: 'ต้วมเตี้ยม',
-    memberId: '19928',
-  },
+  // {
+  //   name: 'ต้วมเตี้ยม',
+  //   memberId: '19928',
+  // },
 ];
 
 export const CONTRIBUTOR_NAMES = CONTRIBUTOR_PROFILES.map((p) => p.name);

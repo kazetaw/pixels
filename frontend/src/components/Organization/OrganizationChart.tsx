@@ -4,6 +4,7 @@ import { Alert, Modal } from 'antd';
 import { UnorderedListOutlined } from '@ant-design/icons';
 import { contributorLabel, CONTRIBUTOR_PROFILES, type ContributorProfile } from '../shared/contributors';
 import { OCCUPATION_IMAGE } from '../shared/OccupationSelect';
+import { ItemLabel } from '../shared/ItemVisual';
 import type { Occupation } from '../shared/OccupationSelect';
 import type { StockMap } from '../../types';
 
@@ -48,13 +49,13 @@ function AvatarCircle({ profile, size = 56 }: { profile: ContributorProfile; siz
 
 // ── Assignment row (used inside modal) ───────────────────────────────────────
 
-function AssignmentRow({ label, inStock, target }: { label: string; inStock: number; target: number }) {
+function AssignmentRow({ itemId, label, inStock, target }: { itemId: string; label: string; inStock: number; target: number }) {
   const pct = target > 0 ? Math.min(100, Math.round((inStock / target) * 100)) : 0;
   const done = inStock >= target;
   return (
     <div className="org-assignment">
       <div className="org-assignment-header">
-        <span className="org-assignment-name">{label}</span>
+        <span className="org-assignment-name"><ItemLabel id={itemId} name={label} size={36} reserveImage /></span>
         <span className="org-assignment-count" style={{ color: done ? '#16a34a' : '#dc2626' }}>
           {inStock.toLocaleString('th-TH')}
           <span className="org-assignment-sep">/</span>
@@ -119,6 +120,7 @@ function AssignmentModal({
           {assignments.map((a) => (
             <AssignmentRow
               key={a.item_id}
+              itemId={a.item_id}
               label={itemNames[a.item_id] ?? a.label}
               inStock={resolveStock(a.item_id)}
               target={a.target}

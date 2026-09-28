@@ -17,6 +17,11 @@ export default defineConfig({
         target: 'https://backoffice-pixel.vercel.app',
         changeOrigin: true,
       },
+      '/api/assignments': {
+        // Assignments are shared with the deployed app, like the shared planner.
+        target: 'https://backoffice-pixel.vercel.app',
+        changeOrigin: true,
+      },
     },
   },
 });
