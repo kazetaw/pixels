@@ -1010,3 +1010,44 @@ body {
 .withdrawal-ticket { background: white; border: 1px solid #e2e8f0; padding: 16px; border-radius: 10px; overflow-wrap: anywhere; }
 .withdrawal-ticket-line { justify-content: space-between; margin: 12px 0; }
 @media(max-width:540px) { .withdrawal-line { grid-template-columns: minmax(0,1fr) auto auto; } .withdrawal-line .ant-select { grid-column: 1/-1; } }
+
+/* Compact withdrawal entry: reveal custom recipient fields only when needed. */
+.withdrawals { max-width: 760px; gap: 12px; }
+.withdrawals > h2 { margin: 0; }
+.withdrawal-intro { margin: 0 0 4px; color: #64748b; font-size: 13px; }
+.withdrawal-people { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid #f1f5f9; }
+.withdrawal-people > label { width: 170px; max-width: 100%; font-size: 13px; }
+.withdrawal-recipient-id { color: #64748b; font-size: 13px; padding-bottom: 8px; }
+.withdrawal-custom-recipient { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.withdrawal-items-heading { display: grid; grid-template-columns: minmax(0,1fr) 110px 60px 44px; gap: 8px; font-size: 12px; color: #64748b; }
+.withdrawal-line { grid-template-columns: minmax(0,1fr) 110px 60px 44px; }
+.withdrawal-line small { margin-top: -4px; font-size: 11px; }
+.withdrawal-add { justify-self: start; }
+.withdrawal-note summary, .withdrawal-ticket-details summary, .withdrawal-ticket > summary { cursor: pointer; color: #475569; font-size: 13px; padding: 6px 0; }
+.withdrawal-note textarea { margin-top: 8px; }
+.withdrawal-submit { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; border-top: 1px solid #e2e8f0; padding-top: 14px; }
+.withdrawal-submit > span { font-size: 12px; color: #64748b; }
+.withdrawal-ticket small { color: #64748b; font-size: 12px; }
+.withdrawal-ticket header { justify-content: space-between; margin-bottom: 6px; }
+@media(max-width:540px) { .withdrawal-people { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); } .withdrawal-people > label { width: auto; min-width: 0; } .withdrawal-recipient-id { grid-column: 1/-1; padding: 0; } .withdrawal-items-heading { display: none; } .withdrawal-line { grid-template-columns: minmax(0,1fr) 60px 44px; } .withdrawal-line .ant-select { grid-column: 1/-1; } }
+
+.withdrawal-history-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 12px; }
+.withdrawal-history-heading h3 { margin: 0; }
+.withdrawal-history-heading small { font-size: 12px; font-weight: 400; color: #64748b; }
+.withdrawal-history-filters { display: grid; grid-template-columns: minmax(0,2fr) repeat(3,minmax(0,1fr)); gap: 8px; }
+.withdrawal-history-filters > * { min-width: 0; }
+@media(max-width:700px) { .withdrawal-history-filters { grid-template-columns: repeat(2,minmax(0,1fr)); } .withdrawal-history-filters > .ant-input-search { grid-column: 1/-1; } }
+
+.withdrawal-title { display: flex; align-items: center; gap: 10px; }
+.withdrawal-person-label { display: inline-flex; align-items: center; gap: 7px; min-width: 0; max-width: 100%; vertical-align: middle; }
+.withdrawal-person-label > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.withdrawal-person-label .ant-avatar img { object-fit: contain; }
+.withdrawal-form { border-color: #e4ddf7; border-radius: 16px; }
+.withdrawal-people { background: #faf8ff; padding: 12px; border-radius: 12px; border: 0; }
+.withdrawal-ticket { border-radius: 14px; }
+.withdrawal-ticket-recipient { display: grid; gap: 2px; min-width: 0; }
+.withdrawal-ticket-recipient > small { padding-left: 43px; }
+.withdrawal-ticket-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin: 8px 0; font-size: 12px; }
+.withdrawals .item-thumbnail { border-radius: 9px; background: #f5f8ff; }
+.withdrawals .ant-tag { border-radius: 20px; padding-inline: 10px; }
+.withdrawal-ticket-details { border-top: 1px dashed #e2e8f0; margin-top: 10px; padding-top: 4px; }
