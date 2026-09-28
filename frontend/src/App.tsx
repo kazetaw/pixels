@@ -1,5 +1,5 @@
 import { ItemVisualProvider } from './components/shared/ItemVisual';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Layout,
   Menu,
@@ -30,6 +30,7 @@ import {
   CloseCircleFilled,
   TeamOutlined,
   ApartmentOutlined,
+  LockOutlined,
 } from '@ant-design/icons';
 
 import { useAppState } from './hooks/useAppState';
@@ -663,6 +664,39 @@ export default function App() {
   const [view, setView] = useState<MainView>(() => isInventoryPath() ? 'inventory' : 'data');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [bomOpen, setBomOpen] = useState(false);
+  const [orgUnlocked, setOrgUnlocked] = useState(false);
+  const [orgPinDigits, setOrgPinDigits] = useState(['', '', '', '']);
+  const [orgPinError, setOrgPinError] = useState(false);
+  const orgPinRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const ORG_PIN = '7774';
+
+  const handleOrgPinDigit = (index: number, value: string) => {
+    const digit = value.replace(/\D/g, '').slice(-1);
+    const next = [...orgPinDigits];
+    next[index] = digit;
+    setOrgPinDigits(next);
+    setOrgPinError(false);
+    if (digit && index < 3) orgPinRefs.current[index + 1]?.focus();
+    if (digit && index === 3) {
+      if ([...next].join('') === ORG_PIN) {
+        setOrgUnlocked(true);
+        setOrgPinDigits(['', '', '', '']);
+      } else {
+        setOrgPinError(true);
+        setTimeout(() => {
+          setOrgPinDigits(['', '', '', '']);
+          setOrgPinError(false);
+          orgPinRefs.current[0]?.focus();
+        }, 600);
+      }
+    }
+  };
+
+  const handleOrgPinKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace' && !orgPinDigits[index] && index > 0) {
+      orgPinRefs.current[index - 1]?.focus();
+    }
+  };
 
   useEffect(() => {
     const updateRoute = () => {
@@ -950,13 +984,65 @@ export default function App() {
                 title="ผังบริษัท"
                 sub="สมาชิกทีม Pixel Factory"
               />
-              <OrganizationChart
-                stocks={stocks}
-                itemNames={itemNames}
-                nameToId={Object.fromEntries(
-                  Object.entries(itemNames).map(([id, name]) => [name, id])
-                )}
-              />
+              {orgUnlocked ? (
+                <OrganizationChart
+                  stocks={stocks}
+                  itemNames={itemNames}
+                  nameToId={Object.fromEntries(
+                    Object.entries(itemNames).map(([id, name]) => [name, id])
+                  )}
+                />
+              ) : (
+                <div style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center',
+                  justifyContent: 'center', padding: '72px 24px', gap: 20,
+                }}>
+                  <LockOutlined style={{ fontSize: 32, color: '#94a3b8' }} />
+                  <div style={{ textAlign: 'center' }}>
+                    <p style={{ fontWeight: 600, fontSize: 15, color: '#0f172a', margin: 0 }}>Admin เท่านั้น</p>
+                    <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>ใส่ PIN เพื่อเข้าดูผังบริษัท</p>
+                  </div>
+                  <div style={{ display: 'flex', gap: 14 }}>
+                    {orgPinDigits.map((digit, i) => (
+                      <div key={i} style={{ position: 'relative', width: 52, height: 52 }}>
+                        <input
+                          ref={(el) => { orgPinRefs.current[i] = el; }}
+                          type="password"
+                          inputMode="numeric"
+                          maxLength={1}
+                          value={digit}
+                          autoFocus={i === 0}
+                          onChange={(e) => handleOrgPinDigit(i, e.target.value)}
+                          onKeyDown={(e) => handleOrgPinKeyDown(i, e)}
+                          style={{
+                            position: 'absolute', inset: 0,
+                            width: '100%', height: '100%',
+                            opacity: 0, cursor: 'text', zIndex: 1,
+                          }}
+                        />
+                        <div style={{
+                          width: 52, height: 52, borderRadius: '50%',
+                          border: `2px solid ${orgPinError ? '#ef4444' : digit ? '#6366f1' : '#cbd5e1'}`,
+                          background: orgPinError ? '#fef2f2' : digit ? '#eef2ff' : '#f8fafc',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          transition: 'border-color 0.15s, background 0.15s',
+                        }}>
+                          {digit && (
+                            <div style={{
+                              width: 12, height: 12, borderRadius: '50%',
+                              background: orgPinError ? '#ef4444' : '#6366f1',
+                              transition: 'background 0.15s',
+                            }} />
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {orgPinError && (
+                    <p style={{ fontSize: 12, color: '#ef4444', margin: 0 }}>PIN ไม่ถูกต้อง</p>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </Content>
