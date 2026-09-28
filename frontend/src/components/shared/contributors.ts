@@ -48,6 +48,7 @@ assignments: [
   {
     name: 'เนย',
     memberId: '223391',
+    avatar: '/avatars/contributors/noey.png',
     occupations: ['ไอดอล', 'เกษตร'],
   },
   {
