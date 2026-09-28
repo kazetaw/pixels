@@ -6,7 +6,7 @@ import type { Recipe, Machine, PlanRequest, PlanResponse, PlannerFloorRow, Share
 import { fetchSharedPlannerPlan, runPlan, saveSharedPlannerPlan } from '../../api/client';
 import { PlanSummary } from './PlanSummary';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
-import { groupFloorRows, recipesForOccupation } from './planPresentation';
+import { groupFloorRows, recipesForOccupation, machinesForOccupation, plannerMachineId } from './planPresentation';
 import { exportPlanToExcel } from './planExcelExport';
 
 interface ProductionPlannerProps {
@@ -58,6 +58,10 @@ export function ProductionPlanner({ recipes, stocks, machines = [], mode = 'loca
   const optionsByOccupation = useMemo(() => new Map(['', ...occupations].map((occupation) => [occupation,
     recipesForOccupation(recipes, machines, occupation).map((recipe) => ({ value: recipe.id, label: recipe.name, time: recipe.time_per_unit })),
   ])), [recipes, machines, occupations]);
+  const machinesByOccupation = useMemo(() => new Map(['', ...occupations].map(occupation => [occupation,
+    machinesForOccupation(machines, occupation).map(machine => ({ value: machine.machine_id,
+      label: `${machine.machine_name} · ชั้น ${machine.floor_number}` })),
+  ])), [machines, occupations]);
   const dataKey = useMemo(() => JSON.stringify([floors, eventDays, eventHours, eventMinutes, recipes, stocks]),
     [floors, eventDays, eventHours, eventMinutes, recipes, stocks]);
   const stale = !!result && result.key !== dataKey;
@@ -194,28 +198,48 @@ export function ProductionPlanner({ recipes, stocks, machines = [], mode = 'loca
         <span className="planner-duration-total">รวม {totalHours.toLocaleString('th-TH', { maximumFractionDigits: 2 })} ชั่วโมง</span>
       </section>
 
-      <div className="planner-assignment-grid">
-        {groups.map((group) => <section className="planner-floor-group" key={group[0].floor_number} aria-label={`กำหนดชั้น ${group[0].floor_number} ถึง ${group[group.length - 1].floor_number}`}>
+      <div className={`planner-assignment-grid${isShared ? ' planner-assignment-grid--machines' : ''}`}>
+        {groups.map((group) => <section className={`planner-floor-group${isShared ? ' planner-floor-group--machines' : ''}`} key={group[0].floor_number} aria-label={`กำหนดชั้น ${group[0].floor_number} ถึง ${group[group.length - 1].floor_number}`}>
           <div className="planner-group-heading"><h4>ชั้น {group[0].floor_number}–{group[group.length - 1].floor_number}</h4><span>{group.filter((floor) => floor.recipe_id).length}/{group.length} ชั้น</span></div>
-          <div className="planner-entry-labels" aria-hidden="true"><span>ชั้น</span><span>อาชีพ</span><span>สูตรการผลิต</span></div>
-          {group.map((floor) => <div className={`planner-entry-row${floor.recipe_id ? ' is-assigned' : ''}`} key={floor.floor_number}>
+          <div className="planner-entry-labels" aria-hidden="true"><span>ชั้น</span><span>อาชีพ</span>{isShared && <span>เครื่องจักร</span>}<span>สูตรการผลิต</span></div>
+          {group.map((floor) => {
+            const selectedMachineId = isShared ? plannerMachineId(floor, recipes) : '';
+            const recipeOptions = isShared
+              ? recipesForOccupation(recipes, machines, floor.occupation, selectedMachineId).map(recipe => ({ value: recipe.id, label: recipe.name, time: recipe.time_per_unit }))
+              : optionsByOccupation.get(floor.occupation) ?? optionsByOccupation.get('') ?? [];
+            return <div className={`planner-entry-row${floor.recipe_id ? ' is-assigned' : ''}`} key={floor.floor_number}>
             <span className="planner-floor-number">{String(floor.floor_number).padStart(2, '0')}</span>
             <Select {...itemSelectVisuals} aria-label={`อาชีพชั้น ${floor.floor_number}`} value={floor.occupation || 'ทุกอาชีพ'} disabled={loading}
-              onChange={(occupation) => changeFloor(floor.floor_number, { occupation, recipe_id: '' })}
+              onChange={(occupation) => changeFloor(floor.floor_number, { occupation, recipe_id: '', ...(isShared ? { machine_id: '' } : {}) })}
               options={occupations.map((occupation) => ({ label: occupation, value: occupation }))} popupMatchSelectWidth={false} />
+            {isShared && <Select {...itemSelectVisuals} aria-label={`เครื่องชั้น ${floor.floor_number}`} value={selectedMachineId || undefined}
+              placeholder="ทุกเครื่อง" allowClear showSearch optionFilterProp="label" disabled={loading}
+              popupMatchSelectWidth={false} classNames={{ popup: { root: 'planner-recipe-popup' } }}
+              labelRender={({ value }) => <ItemLabel id={String(value)} name={machines.find(machine => machine.machine_id === value)?.machine_name ?? 'เลือกเครื่องใหม่'} size={22} />}
+              options={machinesByOccupation.get(floor.occupation) ?? machinesByOccupation.get('') ?? []}
+              notFoundContent="ไม่พบเครื่องในอาชีพนี้"
+              onChange={(machineId) => changeFloor(floor.floor_number, {
+                machine_id: machineId ?? '',
+                recipe_id: !machineId || recipes.some(recipe => recipe.id === floor.recipe_id && recipe.machine_id === machineId) ? floor.recipe_id : '',
+              })} />}
+            <div className="planner-recipe-field">
+              {isShared && <span className="planner-field-label">สูตรการผลิต</span>}
             <Select {...itemSelectVisuals} aria-label={`สูตรชั้น ${floor.floor_number}`} value={floor.recipe_id || undefined} disabled={loading}
               placeholder="พิมพ์ค้นหาสูตร" showSearch optionFilterProp="label"
               labelRender={({ value }) => <ItemLabel id={String(value)} name={recipes.find((recipe) => recipe.id === value)?.name ?? 'เลือกสูตรใหม่'} size={22} />}
-              onChange={(recipeId) => changeFloor(floor.floor_number, { recipe_id: recipeId ?? '' })}
-              options={[{ value: '', label: 'ไม่กำหนดสูตร', time: null }, ...(optionsByOccupation.get(floor.occupation) ?? optionsByOccupation.get('') ?? [])]}
+              onChange={(recipeId) => changeFloor(floor.floor_number, { recipe_id: recipeId ?? '',
+                ...(isShared && recipeId ? { machine_id: recipes.find(recipe => recipe.id === recipeId)?.machine_id ?? '' } : {}),
+              })}
+              options={[{ value: '', label: 'ไม่กำหนดสูตร', time: null }, ...recipeOptions]}
               popupMatchSelectWidth={false} classNames={{ popup: { root: 'planner-recipe-popup' } }}
               optionRender={(option) => <div className="planner-recipe-option"><ItemLabel id={String(option.value)} name={option.label} size={28} /><small>{option.data.time}</small></div>} />
-          </div>)}
+            </div>
+          </div>})}
         </section>)}
       </div>
       <div className="planner-entry-footer"><p><kbd>Tab</kbd> ช่องถัดไป <span>·</span> <kbd>Shift + Tab</kbd> ย้อนกลับ <span>·</span> {SLOTS_PER_FLOOR} เครื่อง/ชั้น</p>
         <div className="planner-entry-actions"><Popconfirm title="ล้างสูตรที่เลือกทั้ง 27 ชั้น?" okText="ล้างทั้งหมด" cancelText="ยกเลิก" onConfirm={() => {
-        if (isShared) lastSharedEditAt.current = Date.now(); setFloors((current) => current.map((floor) => ({ ...floor, occupation: '', recipe_id: '' }))); setError(null);
+        if (isShared) lastSharedEditAt.current = Date.now(); setFloors((current) => current.map((floor) => ({ ...floor, occupation: '', machine_id: '', recipe_id: '' }))); setError(null);
       }}><Button type="text" disabled={loading || !assigned.length}>ล้างทั้งหมด</Button></Popconfirm><Button type="primary" icon={<PlayCircleOutlined />} loading={loading} disabled={!assigned.length} title={!assigned.length ? 'เลือกสูตรอย่างน้อย 1 ชั้นก่อนคำนวณ' : undefined} onClick={() => void calculate()}>คำนวณแผนการผลิต</Button></div>
       </div>
     </>}

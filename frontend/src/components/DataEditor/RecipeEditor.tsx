@@ -105,7 +105,7 @@ function IngredientEditor({ ingredients, recipes, stocks, itemNames, onChange }:
       </div>
 
       {/* Add row */}
-      <Space.Compact style={{ width: '100%' }}>
+      <Space.Compact className="ingredient-entry" style={{ width: '100%' }}>
         <Select {...itemSelectVisuals}
           value={selectedKey}
           onChange={setSelectedKey}
@@ -428,7 +428,7 @@ export function RecipeEditor({ recipes, machines, stocks, itemNames, onChange }:
   return (
     <div className="space-y-3">
       {/* Toolbar */}
-      <Space wrap>
+      <Space wrap className="editor-filters">
         <Input
           prefix={<SearchOutlined />}
           value={search}
@@ -467,8 +467,8 @@ export function RecipeEditor({ recipes, machines, stocks, itemNames, onChange }:
       </Space>
 
       {/* Table */}
-      <div className="rounded-lg border border-gray-200 overflow-hidden max-h-[60vh] overflow-y-auto">
-        <table className="min-w-full divide-y divide-gray-200 text-sm">
+      <div className="recipe-table-scroll rounded-lg border border-gray-200 max-h-[60vh] overflow-auto" tabIndex={0} role="region" aria-label="ตารางสูตรการผลิต เลื่อนเพื่อดูทุกคอลัมน์">
+        <table className="recipe-table min-w-full divide-y divide-gray-200 text-sm">
           <thead className="bg-gray-50 sticky top-0">
             <tr>
               <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 w-12">รูป</th>

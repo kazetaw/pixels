@@ -277,7 +277,7 @@ export function MachineEditor({ machines, recipes, stocks, onChange }: MachineEd
       {contextHolder}
 
       {/* Toolbar */}
-      <Space wrap>
+      <Space wrap className="editor-filters">
         <Input
           prefix={<SearchOutlined />}
           value={search}
@@ -309,7 +309,7 @@ export function MachineEditor({ machines, recipes, stocks, onChange }: MachineEd
         rowKey="machine_id"
         size="small"
         pagination={false}
-        scroll={{ y: 420 }}
+        scroll={{ x: 760, y: 420 }}
         locale={{ emptyText: 'ไม่พบเครื่องจักร' }}
         footer={() => (
           <Text type="secondary" style={{ fontSize: 12 }}>

@@ -106,6 +106,7 @@ export function BudgetHistory({ recipes, itemNames, onStockChanged }: BudgetHist
     {
       title: 'รายการ',
       dataIndex: 'item_id',
+      width: 260,
       render: (id) => <ItemLabel id={id} name={itemName(id)} size={32} reserveImage />,
     },
     {
@@ -211,7 +212,7 @@ export function BudgetHistory({ recipes, itemNames, onStockChanged }: BudgetHist
           <span style={{ fontSize: 12, color: '#94a3b8', marginLeft: 8 }}>{purchases.length} รายการล่าสุด</span>
         </div>
         <Table
-          scroll={{ x: 880 }}
+          scroll={{ x: 1200 }}
           columns={columns}
           dataSource={purchases}
           rowKey="id"

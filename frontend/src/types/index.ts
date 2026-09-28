@@ -104,6 +104,7 @@ export interface PlanRequest {
 export interface PlannerFloorRow {
   floor_number: number;
   occupation: string;
+  machine_id?: string;
   recipe_id: string;
 }
 

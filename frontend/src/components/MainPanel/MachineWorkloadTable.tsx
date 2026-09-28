@@ -77,6 +77,7 @@ export function MachineWorkloadTable({ entries }: Props) {
 
   return (
     <Table<MachineWorkloadEntry>
+      scroll={{ x: 560 }}
       columns={columns}
       dataSource={sorted}
       rowKey="machine_id"

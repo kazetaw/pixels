@@ -187,7 +187,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const validFloors = Array.isArray(body?.floors) && body.floors.length === 27
         && new Set(body.floors.map((floor) => floor.floor_number)).size === 27
         && body.floors.every((floor) => Number.isInteger(floor.floor_number) && floor.floor_number >= 1 && floor.floor_number <= 27
-          && typeof floor.occupation === 'string' && typeof floor.recipe_id === 'string');
+          && typeof floor.occupation === 'string' && typeof floor.recipe_id === 'string'
+          && (floor.machine_id === undefined || typeof floor.machine_id === 'string'));
       if (!validDuration || !validFloors) return res.status(400).json({ error: 'Shared planner data is invalid' });
       try { return res.json({ plan: await writeSharedPlannerPlan(body) }); }
       catch (e) { return res.status(500).json({ error: (e as Error).message }); }

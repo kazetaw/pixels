@@ -65,6 +65,7 @@ export function ShoppingListTable({ entries, stocks, stockImages }: Props) {
 
   return (
     <Table<ShoppingListEntry>
+      scroll={{ x: 560 }}
       columns={columns}
       dataSource={entries}
       rowKey="item_id"

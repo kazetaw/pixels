@@ -91,7 +91,7 @@ export function PlanSummary({ result, occupationByFloor = {} }: { result: PlanRe
 
     {view === 'overview' && <div className="plan-overview-grid">
       <section className="plan-overview-output"><div className="plan-panel-heading"><h4>ผลิตอะไรได้บ้าง</h4><Button type="link" onClick={() => setView('floors')}>แยกตามชั้น <RightOutlined /></Button></div>
-        <Table rowKey="id" columns={outputColumns} dataSource={products} size="small"
+        <Table rowKey="id" columns={outputColumns} dataSource={products} size="small" scroll={{ x: 360 }}
           pagination={{ pageSize: 4, showSizeChanger: false, hideOnSinglePage: true }} locale={{ emptyText: 'ไม่มีผลผลิตในแผน' }} />
       </section>
       <section className="plan-overview-shortages"><div className="plan-panel-heading"><h4>สิ่งที่ต้องเตรียมเพิ่ม</h4><span>ขาดมากที่สุด · ชิ้น</span></div>

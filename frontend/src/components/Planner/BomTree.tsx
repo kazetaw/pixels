@@ -12,15 +12,13 @@ interface BomTreeProps {
 export function BomTree({ node, depth = 0 }: BomTreeProps) {
   const [open, setOpen] = useState(depth < 2);
   const hasChildren = node.children.length > 0;
-  const indent = depth * 20;
 
   return (
     <div>
       <div
-        className={`flex items-center gap-1 py-1 px-2 rounded hover:bg-gray-50 cursor-pointer select-none ${
+        className={`bom-tree-row flex items-center gap-1 py-1 px-2 rounded hover:bg-gray-50 cursor-pointer select-none ${
           node.is_raw ? 'text-gray-500' : 'text-gray-800'
         }`}
-        style={{ paddingLeft: `${8 + indent}px` }}
         role={hasChildren ? 'button' : undefined}
         tabIndex={hasChildren ? 0 : undefined}
         aria-expanded={hasChildren ? open : undefined}
@@ -40,7 +38,7 @@ export function BomTree({ node, depth = 0 }: BomTreeProps) {
         </span>
 
         {/* name + qty */}
-        <span className={`text-sm flex-1 ${node.is_raw ? 'text-gray-500' : 'font-medium'}`}>
+        <span className={`bom-tree-name text-sm flex-1 min-w-0 ${node.is_raw ? 'text-gray-500' : 'font-medium'}`}>
           <ItemLabel id={node.item_id} name={node.item_name} size={26} />
         </span>
         <span className="text-sm font-semibold text-gray-700 ml-2">
@@ -64,7 +62,7 @@ export function BomTree({ node, depth = 0 }: BomTreeProps) {
 
       {/* children */}
       {hasChildren && open && (
-        <div className="border-l border-gray-200 ml-5">
+        <div className="bom-tree-children border-l border-gray-200">
           {node.children.map((child, i) => (
             <BomTree key={`${child.item_id}-${i}`} node={child} depth={depth + 1} />
           ))}

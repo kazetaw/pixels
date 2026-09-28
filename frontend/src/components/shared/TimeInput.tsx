@@ -96,7 +96,7 @@ export function TimeInput({ value, onChange, label, allowNull = false, presets }
       {!isNull && (
         <>
           {/* Spinner row */}
-          <div className="flex items-end gap-1">
+          <div className="time-input-row flex items-end gap-1">
             <Spinner value={h} min={0} max={99} label="ชม." onChange={(v) => update(v, m, s)} />
             <span className="text-gray-300 text-lg mb-5">:</span>
             <Spinner value={m} min={0} max={59} label="นาที" onChange={(v) => update(h, v, s)} />

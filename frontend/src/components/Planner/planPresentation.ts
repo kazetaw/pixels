@@ -1,4 +1,4 @@
-import type { FloorPlanResult, Recipe, Machine } from '../../types';
+import type { FloorPlanResult, Recipe, Machine, PlannerFloorRow } from '../../types';
 
 export function recipeHours(time: string | null): number {
   if (!time) return 0;
@@ -7,13 +7,25 @@ export function recipeHours(time: string | null): number {
   return parts[0] + parts[1] / 60 + parts[2] / 3600;
 }
 
-export function recipesForOccupation(recipes: Recipe[], machines: Machine[], occupation: string): Recipe[] {
+export function recipesForOccupation(recipes: Recipe[], machines: Machine[], occupation: string, machineId = ''): Recipe[] {
   const occupations = new Map(machines.map((machine) => [machine.machine_id, machine.occupation]));
   return recipes.filter((recipe) => {
     const assigned = occupations.get(recipe.machine_id ?? '');
     return recipeHours(recipe.time_per_unit) > 0 &&
+      (!machineId || recipe.machine_id === machineId) &&
       (!occupation || occupation === 'ทุกอาชีพ' || assigned === 'ทุกอาชีพ' || assigned === occupation);
   }).sort((a, b) => a.name.localeCompare(b.name, 'th'));
+}
+
+export function machinesForOccupation(machines: Machine[], occupation: string): Machine[] {
+  return machines.filter(machine => !occupation || occupation === 'ทุกอาชีพ'
+    || machine.occupation === 'ทุกอาชีพ' || machine.occupation === occupation)
+    .sort((a, b) => a.machine_name.localeCompare(b.machine_name, 'th') || a.floor_number - b.floor_number);
+}
+
+/** Older shared plans only stored a recipe. An explicit empty selection means all machines. */
+export function plannerMachineId(floor: PlannerFloorRow, recipes: Recipe[]): string {
+  return floor.machine_id ?? recipes.find(recipe => recipe.id === floor.recipe_id)?.machine_id ?? '';
 }
 
 export function groupFloorRows<T>(rows: T[], groupSize = 9): T[][] {

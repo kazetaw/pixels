@@ -61,7 +61,7 @@ export function PurchaseEditButton({ purchase, itemNames, onSaved }: {
             .filter(([, label]) => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(label))
             .map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label, 'th'))} />
         </Form.Item>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div className="purchase-edit-fields">
           <div>
             <Form.Item name="quantity" label="จำนวนที่เพิ่มสต็อก" rules={[{ required: true }, { type: 'integer', min: 1, max: 2147483647 }]} style={{ marginBottom: 6 }}>
               <InputNumber min={1} precision={0} style={{ width: '100%' }} />

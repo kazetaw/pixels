@@ -206,7 +206,7 @@ export function BudgetDraft({ stocks, recipes, itemNames, onStockChanged }: Budg
           .sort((a, b) => Date.parse(b.purchased_at) - Date.parse(a.purchased_at)));
         void onStockChanged().catch(e => messageApi.error((e as Error).message));
       }} /> },
-    { title: 'รายการ', dataIndex: 'item_id', render: (id) => <ItemLabel id={id} name={itemName(id)} size={32} reserveImage /> },
+    { title: 'รายการ', dataIndex: 'item_id', width: 260, render: (id) => <ItemLabel id={id} name={itemName(id)} size={32} reserveImage /> },
     { title: 'เพิ่มสต็อก', dataIndex: 'quantity', align: 'right', width: 108, render: (value) => `+${value} ชิ้น` },
     { title: 'จ่ายทั้งหมด', dataIndex: 'total_amount', align: 'right', width: 140, render: (value, row) => <Text strong>{displayMoney(value, row.currency)}</Text> },
     { title: 'ต้นทุน/ชิ้น', align: 'right', width: 130, render: (_, row) => displayMoney(row.total_amount / row.quantity, row.currency) },
@@ -223,7 +223,7 @@ export function BudgetDraft({ stocks, recipes, itemNames, onStockChanged }: Budg
       }} />}
       {loading ? <div style={{ textAlign: 'center', padding: 48 }}><Spin /></div> : <>
         <div className="budget-content-grid">
-          <Card title="ซื้อเพื่อเติมสต็อก" size="small">
+          <Card title="ซื้อเพื่อเติมสต็อก" size="small" className="purchase-entry-card">
             <div className="budget-purchase-context">
               <label><span>งบจาก</span><Input value={contributor} onChange={(event) => setContributor(event.target.value)} placeholder="เลือกหรือพิมพ์ชื่อ" /></label>
               <label><span>แหล่งซื้อ</span><Select value={source || undefined} onChange={(value) => setSource(value)} placeholder="เลือก" options={[...PURCHASE_SOURCE_OPTIONS]} /></label>
@@ -232,10 +232,10 @@ export function BudgetDraft({ stocks, recipes, itemNames, onStockChanged }: Budg
             <div className="budget-purchase-lines" aria-label="รายการซื้อรอบนี้">
               <div className="budget-purchase-lines__head"><span>รายการ</span><span>จำนวน</span><span>จ่าย (ฟรี = 0)</span><span>สกุล</span><span /></div>
               {queuedPurchases.map((entry) => <div className="budget-purchase-line" key={entry.key}>
-                <Select {...itemSelectVisuals} showSearch optionFilterProp="label" value={entry.itemId || undefined} onChange={(value) => updateQueuedPurchase(entry.key, { itemId: value ?? '' })} placeholder="ค้นหาสินค้า" options={itemOptions} />
-                <div><Input value={entry.quantityExpression} inputMode="numeric" onChange={(event) => setQuantityExpression(entry, event.target.value)} onBlur={() => finalizeQuantityExpression(entry)} onPressEnter={(event) => { event.preventDefault(); event.stopPropagation(); finalizeQuantityExpression(entry); }} placeholder="99 + 22" aria-label="จำนวนที่ซื้อ" /><Button size="small" type="text" onClick={() => appendNinetyNine(entry)}>+99</Button></div>
-                <InputNumber min={0} value={entry.total || undefined} onChange={(value) => updateQueuedPurchase(entry.key, { total: value ?? 0 })} placeholder="ฟรี / 0" />
-                <Select value={entry.currency} onChange={(value) => updateQueuedPurchase(entry.key, { currency: value })} options={[{ value: 'THB', label: 'บาท' }, { value: 'G', label: 'G' }]} />
+                <div className="purchase-cell purchase-cell--item"><span className="purchase-cell-label">รายการ</span><Select aria-label="รายการสินค้า" {...itemSelectVisuals} showSearch optionFilterProp="label" value={entry.itemId || undefined} onChange={(value) => updateQueuedPurchase(entry.key, { itemId: value ?? '' })} placeholder="ค้นหาสินค้า" options={itemOptions} /></div>
+                <div className="purchase-cell purchase-cell--quantity"><span className="purchase-cell-label">จำนวน</span><div className="purchase-quantity-control"><Input value={entry.quantityExpression} inputMode="text" onChange={(event) => setQuantityExpression(entry, event.target.value)} onBlur={() => finalizeQuantityExpression(entry)} onPressEnter={(event) => { event.preventDefault(); event.stopPropagation(); finalizeQuantityExpression(entry); }} placeholder="99 + 22" aria-label="จำนวนที่ซื้อ" /><Button size="small" type="text" onClick={() => appendNinetyNine(entry)}>+99</Button></div></div>
+                <div className="purchase-cell purchase-cell--amount"><span className="purchase-cell-label">จ่าย (ฟรี = 0)</span><InputNumber aria-label="จ่ายทั้งหมด" min={0} value={entry.total || undefined} onChange={(value) => updateQueuedPurchase(entry.key, { total: value ?? 0 })} placeholder="ฟรี / 0" /></div>
+                <div className="purchase-cell purchase-cell--currency"><span className="purchase-cell-label">สกุลเงิน</span><Select aria-label="สกุลเงิน" value={entry.currency} onChange={(value) => updateQueuedPurchase(entry.key, { currency: value })} options={[{ value: 'THB', label: 'บาท' }, { value: 'G', label: 'G' }]} /></div>
                 <Button type="text" danger aria-label="ลบบรรทัดนี้" icon={<DeleteOutlined />} onClick={() => removePurchaseLine(entry.key)} />
               </div>)}
             </div>
@@ -273,7 +273,7 @@ export function BudgetDraft({ stocks, recipes, itemNames, onStockChanged }: Budg
           </div>
         </div>
 
-        <div><div style={{ marginBottom: 8 }}><h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: '#0f172a' }}>ประวัติการซื้อ</h3><p style={{ margin: '3px 0 0', fontSize: 12, color: '#64748b' }}>เก็บ 100 รายการล่าสุด พร้อมจำนวนที่เพิ่มจริงในสต็อก</p></div><Table scroll={{ x: 880 }} columns={columns} dataSource={purchases} rowKey="id" pagination={{ pageSize: 10, showSizeChanger: false }} size="small" locale={{ emptyText: 'ยังไม่มีประวัติการซื้อ' }} /></div>
+        <div><div style={{ marginBottom: 8 }}><h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: '#0f172a' }}>ประวัติการซื้อ</h3><p style={{ margin: '3px 0 0', fontSize: 12, color: '#64748b' }}>เก็บ 100 รายการล่าสุด พร้อมจำนวนที่เพิ่มจริงในสต็อก</p></div><Table scroll={{ x: 1200 }} columns={columns} dataSource={purchases} rowKey="id" pagination={{ pageSize: 10, showSizeChanger: false }} size="small" locale={{ emptyText: 'ยังไม่มีประวัติการซื้อ' }} /></div>
       </>}
     </div>
   );

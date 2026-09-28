@@ -161,6 +161,7 @@ export function StockInventory({ stocks, stockImages, recipes, itemNames }: Stoc
       <Text type="secondary" style={{ fontSize: 12 }}>เพิ่มจำนวนสต็อกจากเมนู “จัดการข้อมูล › งบประมาณ” เท่านั้น</Text>
 
       <Table<RowData>
+        scroll={{ x: 500 }}
         columns={columns}
         dataSource={filtered}
         rowKey="key"

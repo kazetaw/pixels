@@ -74,7 +74,7 @@ function MaterialNeedRow({ material, stocks, depth = 0 }: { material: DisplayMat
   const isSufficient = inStock >= material.quantity;
 
   return <div>
-    <div className="production-targets__material" style={depth ? { paddingLeft: 16 + depth * 18, background: '#fafcff' } : undefined}>
+    <div className="production-targets__material" style={depth ? { background: '#fafcff' } : undefined}>
       <div style={{ display: 'flex', alignItems: 'center', minWidth: 0, flex: 1 }}>
         {hasChildren ? <Button type="text" size="small" onClick={() => setOpen((value) => !value)} icon={open ? <DownOutlined /> : <RightOutlined />} aria-label={`${open ? 'ย่อ' : 'ขยาย'}วัตถุดิบของ ${material.name}`} style={{ marginLeft: -8, marginRight: 2 }} /> : <span style={{ width: 20 }} />}
         <ItemLabel id={material.id} name={material.name} size={depth ? 22 : 26} reserveImage />
@@ -84,7 +84,7 @@ function MaterialNeedRow({ material, stocks, depth = 0 }: { material: DisplayMat
       </span>
       <span style={{ color: '#64748b', fontSize: 12, whiteSpace: 'nowrap' }}>{Math.ceil(material.quantity / 99)} กอง</span>
     </div>
-    {hasChildren && open && <div style={{ borderLeft: '2px solid #dbeafe', marginLeft: 20 + depth * 18 }}>{material.children.map((child) => <MaterialNeedRow key={child.id} material={child} stocks={stocks} depth={depth + 1} />)}</div>}
+    {hasChildren && open && <div className="material-children">{material.children.map((child) => <MaterialNeedRow key={child.id} material={child} stocks={stocks} depth={depth + 1} />)}</div>}
   </div>;
 }
 
@@ -167,7 +167,7 @@ export function ProductionTargetsBoard({ recipes, machines, stocks, itemNames = 
             return <div className="production-targets__item" key={recipe.id}>
               <div className="production-targets__item-name"><ItemLabel id={recipe.id} name={recipe.name} image={recipe.image} size={38} reserveImage /></div>
               <div className="production-targets__counts"><span>มี <b>{formatNumber(inStock)}</b></span><span>/</span><strong>{formatNumber(target)}</strong></div>
-              <div className="production-targets__progress" aria-label={`มี ${inStock} จากเป้าหมาย ${target}`}><i className={inStock >= target ? 'is-complete' : ''} style={{ width: `${progress}%` }} /><span>{progress}%</span></div>
+              <div className="production-targets__progress" aria-label={`มี ${inStock} จากเป้าหมาย ${target}`}><div className="production-targets__progress-track"><i className={inStock >= target ? 'is-complete' : ''} style={{ width: `${progress}%` }} /></div><span>{progress}%</span></div>
             </div>;
           })}
         </div>

@@ -436,7 +436,7 @@ export function StockEditorFull({ stocks, stockImages, recipes, machines, itemNa
       {msgCtx}
 
       {/* Toolbar */}
-      <Space wrap>
+      <Space wrap className="editor-filters">
         <Input
           prefix={<SearchOutlined />}
           value={search}
@@ -465,7 +465,7 @@ export function StockEditorFull({ stocks, stockImages, recipes, machines, itemNa
         rowKey="key"
         pagination={{ pageSize: 20, showSizeChanger: false, showTotal: (t) => `ทั้งหมด ${t} รายการ` }}
         size="small"
-        scroll={{ y: 480 }}
+        scroll={{ x: 560, y: 480 }}
         locale={{ emptyText: 'ไม่พบรายการ' }}
       />
 
