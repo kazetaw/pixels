@@ -174,6 +174,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } catch (e) { return res.status(500).json({ error: (e as Error).message }); }
   }
 
+  if (segments[0] === 'assignments') {
+    try {
+      const db = getSupabase();
+      if (method === 'GET') {
+        const { data, error } = await db.from('contributor_assignments').select('*').order('contributor');
+        if (error) throw error;
+        return res.json(data);
+      }
+      if (method === 'PUT') {
+        const { contributor, item_id, target } = req.body ?? {};
+        if (typeof contributor !== 'string' || !contributor.trim() || contributor.length > 100
+          || typeof item_id !== 'string' || !Number.isSafeInteger(target) || target < 1) {
+          return res.status(400).json({ error: 'กรุณาเลือกคน สินค้า และจำนวนเต็มมากกว่า 0' });
+        }
+        const recipes = await readRecipes();
+        if (!recipes.some(r => r.id === item_id && r.time_per_unit)) {
+          return res.status(400).json({ error: 'ไม่พบสินค้าแปรรูป กรุณาโหลดข้อมูลใหม่' });
+        }
+        const { data, error } = await db.from('contributor_assignments').upsert({
+          contributor: contributor.trim(), item_id, target, updated_at: new Date().toISOString(),
+        }, { onConflict: 'contributor,item_id' }).select().single();
+        if (error) throw error;
+        return res.json(data);
+      }
+      if (method === 'DELETE' && segments[1]) {
+        const { error } = await db.from('contributor_assignments').delete().eq('id', segments[1]);
+        if (error) throw error;
+        return res.json({ ok: true });
+      }
+    } catch (e) { return res.status(500).json({ error: (e as Error).message }); }
+  }
+
   if (segments[0] === 'planner') {
     if (method === 'GET') {
       try { return res.json({ plan: await readSharedPlannerPlan() }); }

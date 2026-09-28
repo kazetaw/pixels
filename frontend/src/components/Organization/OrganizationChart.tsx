@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { Modal } from 'antd';
+import { fetchAssignments, type ContributorAssignment } from '../../api/client';
+import { useEffect, useState } from 'react';
+import { Alert, Modal } from 'antd';
 import { UnorderedListOutlined } from '@ant-design/icons';
 import { contributorLabel, CONTRIBUTOR_PROFILES, type ContributorProfile } from '../shared/contributors';
 import { OCCUPATION_IMAGE } from '../shared/OccupationSelect';
@@ -185,12 +186,17 @@ function MemberCard({
 // ── Main export ───────────────────────────────────────────────────────────────
 
 export function OrganizationChart({ stocks = {}, itemNames = {}, nameToId = {} }: OrganizationChartProps) {
-  const ceo = CONTRIBUTOR_PROFILES.find((p) => p.name === 'เอี๊ยม');
-  const members = CONTRIBUTOR_PROFILES.filter((p) => p.name !== 'เอี๊ยม');
+  const [assignments, setAssignments] = useState<ContributorAssignment[]>([]);
+  const [loadError, setLoadError] = useState('');
+  useEffect(() => { fetchAssignments().then(setAssignments).catch(e => setLoadError(e.message)); }, []);
+  const profiles = CONTRIBUTOR_PROFILES.map(profile => ({ ...profile, assignments: assignments.filter(a => a.contributor === profile.name).map(a => ({ item_id: a.item_id, label: itemNames[a.item_id] || 'ไม่พบชื่อสินค้า', target: a.target })) }));
+  const ceo = profiles.find((p) => p.name === 'เอี๊ยม');
+  const members = profiles.filter((p) => p.name !== 'เอี๊ยม');
   const cardProps = { stocks, itemNames, nameToId };
 
   return (
     <section className="org-chart" aria-label="ผังทีม Pixel Factory">
+      {loadError && <Alert type="error" message="โหลดงานส่วนกลางไม่สำเร็จ" description={loadError} />}
       {ceo && (
         <div className="org-ceo-row">
           <MemberCard profile={ceo} isCeo {...cardProps} />

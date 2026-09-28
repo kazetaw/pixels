@@ -36,7 +36,9 @@ export const CONTRIBUTOR_PROFILES: ContributorProfile[] = [
     flipAvatar: true,
     occupations: ['เชฟ'],
     role: 'ตำราเครื่องดื่มและขนม',
-  },
+assignments: [
+      { item_id: 'ขนมโมจิ', label: 'ขนมโมจิ', target: 693 },
+    ],  },
   {
     name: 'ป้วย',
     memberId: '100162',
@@ -59,19 +61,16 @@ export const CONTRIBUTOR_PROFILES: ContributorProfile[] = [
     avatar: '/avatars/contributors/tawan.png',
     occupations: ['เชฟ'],
     role: 'ช็อคโกแลต',
-  },
-  {
-    name: 'ฟามมอน',
-    memberId: '',
-    occupations: ['เกษตร'],
-    role: 'โคลน',
+        assignments: [
+      { item_id: 'คลิปท่าเต้นสไตล์ใหม่', label: 'คลิปท่าเต้นสไตล์ใหม่', target: 693 },
+    ],
   },
   {
     name: 'ตะเอ๊ย',
     memberId: '11612',
     avatar: '/avatars/contributors/taoei.png',
     occupations: ['ไอดอล'],
-    role: 'ช็อคโกแลต · บอท · แผ่น',
+    role: '',
     assignments: [
       { item_id: 'คลิปท่าเต้นสไตล์ใหม่', label: 'คลิปท่าเต้นสไตล์ใหม่', target: 693 },
     ],

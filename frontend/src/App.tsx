@@ -44,15 +44,17 @@ import { StockInventory } from './components/Inventory/StockInventory';
 import { FloorTimerDashboard } from './components/Floors/FloorTimerDashboard';
 import { BudgetHistory } from './components/DataEditor/BudgetHistory';
 import { ProductionTargetsBoard } from './components/Targets/ProductionTargetsBoard';
+import { AssignmentEditor } from './components/Organization/AssignmentEditor';
 import { OrganizationChart } from './components/Organization/OrganizationChart';
 import { ProductionFlowBoard } from './components/Planner/ProductionFlowBoard';
 import type { SaveStatus } from './hooks/useAppState';
 
 const { Sider, Content } = Layout;
 
-type MainView = 'planner' | 'shared-planner' | 'production-flow' | 'data' | 'inventory' | 'floors' | 'targets' | 'budget' | 'organization';
+type MainView = 'assignments' | 'planner' | 'shared-planner' | 'production-flow' | 'data' | 'inventory' | 'floors' | 'targets' | 'budget' | 'organization';
 
 const NAV_ITEMS = [
+  { key: 'assignments', icon: <TeamOutlined />, label: 'มอบหมายงาน' },
   {
     key: 'planner',
     icon: <BarChartOutlined />,
@@ -943,6 +945,8 @@ export default function App() {
               }} />
             </div>
           )}
+
+          {view === 'assignments' && <div className="page-content"><PageHead title="มอบหมายงาน" sub="ใครทำอะไร จำนวนเท่าไหร่" /><AssignmentEditor recipes={recipes} stocks={stocks} itemNames={itemNames} /></div>}
 
           {view === 'organization' && (
             <div className="page-content organization-page-content">

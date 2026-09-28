@@ -262,3 +262,21 @@ export async function updateFloorTimer(floorNumber: number, patch: Partial<Floor
     method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch),
   }));
 }
+
+export interface ContributorAssignment {
+  id: string;
+  contributor: string;
+  item_id: string;
+  target: number;
+}
+export async function fetchAssignments(): Promise<ContributorAssignment[]> {
+  return handleResponse(await fetch('/api/assignments'));
+}
+export async function saveAssignment(row: Omit<ContributorAssignment, 'id'>): Promise<ContributorAssignment> {
+  return handleResponse(await fetch('/api/assignments', {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(row),
+  }));
+}
+export async function deleteAssignment(id: string): Promise<void> {
+  await handleResponse(await fetch(`/api/assignments/${encodeURIComponent(id)}`, { method: 'DELETE' }));
+}
