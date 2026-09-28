@@ -464,12 +464,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const body = req.body as { quantity?: number | null; expected_quantity?: number | null };
     const quantity = body?.quantity;
     const expectedQuantity = body?.expected_quantity;
+    if (quantity === undefined || expectedQuantity === undefined)
+      return res.status(400).json({ error: 'ต้องระบุจำนวนเดิมและจำนวนใหม่' });
     if ((quantity !== null && (!Number.isSafeInteger(quantity) || quantity < 0))
       || (expectedQuantity !== null && (!Number.isSafeInteger(expectedQuantity) || expectedQuantity < 0))) {
       return res.status(400).json({ error: 'จำนวนสต็อกต้องเป็นจำนวนเต็มตั้งแต่ 0 ขึ้นไป' });
     }
-    if (quantity === undefined || expectedQuantity === undefined)
-      return res.status(400).json({ error: 'ต้องระบุจำนวนเดิมและจำนวนใหม่' });
     try {
       const result = await patchStockItem(itemId, quantity, expectedQuantity);
       return res.json({ stock: result });
