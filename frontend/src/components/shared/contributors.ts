@@ -34,7 +34,7 @@ export const CONTRIBUTOR_PROFILES: ContributorProfile[] = [
     memberId: '85865',
     avatar: '/avatars/contributors/pam.png',
     flipAvatar: true,
-    occupations: ['เชฟ','ทุกอาชีพ'],
+    occupations: ['เชฟ','เกษตร'],
     role: 'ตำราเครื่องดื่มและขนม',
 assignments: [
       { item_id: 'ขนมโมจิ', label: 'ขนมโมจิ', target: 693 },
@@ -60,7 +60,7 @@ assignments: [
     name: 'ตวัน',
     memberId: '3236',
     avatar: '/avatars/contributors/tawan.png',
-    occupations: ['เชฟ'],
+    occupations: ['เชฟ','ทุกอาชีพ'],
     role: 'ฟามของมอน และ ทำช็อค และซัพพอร์ต',
        
   },
