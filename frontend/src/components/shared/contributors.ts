@@ -56,6 +56,7 @@ assignments: [
   {
     name: 'เมย์',
     memberId: '223398',
+    avatar: '/avatars/contributors/may.png',
     occupations: ['วิศวะกร'],
   },
   {
