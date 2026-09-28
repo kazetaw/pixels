@@ -17,6 +17,8 @@ export interface ContributorProfile {
   occupations?: Occupation[];
   /** รายการของที่ต้องหา */
   assignments?: AssignedItem[];
+  /** Ongoing support supplies, with no finite production target. */
+  farmItems?: string[];
   /** หน้าที่ / บทบาท อธิบายสั้นๆ */
   role?: string;
 }
@@ -61,7 +63,8 @@ assignments: [
     memberId: '3236',
     avatar: '/avatars/contributors/tawan.png',
     occupations: ['เชฟ','ทุกอาชีพ'],
-    role: 'ฟามของมอน และ ทำช็อค และซัพพอร์ต',
+    role: 'ฟาร์มของมอน',
+    farmItems: ['เห็ดพิษ', 'นมแกะ', 'เนย', 'ไส้เดือนดิน', 'ขี้ไก่', 'ไข่หนอนผีเสื้อ', 'ละอองผีเสื้อ', 'ดิน', 'โซดา', 'ก้อนโคลน'],
        
   },
   {

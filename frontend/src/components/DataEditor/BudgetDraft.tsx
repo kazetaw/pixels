@@ -123,7 +123,7 @@ export function BudgetDraft({ stocks, recipes, itemNames, onStockChanged }: Budg
       .sort((a, b) => b.total - a.total);
   };
   const validQueuedPurchases = queuedPurchases.filter((entry) => entry.itemId && entry.quantity > 0);
-  const incompleteQueuedPurchases = queuedPurchases.filter((entry) => (entry.itemId || entry.quantity || entry.total) && !(entry.itemId && entry.quantity > 0));
+  const incompleteQueuedPurchases = queuedPurchases.filter((entry) => (entry.itemId || entry.quantityExpression.trim() || entry.quantity || entry.total) && !(entry.itemId && entry.quantity > 0));
 
   const saveLimit = async (target: Currency, pin: string) => {
     setSavingCurrency(target);
@@ -161,7 +161,7 @@ export function BudgetDraft({ stocks, recipes, itemNames, onStockChanged }: Budg
   };
 
   const saveQueuedPurchases = async () => {
-    if (!validQueuedPurchases.length) return;
+    if (buying || !validQueuedPurchases.length) return;
     if (incompleteQueuedPurchases.length) {
       messageApi.error('กรอกสินค้าและจำนวนให้ครบ หรือกดลบแถวที่ยังไม่ใช้ก่อนบันทึก');
       return;
@@ -240,7 +240,12 @@ export function BudgetDraft({ stocks, recipes, itemNames, onStockChanged }: Budg
               </div>)}
             </div>
             <Button size="small" type="dashed" icon={<PlusOutlined />} onClick={addPurchaseLine} style={{ marginTop: 9 }}>เพิ่มบรรทัด</Button>
-            <div className="budget-purchase-save"><div><strong>{validQueuedPurchases.length} รายการพร้อมบันทึก</strong><span>เกินงบได้ · ช่องจ่ายปล่อยว่างได้สำหรับของฟรี</span></div><Button type="primary" icon={<ShoppingCartOutlined />} loading={buying} disabled={!validQueuedPurchases.length} onClick={() => void saveQueuedPurchases()}>บันทึกทั้งหมด</Button></div>
+            <div className="budget-purchase-save">
+              <div className="budget-purchase-save__summary" aria-live="polite"><strong>{buying ? 'กำลังบันทึกรายการ…' : `${validQueuedPurchases.length} รายการพร้อมบันทึก`}</strong>
+                <span id="purchase-save-hint">{incompleteQueuedPurchases.length ? `ยังมี ${incompleteQueuedPurchases.length} แถวกรอกไม่ครบ: เลือกสินค้าและใส่จำนวนมากกว่า 0 หรือลบแถวที่ไม่ใช้` : !validQueuedPurchases.length ? 'เลือกสินค้าและใส่จำนวนมากกว่า 0 เพื่อบันทึก' : 'พร้อมบันทึก · ของฟรีปล่อยช่องจ่ายว่างได้'}</span>
+              </div>
+              <Button className="purchase-save-button" type="primary" icon={<ShoppingCartOutlined />} loading={buying} disabled={buying || !validQueuedPurchases.length || !!incompleteQueuedPurchases.length} aria-describedby="purchase-save-hint" onClick={() => void saveQueuedPurchases()}>{buying ? 'กำลังบันทึก…' : 'บันทึกทั้งหมด'}</Button>
+            </div>
           </Card>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

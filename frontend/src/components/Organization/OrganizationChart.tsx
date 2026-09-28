@@ -111,7 +111,20 @@ function AssignmentModal({
       }
       styles={{ body: { paddingTop: 8 } }}
     >
-      {assignments.length === 0 ? (
+      {!!profile.farmItems?.length && <section style={{ display: 'grid', gap: 14, padding: '8px 0 20px' }}>
+        <div><strong>ฟาร์ม</strong><div style={{ color: '#64748b', fontSize: 12 }}>ซัพพอร์ตทีม · เติมได้เรื่อย ๆ ไม่มีเป้าหมายจำกัด · ยอดที่แสดงคือคลังรวม</div></div>
+        {profile.farmItems.map(name => {
+          const id = nameToId[name];
+          const quantity = id ? (stocks[id] ?? 0) : stocks[name];
+          return <div className="org-assignment-header" key={name}>
+            <span className="org-assignment-name"><ItemLabel id={id ?? name} name={name} size={36} reserveImage /></span>
+            <span className="org-assignment-count" style={{ color: '#6366f1' }}>
+              {quantity === undefined ? '—' : quantity.toLocaleString('th-TH')}<span className="org-assignment-sep">/</span><strong aria-label="ไม่จำกัด">∞</strong>
+            </span>
+          </div>;
+        })}
+      </section>}
+      {assignments.length === 0 && !profile.farmItems?.length ? (
         <p style={{ color: '#94a3b8', fontSize: 13, textAlign: 'center', padding: '24px 0' }}>
           ยังไม่มีรายการที่ต้องหา
         </p>
@@ -144,7 +157,7 @@ function MemberCard({
   isCeo?: boolean;
 }) {
   const [modalOpen, setModalOpen] = useState(false);
-  const hasAssignments = (profile.assignments?.length ?? 0) > 0;
+  const hasAssignments = (profile.assignments?.length ?? 0) > 0 || !!profile.farmItems?.length;
 
   return (
     <>
@@ -169,7 +182,7 @@ function MemberCard({
           aria-label={`ดูรายการต้องหาของ ${profile.name}`}
         >
           <UnorderedListOutlined style={{ fontSize: 13 }} />
-          {hasAssignments ? `ต้องหา ${profile.assignments!.length} รายการ` : 'ยังไม่มีรายการ'}
+          {profile.farmItems?.length ? `ฟาร์ม ${profile.farmItems.length} รายการ · ∞` : hasAssignments ? `ต้องหา ${profile.assignments!.length} รายการ` : 'ยังไม่มีรายการ'}
         </button>
       </article>
 
