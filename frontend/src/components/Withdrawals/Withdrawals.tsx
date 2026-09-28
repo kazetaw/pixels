@@ -118,12 +118,31 @@ export function Withdrawals({ admin = false, onData }: { admin?: boolean; onData
 
   return <section className="withdrawals"><h2 className="withdrawal-title">{admin ? 'จัดการใบเบิก' : 'เบิกสินค้า'}</h2>
     {error && <Alert type="error" message={error} action={<Button onClick={() => { setError(''); void refresh().catch(e=>setError(e.message)); }}>โหลดใหม่</Button>} />}
-    {loadError && <Alert type="warning" message="อัปเดตรายการไม่สำเร็จ" description={`${success ? 'รายการที่บันทึกสำเร็จยังอยู่ ไม่ต้องส่งซ้ำ · ' : ''}${loadError}`} action={<Button loading={refreshing} onClick={()=>void refresh()}>โหลดใหม่</Button>} />}
-    {success && <Alert type="success" message={success} />}
-    {admin && <details className="withdrawal-ticket"><summary>สินค้าที่เปิดให้เบิก ({catalog.filter(c=>c.enabled).length})</summary><p>เลือกจากสต็อก · ปิดแล้วใบเบิกเดิมยังดำเนินการได้</p>
-      <div className="withdrawal-toolbar"><Select style={{width:'min(100%, 360px)'}} aria-label="เพิ่มสินค้าเปิดให้เบิก" placeholder="ค้นหาสินค้าในคลัง" showSearch optionFilterProp="label" value={newItem} onChange={setNewItem} disabled={busy} options={Object.keys(data?.stocks ?? {}).filter(id=>!catalog.some(c=>c.item_id===id && c.enabled)).map(id=>({value:id,label:data?.itemNames[id] || 'ไม่พบชื่อสินค้า'}))} {...withdrawalItemVisuals} /><Button type="primary" disabled={!newItem || busy} onClick={()=>newItem && void setAllowed(newItem,true)}>เปิดให้เบิก</Button></div>
-      {catalog.filter(c=>c.enabled).map(c=><div className="withdrawal-ticket-line" key={c.item_id}><ItemLabel id={c.item_id} name={data?.itemNames[c.item_id] || 'ไม่พบชื่อสินค้า'} reserveImage /><Popconfirm title="ปิดรับใบเบิกใหม่สำหรับสินค้านี้?" onConfirm={()=>setAllowed(c.item_id,false)}><Button disabled={busy}>ปิดให้เบิก</Button></Popconfirm></div>)}
-    </details>}
+    {loadError && <Alert type="warning" message="โหลดข้อมูลไม่สำเร็จ" description={loadError} action={<Button loading={refreshing} onClick={()=>void refresh()}>ลองใหม่</Button>} />}
+    {success && <Alert type="success" message={success} closable onClose={() => setSuccess('')} />}
+    {admin && <div className="adm-catalog-section">
+      <div className="adm-catalog-header">
+        <div>
+          <strong>สินค้าที่เปิดให้เบิก</strong>
+          <span className="adm-catalog-count">{catalog.filter(c=>c.enabled).length} รายการ</span>
+        </div>
+        <div className="adm-catalog-add">
+          <Select style={{width:'min(100%, 280px)'}} aria-label="เพิ่มสินค้าเปิดให้เบิก" placeholder="ค้นหาสินค้าในคลัง…" showSearch optionFilterProp="label" value={newItem} onChange={setNewItem} disabled={busy} options={Object.keys(data?.stocks ?? {}).filter(id=>!catalog.some(c=>c.item_id===id && c.enabled)).map(id=>({value:id,label:data?.itemNames[id] || 'ไม่พบชื่อสินค้า'}))} {...withdrawalItemVisuals} />
+          <Button type="primary" disabled={!newItem || busy} onClick={()=>newItem && void setAllowed(newItem,true)}>เปิดให้เบิก</Button>
+        </div>
+      </div>
+      {catalog.filter(c=>c.enabled).length === 0
+        ? <p className="adm-catalog-empty">ยังไม่มีสินค้าที่เปิดให้เบิก — เพิ่มสินค้าจากช่องด้านบน</p>
+        : <div className="adm-catalog-items">
+            {catalog.filter(c=>c.enabled).map(c=><div className="adm-catalog-item" key={c.item_id}>
+              <ItemLabel id={c.item_id} name={data?.itemNames[c.item_id] || 'ไม่พบชื่อสินค้า'} reserveImage size={28} />
+              <span className="adm-catalog-stock">{(data?.stocks[c.item_id] ?? 0).toLocaleString('th-TH')} ชิ้น</span>
+              <Popconfirm title="ปิดรับใบเบิกใหม่สำหรับสินค้านี้?" okText="ปิด" cancelText="ยกเลิก" onConfirm={()=>setAllowed(c.item_id,false)}>
+                <Button size="small" disabled={busy}>ปิดให้เบิก</Button>
+              </Popconfirm>
+            </div>)}
+          </div>}
+    </div>}
     {!admin && <fieldset disabled={busy} className="withdrawal-form">
       <div className="withdrawal-people"><label>ผู้เบิก<Select {...personSelectVisuals} aria-label="ผู้เบิก" disabled={busy} placeholder="เลือกคนที่เบิก" options={peopleOptions} value={requester || undefined} onChange={value=>{setRequester(value);if(value !== 'other'){const person=CONTRIBUTOR_PROFILES.find(p=>p.name===value);setRecipient(value);setRecipientName(person?.name ?? '');setCharacter(person?.memberId ?? '');}setRequestId(crypto.randomUUID());}} /></label>
       {requester === 'other' && <label>ชื่อผู้เบิก<Input maxLength={100} value={requesterOther} onChange={e=>{setRequesterOther(e.target.value);setRequestId(crypto.randomUUID());}} /></label>}
@@ -167,7 +186,7 @@ export function Withdrawals({ admin = false, onData }: { admin?: boolean; onData
       <div className="withdrawal-history-body"><div className="withdrawal-history-owner"><small>ผู้เบิก</small><span>{t.requester_name || 'ไม่ระบุ'}</span></div><small>{new Date(t.created_at).toLocaleString('th-TH')}</small>
       {t.withdrawal_lines.map(l=><div className="withdrawal-ticket-line" key={l.item_id}><ItemLabel id={l.item_id} name={data?.itemNames[l.item_id] ?? 'ไม่พบชื่อสินค้า'} reserveImage /><strong>{l.quantity.toLocaleString()} ชิ้น</strong></div>)}
       {t.note && <p>{t.note}</p>}
-      {admin && <div className="withdrawal-toolbar"><Button onClick={()=>void navigator.clipboard.writeText(t.character_id).catch(()=>setError('คัดลอกไม่ได้ กรุณาคัดลอกไอดีด้วยตนเอง'))}>คัดลอกไอดี</Button>{t.status==='pending' && <><Popconfirm title="ยืนยันส่งของแล้วและหักสต็อก?" onConfirm={()=>change(t,'sent')}><Button disabled={busy} type="primary">ส่งแล้ว</Button></Popconfirm><Popconfirm title="ยกเลิกใบเบิกและคืนยอดจอง?" onConfirm={()=>change(t,'cancelled')}><Button disabled={busy} danger>ยกเลิก</Button></Popconfirm></>}</div>}
+      {admin && <div className="adm-ticket-actions"><Button onClick={()=>void navigator.clipboard.writeText(t.character_id).catch(()=>setError('คัดลอกไม่ได้ กรุณาคัดลอกไอดีด้วยตนเอง'))}>คัดลอกไอดี {t.character_id}</Button>{t.status==='pending' && <><Popconfirm title="ยืนยันส่งของแล้วและหักสต็อก?" okText="ยืนยัน" cancelText="ยกเลิก" onConfirm={()=>change(t,'sent')}><Button disabled={busy} type="primary">ส่งแล้ว — หักสต็อก</Button></Popconfirm><Popconfirm title="ยกเลิกใบเบิกและคืนยอดจอง?" okText="ยกเลิกใบเบิก" cancelText="ไม่" onConfirm={()=>change(t,'cancelled')}><Button disabled={busy} danger>ยกเลิกใบเบิก</Button></Popconfirm></>}</div>}
       <small className="withdrawal-receipt-number">ใบเบิก {t.id}</small>
     </div></details>)}
     </div>
