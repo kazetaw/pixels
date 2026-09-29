@@ -247,7 +247,6 @@ export function AssignmentEditor({ recipes, stocks, itemNames }: Props) {
           </div>
           <Button
             type="primary"
-            ghost
             icon={<PlusOutlined />}
             size="small"
             disabled={busy || loading}
