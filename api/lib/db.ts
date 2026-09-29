@@ -519,7 +519,7 @@ export async function readAllPurchases(): Promise<PurchaseRow[]> {
  * The previous two-request implementation could save the purchase even when
  * the stock upsert failed, leaving budget history and inventory out of sync.
  */
-export async function insertPurchase(p: Omit<PurchaseRow, 'id' | 'purchased_at'>): Promise<PurchaseRow> {
+export async function insertPurchase(p: Omit<PurchaseRow, 'id' | 'purchased_at'> & { purchased_at?: string }): Promise<PurchaseRow> {
   const db = getSupabase();
   const { data, error } = await db
     .rpc('record_stock_purchase', {
@@ -542,6 +542,7 @@ export async function insertPurchase(p: Omit<PurchaseRow, 'id' | 'purchased_at'>
     .insert({
       item_id: p.item_id, quantity: p.quantity, total_amount: p.total_amount,
       currency: p.currency, source: p.source ?? null, contributor: p.contributor ?? null,
+      ...(p.purchased_at ? { purchased_at: p.purchased_at } : {}),
     })
     .select('id, item_id, quantity, total_amount, currency, source, contributor, purchased_at')
     .single();

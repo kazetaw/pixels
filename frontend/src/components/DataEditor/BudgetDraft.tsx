@@ -1,6 +1,7 @@
 import { ItemLabel, itemSelectVisuals } from '../shared/ItemVisual';
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Card, Input, InputNumber, Select, Space, Spin, Table, Tag, Typography, message } from 'antd';
+import dayjs, { type Dayjs } from 'dayjs';
+import { Button, Card, DatePicker, Input, InputNumber, Select, Space, Spin, Table, Tag, Typography, message } from 'antd';
 import { DeleteOutlined, PlusOutlined, SaveOutlined, ShoppingCartOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { Budget, Currency, Recipe, StockMap, StockPurchase } from '../../types';
@@ -57,6 +58,7 @@ export function BudgetDraft({ stocks, recipes, itemNames, onStockChanged }: Budg
   const [buying, setBuying] = useState(false);
   const [source, setSource] = useState('');
   const [contributor, setContributor] = useState('');
+  const [purchaseDate, setPurchaseDate] = useState<Dayjs | null>(null);
   const [queuedPurchases, setQueuedPurchases] = useState<QueuedPurchase[]>(() => newPurchaseLines());
   const [limitInput, setLimitInput] = useState<Record<Currency, number>>({ THB: 0, G: 0 });
   const [messageApi, contextHolder] = message.useMessage();
@@ -72,7 +74,7 @@ export function BudgetDraft({ stocks, recipes, itemNames, onStockChanged }: Budg
     try {
       const data = await fetchBudgetData();
       setBudgets(data.budgets);
-      setPurchases(data.purchases);
+      setPurchases([...data.purchases].sort((a, b) => Date.parse(b.purchased_at) - Date.parse(a.purchased_at)));
       setLimitInput({
         THB: data.budgets.find((budget) => budget.currency === 'THB')?.limit_amount ?? 0,
         G: data.budgets.find((budget) => budget.currency === 'G')?.limit_amount ?? 0,
@@ -174,12 +176,14 @@ export function BudgetDraft({ stocks, recipes, itemNames, onStockChanged }: Budg
         const purchase = await createStockPurchase({
           item_id: entry.itemId, quantity: entry.quantity, total_amount: entry.total, currency: entry.currency,
           source: source.trim() || undefined, contributor: contributor.trim() || undefined,
+          purchased_at: purchaseDate ? purchaseDate.toISOString() : undefined,
         });
         saved.push(purchase);
         savedKeys.push(entry.key);
       }
-      setPurchases((current) => [...saved, ...current]);
+      setPurchases((current) => [...saved, ...current].sort((a, b) => Date.parse(b.purchased_at) - Date.parse(a.purchased_at)));
       setQueuedPurchases(newPurchaseLines());
+      setPurchaseDate(null);
       await onStockChanged();
       messageApi.success(`เพิ่มสต็อก ${saved.length} รายการแล้ว`);
     } catch (error) {
@@ -212,7 +216,9 @@ export function BudgetDraft({ stocks, recipes, itemNames, onStockChanged }: Budg
     { title: 'ต้นทุน/ชิ้น', align: 'right', width: 130, render: (_, row) => displayMoney(row.total_amount / row.quantity, row.currency) },
     { title: 'งบจาก', dataIndex: 'contributor', width: 150, render: (value) => value ? <Text strong style={{ color: '#2563eb' }}>{contributorLabel(value)}</Text> : <Text type="secondary">—</Text> },
     { title: 'แหล่งซื้อ', dataIndex: 'source', width: 140, render: (value) => value || '—' },
-    { title: 'เมื่อ', dataIndex: 'purchased_at', width: 145, render: (value) => new Date(value).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }) },
+    { title: 'เมื่อ', dataIndex: 'purchased_at', width: 145, defaultSortOrder: 'descend',
+      sorter: (a, b) => Date.parse(a.purchased_at) - Date.parse(b.purchased_at),
+      render: (value) => new Date(value).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }) },
   ];
 
   return (
@@ -227,6 +233,15 @@ export function BudgetDraft({ stocks, recipes, itemNames, onStockChanged }: Budg
             <div className="budget-purchase-context">
               <label><span>งบจาก</span><Input value={contributor} onChange={(event) => setContributor(event.target.value)} placeholder="เลือกหรือพิมพ์ชื่อ" /></label>
               <label><span>แหล่งซื้อ</span><Select value={source || undefined} onChange={(value) => setSource(value)} placeholder="เลือก" options={[...PURCHASE_SOURCE_OPTIONS]} /></label>
+              <label><span>วันที่ซื้อ</span><DatePicker
+                value={purchaseDate}
+                onChange={setPurchaseDate}
+                format="D MMM BBBB"
+                placeholder="วันนี้ (ค่าเริ่มต้น)"
+                disabledDate={(d) => d.isAfter(dayjs(), 'day')}
+                style={{ width: '100%' }}
+                allowClear
+              /></label>
               <div className="budget-purchase-people"><span>เลือกคน</span><Space size={[4, 4]} wrap>{CONTRIBUTOR_NAMES.map((name) => <Button key={name} size="small" type={contributor === name ? 'primary' : 'default'} onClick={() => setContributor(name)}>{contributorLabel(name)}</Button>)}</Space></div>
             </div>
             <div className="budget-purchase-lines" aria-label="รายการซื้อรอบนี้">

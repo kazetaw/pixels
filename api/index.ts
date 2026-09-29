@@ -765,12 +765,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const body = req.body as {
         item_id: string; quantity: number; total_amount: number;
         currency: 'THB' | 'G'; source?: string; contributor?: string;
+        purchased_at?: string;
       };
       if (!body.item_id?.trim()) return res.status(400).json({ error: 'item_id is required' });
       if (typeof body.quantity !== 'number' || body.quantity <= 0)
         return res.status(400).json({ error: 'quantity must be positive' });
       if (!['THB','G'].includes(body.currency))
         return res.status(400).json({ error: 'currency must be THB or G' });
+      const customDate = body.purchased_at ? new Date(body.purchased_at) : null;
+      if (customDate && isNaN(customDate.getTime()))
+        return res.status(400).json({ error: 'purchased_at must be a valid ISO date' });
       try {
         const purchase = await insertPurchase({
           item_id: body.item_id.trim(),
@@ -779,6 +783,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           currency: body.currency,
           source: body.source ?? null,
           contributor: body.contributor ?? null,
+          purchased_at: customDate?.toISOString(),
         });
         return res.status(201).json(purchase);
       } catch (e) { return res.status(500).json({ error: (e as Error).message }); }

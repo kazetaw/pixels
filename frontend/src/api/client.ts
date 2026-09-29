@@ -82,7 +82,7 @@ export async function saveBudget(currency: Budget['currency'], limit_amount: num
   }));
 }
 
-export async function createStockPurchase(input: Omit<StockPurchase, 'id' | 'purchased_at'>): Promise<StockPurchase> {
+export async function createStockPurchase(input: Omit<StockPurchase, 'id' | 'purchased_at'> & { purchased_at?: string }): Promise<StockPurchase> {
   return handleResponse(await fetch('/api/purchases', {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input),
   }));
