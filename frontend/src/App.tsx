@@ -664,9 +664,22 @@ function BomWorkspace({
 export default function App() {
   const isInventoryPath = () => window.location.pathname.replace(/\/+$/, '') === '/inventory';
   const [publicInventory, setPublicInventory] = useState(isInventoryPath);
-  const [view, setView] = useState<MainView>(() => isInventoryPath() ? 'inventory' : 'data');
+  const [view, setViewState] = useState<MainView>(() => {
+    if (isInventoryPath()) return 'inventory';
+    try {
+      const saved = localStorage.getItem('app-view') as MainView | null;
+      const valid: MainView[] = ['planner','shared-planner','production-flow','data','inventory','floors','targets','budget','organization','assignments'];
+      if (saved && valid.includes(saved)) return saved;
+    } catch { /* localStorage unavailable */ }
+    return 'data';
+  });
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [bomOpen, setBomOpen] = useState(false);
+
+  const setView = (next: MainView) => {
+    setViewState(next);
+    try { localStorage.setItem('app-view', next); } catch { /* ignore */ }
+  };
 
   useEffect(() => {
     const updateRoute = () => {
