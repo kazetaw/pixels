@@ -1148,6 +1148,18 @@ body {
   font-weight: 600;
 }
 .adm-catalog-add { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+/* Toolbar row: search + add button */
+.adm-catalog-toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 16px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #fafcff;
+}
+
+/* Empty state */
 .adm-catalog-empty {
   padding: 20px 16px;
   font-size: 13px;
@@ -1155,6 +1167,7 @@ body {
   margin: 0;
   text-align: center;
 }
+
 .adm-catalog-items { display: flex; flex-direction: column; }
 .adm-catalog-item {
   display: flex;
@@ -1166,11 +1179,44 @@ body {
 .adm-catalog-item:last-child { border-bottom: none; }
 .adm-catalog-item:hover { background: #f8fafc; }
 .adm-catalog-item > :first-child { flex: 1; min-width: 0; }
+
+/* Stock numbers per item */
+.adm-catalog-item-stocks {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-shrink: 0;
+}
+.adm-catalog-available,
+.adm-catalog-total {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.adm-catalog-available { color: #0369a1; }
+.adm-catalog-total { color: #475569; }
+.adm-catalog-available em,
+.adm-catalog-total em {
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 400;
+  color: #94a3b8;
+}
+
 .adm-catalog-stock {
   font-size: 12px;
   color: #64748b;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 540px) {
+  .adm-catalog-toolbar { flex-wrap: wrap; }
+  .adm-catalog-item-stocks { gap: 8px; }
 }
 
 /* Ticket action buttons */

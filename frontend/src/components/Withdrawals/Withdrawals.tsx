@@ -125,24 +125,75 @@ export function Withdrawals({ admin = false, onData }: { admin?: boolean; onData
       <div className="adm-catalog-header">
         <div>
           <strong>สินค้าที่เปิดให้เบิก</strong>
-          <span className="adm-catalog-count">{catalog.filter(c=>c.enabled).length} รายการ</span>
-        </div>
-        <div className="adm-catalog-add">
-          <Select style={{width:'min(100%, 280px)'}} aria-label="เพิ่มสินค้าเปิดให้เบิก" placeholder="ค้นหาสินค้าในคลัง…" showSearch optionFilterProp="label" value={newItem} onChange={setNewItem} disabled={busy} options={Object.keys(data?.stocks ?? {}).filter(id=>!catalog.some(c=>c.item_id===id && c.enabled)).map(id=>({value:id,label:data?.itemNames[id] || 'ไม่พบชื่อสินค้า'}))} {...withdrawalItemVisuals} />
-          <Button type="primary" disabled={!newItem || busy} onClick={()=>newItem && void setAllowed(newItem,true)}>เปิดให้เบิก</Button>
+          <span className="adm-catalog-count">{catalog.filter(c=>c.enabled).length} / {catalog.length} รายการ</span>
         </div>
       </div>
-      {catalog.filter(c=>c.enabled).length === 0
-        ? <p className="adm-catalog-empty">ยังไม่มีสินค้าที่เปิดให้เบิก — เพิ่มสินค้าจากช่องด้านบน</p>
-        : <div className="adm-catalog-items">
-            {catalog.filter(c=>c.enabled).map(c=><div className="adm-catalog-item" key={c.item_id}>
-              <ItemLabel id={c.item_id} name={data?.itemNames[c.item_id] || 'ไม่พบชื่อสินค้า'} reserveImage size={28} />
-              <span className="adm-catalog-stock">{(data?.stocks[c.item_id] ?? 0).toLocaleString('th-TH')} ชิ้น</span>
-              <Popconfirm title="ปิดรับใบเบิกใหม่สำหรับสินค้านี้?" okText="ปิด" cancelText="ยกเลิก" onConfirm={()=>setAllowed(c.item_id,false)}>
-                <Button size="small" disabled={busy}>ปิดให้เบิก</Button>
-              </Popconfirm>
-            </div>)}
-          </div>}
+
+      {/* Search + add row */}
+      <div className="adm-catalog-toolbar">
+        <Select
+          style={{ flex: 1, minWidth: 0 }}
+          aria-label="เพิ่มหรือค้นหาสินค้า"
+          placeholder="ค้นหาสินค้าในคลังเพื่อเปิดให้เบิก…"
+          showSearch
+          optionFilterProp="label"
+          value={newItem}
+          onChange={setNewItem}
+          disabled={busy}
+          options={Object.keys(data?.stocks ?? {})
+            .filter(id => !catalog.some(c => c.item_id === id && c.enabled))
+            .map(id => ({ value: id, label: data?.itemNames[id] || 'ไม่พบชื่อสินค้า' }))}
+          {...withdrawalItemVisuals}
+          allowClear
+        />
+        <Button type="primary" disabled={!newItem || busy} onClick={() => newItem && void setAllowed(newItem, true)}>
+          เปิดให้เบิก
+        </Button>
+      </div>
+
+      {/* Enabled list with inline search */}
+      {catalog.filter(c => c.enabled).length === 0
+        ? <p className="adm-catalog-empty">ยังไม่มีสินค้าที่เปิดให้เบิก — เลือกสินค้าจากช่องค้นหาด้านบน</p>
+        : (() => {
+            const enabledItems = catalog
+              .filter(c => c.enabled)
+              .map(c => ({
+                ...c,
+                name: data?.itemNames[c.item_id] || 'ไม่พบชื่อสินค้า',
+                stock: data?.stocks[c.item_id] ?? 0,
+                available: availability[c.item_id] ?? 0,
+              }))
+              .sort((a, b) => a.name.localeCompare(b.name, 'th'));
+            return (
+              <div className="adm-catalog-items">
+                {enabledItems.map(c => (
+                  <div className="adm-catalog-item" key={c.item_id}>
+                    <ItemLabel id={c.item_id} name={c.name} reserveImage size={28} />
+                    <div className="adm-catalog-item-stocks">
+                      <span className="adm-catalog-available" title="ยอดที่จองได้ (หักใบเบิกที่รอส่งแล้ว)">
+                        {c.available.toLocaleString('th-TH')}
+                        <em>เบิกได้</em>
+                      </span>
+                      <span className="adm-catalog-total" title="สต็อกรวมทั้งหมด">
+                        {c.stock.toLocaleString('th-TH')}
+                        <em>คลัง</em>
+                      </span>
+                    </div>
+                    <Popconfirm
+                      title="ปิดรับใบเบิกใหม่สำหรับสินค้านี้?"
+                      description="ใบเบิกเดิมที่รอส่งยังดำเนินการได้ตามปกติ"
+                      okText="ปิด"
+                      cancelText="ยกเลิก"
+                      onConfirm={() => setAllowed(c.item_id, false)}
+                    >
+                      <Button size="small" disabled={busy}>ปิดให้เบิก</Button>
+                    </Popconfirm>
+                  </div>
+                ))}
+              </div>
+            );
+          })()
+      }
     </div>}
     {!admin && <fieldset disabled={busy} className="withdrawal-form">
       <div className="withdrawal-people"><label>ผู้เบิก<Select {...personSelectVisuals} aria-label="ผู้เบิก" disabled={busy} placeholder="เลือกคนที่เบิก" options={peopleOptions} value={requester || undefined} onChange={value=>{setRequester(value);if(value !== 'other'){const person=CONTRIBUTOR_PROFILES.find(p=>p.name===value);setRecipient(value);setRecipientName(person?.name ?? '');setCharacter(person?.memberId ?? '');}setRequestId(crypto.randomUUID());}} /></label>
