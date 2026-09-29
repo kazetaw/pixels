@@ -20,6 +20,7 @@ const withdrawalItemVisuals: Pick<SelectProps, 'optionRender' | 'labelRender'> =
 };
 type Line = { item_id: string; quantity: number };
 type Ticket = { requester_name: string; recipient_name: string; id: string; character_id: string; note: string; status: 'pending'|'sent'|'cancelled'; created_at: string; withdrawal_lines: Line[] };
+const stacks = (pieces: number) => `${Math.floor(pieces / 99).toLocaleString()} กอง${pieces % 99 ? ` + ${(pieces % 99).toLocaleString()} ชิ้น` : ''}`;
 const labels = { pending: 'รอจัดส่ง', sent: 'ส่งแล้ว', cancelled: 'ยกเลิก' };
 async function request(method = 'GET', body?: unknown, id = '') {
   const response = await fetch(`/api/withdrawals${id ? (id.startsWith('?') ? id : '/' + id) : ''}`, { method, headers: { 'Content-Type': 'application/json' }, ...(body ? { body: JSON.stringify(body) } : {}) });
@@ -154,13 +155,13 @@ export function Withdrawals({ admin = false, onData }: { admin?: boolean; onData
       </div>
       {recipient === 'other' && <div className="withdrawal-custom-recipient"><label>ชื่อตัวละครผู้รับ<Input maxLength={100} value={recipientName} onChange={e=>{setRecipientName(e.target.value);setRequestId(crypto.randomUUID());}} /></label>
       <label>ไอดีตัวละครผู้รับ<Input value={character} inputMode="numeric" onChange={e => {setCharacter(e.target.value);setRequestId(crypto.randomUUID());}} /></label></div>}
-      <div className="withdrawal-items-heading"><strong>สินค้า</strong><span>จำนวน (ชิ้น)</span></div>
+      <div className="withdrawal-items-heading"><strong>สินค้า</strong><span>จำนวน (กอง)</span></div>
       {lines.map((line,index) => <div className="withdrawal-line" key={index}>
         <Select aria-label="สินค้าเบิก" disabled={busy} placeholder="เลือกสินค้า" showSearch optionFilterProp="label" value={line.item_id || undefined} onChange={id=>patchLine(index,{item_id:id})} options={options} {...withdrawalItemVisuals} />
-        <InputNumber aria-label="จำนวนเบิก" disabled={busy} min={1} max={2147483647} precision={0} value={line.quantity} onChange={quantity=>patchLine(index,{quantity:quantity ?? 0})} />
-        <Button disabled={busy} onClick={()=>patchLine(index,{quantity:line.quantity+99})}>+99</Button>
+        <InputNumber aria-label="จำนวนเบิก (กอง)" disabled={busy} min={1} max={21691754} precision={0} value={line.quantity / 99} onChange={quantity=>patchLine(index,{quantity:(quantity ?? 0) * 99})} />
+        <Button disabled={busy} onClick={()=>patchLine(index,{quantity:line.quantity+99})}>+1 กอง</Button>
         <Button disabled={busy || lines.length===1} danger onClick={()=>{setLines(lines.filter((_,i)=>i!==index));setRequestId(crypto.randomUUID());}}>ลบ</Button>
-        {line.item_id && <small className={requested[line.item_id] > (availability[line.item_id] ?? 0) ? 'withdrawal-quantity-error' : ''} role="status">{requested[line.item_id] > (availability[line.item_id] ?? 0) ? `เกินยอดที่เบิกได้ ${(requested[line.item_id]-(availability[line.item_id] ?? 0)).toLocaleString()} ชิ้น · รวมทุกแถวแล้ว ${requested[line.item_id].toLocaleString()} ชิ้น` : `เหลือให้จอง ${(availability[line.item_id] ?? 0).toLocaleString()} ชิ้น`}</small>}
+        {line.item_id && <small className={requested[line.item_id] > (availability[line.item_id] ?? 0) ? 'withdrawal-quantity-error' : ''} role="status">{requested[line.item_id] > (availability[line.item_id] ?? 0) ? `เกินยอดที่เบิกได้ ${stacks(requested[line.item_id]-(availability[line.item_id] ?? 0))} · รวมทุกแถว ${stacks(requested[line.item_id])}` : `เหลือให้จอง ${stacks(availability[line.item_id] ?? 0)} · 1 กอง = 99 ชิ้น`}</small>}
       </div>)}
       <div className="withdrawal-extras"><Button className="withdrawal-add" type="dashed" disabled={busy || lines.length>=50} onClick={()=>{setLines([...lines,{item_id:'',quantity:99}]);setRequestId(crypto.randomUUID());}}>เพิ่มสินค้า</Button></div>
       <label className="withdrawal-note-field">หมายเหตุ (ไม่จำเป็น)<Input.TextArea aria-label="หมายเหตุ (ไม่จำเป็น)" placeholder="รายละเอียดเพิ่มเติม" autoSize={{ minRows: 1, maxRows: 3 }} maxLength={1000} value={note} onChange={e=>{setNote(e.target.value);setRequestId(crypto.randomUUID());}} /></label>
@@ -184,7 +185,7 @@ export function Withdrawals({ admin = false, onData }: { admin?: boolean; onData
         <span className="withdrawal-history-chevron" aria-hidden="true">⌄</span>
       </summary>
       <div className="withdrawal-history-body"><div className="withdrawal-history-owner"><small>ผู้เบิก</small><span>{t.requester_name || 'ไม่ระบุ'}</span></div><small>{new Date(t.created_at).toLocaleString('th-TH')}</small>
-      {t.withdrawal_lines.map(l=><div className="withdrawal-ticket-line" key={l.item_id}><ItemLabel id={l.item_id} name={data?.itemNames[l.item_id] ?? 'ไม่พบชื่อสินค้า'} reserveImage /><strong>{l.quantity.toLocaleString()} ชิ้น</strong></div>)}
+      {t.withdrawal_lines.map(l=><div className="withdrawal-ticket-line" key={l.item_id}><ItemLabel id={l.item_id} name={data?.itemNames[l.item_id] ?? 'ไม่พบชื่อสินค้า'} reserveImage /><strong title={`${l.quantity.toLocaleString()} ชิ้น`}>{stacks(l.quantity)}</strong></div>)}
       {t.note && <p>{t.note}</p>}
       {admin && <div className="adm-ticket-actions"><Button onClick={()=>void navigator.clipboard.writeText(t.character_id).catch(()=>setError('คัดลอกไม่ได้ กรุณาคัดลอกไอดีด้วยตนเอง'))}>คัดลอกไอดี {t.character_id}</Button>{t.status==='pending' && <><Popconfirm title="ยืนยันส่งของแล้วและหักสต็อก?" okText="ยืนยัน" cancelText="ยกเลิก" onConfirm={()=>change(t,'sent')}><Button disabled={busy} type="primary">ส่งแล้ว — หักสต็อก</Button></Popconfirm><Popconfirm title="ยกเลิกใบเบิกและคืนยอดจอง?" okText="ยกเลิกใบเบิก" cancelText="ไม่" onConfirm={()=>change(t,'cancelled')}><Button disabled={busy} danger>ยกเลิกใบเบิก</Button></Popconfirm></>}</div>}
       <small className="withdrawal-receipt-number">ใบเบิก {t.id}</small>
