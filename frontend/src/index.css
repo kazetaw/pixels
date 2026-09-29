@@ -1394,3 +1394,34 @@ body {
   .ae2-row-bar { width: 60px; }
   .ae2-row-right { gap: 6px; }
 }
+
+/* Catalog toggle switch */
+.adm-toggle {
+  flex-shrink: 0;
+  width: 40px; height: 22px;
+  border-radius: 99px;
+  border: none;
+  background: #e2e8f0;
+  cursor: pointer;
+  padding: 2px;
+  position: relative;
+  transition: background 0.2s;
+  display: flex; align-items: center;
+}
+.adm-toggle:disabled { opacity: 0.5; cursor: not-allowed; }
+.adm-toggle--on { background: #6366f1; }
+.adm-toggle--on:not(:disabled):hover { background: #4f46e5; }
+.adm-toggle:not(.adm-toggle--on):not(:disabled):hover { background: #cbd5e1; }
+.adm-toggle-thumb {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0,0,0,.2);
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+.adm-toggle--on .adm-toggle-thumb { transform: translateX(18px); }
+
+/* Disabled (off) catalog row */
+.adm-catalog-item--off { opacity: 0.55; }
+.adm-catalog-item--off .item-label__name { text-decoration: line-through; color: #94a3b8; }

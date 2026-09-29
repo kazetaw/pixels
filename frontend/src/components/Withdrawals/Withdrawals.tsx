@@ -133,61 +133,66 @@ export function Withdrawals({ admin = false, onData }: { admin?: boolean; onData
       <div className="adm-catalog-toolbar">
         <Select
           style={{ flex: 1, minWidth: 0 }}
-          aria-label="เพิ่มหรือค้นหาสินค้า"
-          placeholder="ค้นหาสินค้าในคลังเพื่อเปิดให้เบิก…"
+          aria-label="เพิ่มสินค้าใหม่"
+          placeholder="ค้นหาสินค้าในคลังเพื่อเพิ่มเข้ารายการ…"
           showSearch
           optionFilterProp="label"
           value={newItem}
           onChange={setNewItem}
           disabled={busy}
           options={Object.keys(data?.stocks ?? {})
-            .filter(id => !catalog.some(c => c.item_id === id && c.enabled))
+            .filter(id => !catalog.some(c => c.item_id === id))
             .map(id => ({ value: id, label: data?.itemNames[id] || 'ไม่พบชื่อสินค้า' }))}
           {...withdrawalItemVisuals}
           allowClear
         />
         <Button type="primary" disabled={!newItem || busy} onClick={() => newItem && void setAllowed(newItem, true)}>
-          เปิดให้เบิก
+          เพิ่มรายการ
         </Button>
       </div>
 
-      {/* Enabled list with inline search */}
-      {catalog.filter(c => c.enabled).length === 0
-        ? <p className="adm-catalog-empty">ยังไม่มีสินค้าที่เปิดให้เบิก — เลือกสินค้าจากช่องค้นหาด้านบน</p>
+      {/* Full list — all catalog items with toggle */}
+      {catalog.length === 0
+        ? <p className="adm-catalog-empty">ยังไม่มีสินค้าในรายการ — ค้นหาและเพิ่มจากช่องด้านบน</p>
         : (() => {
-            const enabledItems = catalog
-              .filter(c => c.enabled)
+            const allItems = catalog
               .map(c => ({
                 ...c,
                 name: data?.itemNames[c.item_id] || 'ไม่พบชื่อสินค้า',
                 stock: data?.stocks[c.item_id] ?? 0,
                 available: availability[c.item_id] ?? 0,
               }))
-              .sort((a, b) => a.name.localeCompare(b.name, 'th'));
+              .sort((a, b) => {
+                // enabled first, then A-Z
+                if (a.enabled !== b.enabled) return a.enabled ? -1 : 1;
+                return a.name.localeCompare(b.name, 'th');
+              });
             return (
               <div className="adm-catalog-items">
-                {enabledItems.map(c => (
-                  <div className="adm-catalog-item" key={c.item_id}>
+                {allItems.map(c => (
+                  <div className={`adm-catalog-item${c.enabled ? '' : ' adm-catalog-item--off'}`} key={c.item_id}>
                     <ItemLabel id={c.item_id} name={c.name} reserveImage size={28} />
-                    <div className="adm-catalog-item-stocks">
-                      <span className="adm-catalog-available" title="ยอดที่จองได้ (หักใบเบิกที่รอส่งแล้ว)">
-                        {c.available.toLocaleString('th-TH')}
-                        <em>เบิกได้</em>
-                      </span>
-                      <span className="adm-catalog-total" title="สต็อกรวมทั้งหมด">
-                        {c.stock.toLocaleString('th-TH')}
-                        <em>คลัง</em>
-                      </span>
-                    </div>
-                    <Popconfirm
-                      title="ปิดรับใบเบิกใหม่สำหรับสินค้านี้?"
-                      description="ใบเบิกเดิมที่รอส่งยังดำเนินการได้ตามปกติ"
-                      okText="ปิด"
-                      cancelText="ยกเลิก"
-                      onConfirm={() => setAllowed(c.item_id, false)}
+                    {c.enabled && (
+                      <div className="adm-catalog-item-stocks">
+                        <span className="adm-catalog-available" title="เบิกได้ (หักที่จองแล้ว)">
+                          {c.available.toLocaleString('th-TH')}
+                          <em>เบิกได้</em>
+                        </span>
+                        <span className="adm-catalog-total" title="สต็อกรวม">
+                          {c.stock.toLocaleString('th-TH')}
+                          <em>คลัง</em>
+                        </span>
+                      </div>
+                    )}
+                    <button
+                      className={`adm-toggle${c.enabled ? ' adm-toggle--on' : ''}`}
+                      disabled={busy}
+                      onClick={() => void setAllowed(c.item_id, !c.enabled)}
+                      aria-label={c.enabled ? 'ปิดให้เบิก' : 'เปิดให้เบิก'}
+                      title={c.enabled ? 'คลิกเพื่อปิดให้เบิก' : 'คลิกเพื่อเปิดให้เบิก'}
                     >
-                      <Button size="small" disabled={busy}>ปิดให้เบิก</Button>
-                    </Popconfirm>
+                      <span className="adm-toggle-thumb" />
+                    </button>
                   </div>
                 ))}
               </div>
