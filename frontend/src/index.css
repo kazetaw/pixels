@@ -1425,3 +1425,26 @@ body {
 /* Disabled (off) catalog row */
 .adm-catalog-item--off { opacity: 0.55; }
 .adm-catalog-item--off .item-label__name { text-decoration: line-through; color: #94a3b8; }
+
+/* ── Admin 2-column layout ──────────────────────────────────────────────── */
+.adm-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+.adm-sidebar {
+  position: sticky;
+  top: 16px;
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #e2e8f0 transparent;
+}
+.adm-sidebar .adm-catalog-section { border-radius: 12px; overflow: hidden; }
+.adm-tickets { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+
+@media (max-width: 900px) {
+  .adm-layout { grid-template-columns: 1fr; }
+  .adm-sidebar { position: static; max-height: none; }
+}

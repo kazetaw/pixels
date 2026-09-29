@@ -121,133 +121,154 @@ export function Withdrawals({ admin = false, onData }: { admin?: boolean; onData
     {error && <Alert type="error" message={error} action={<Button onClick={() => { setError(''); void refresh().catch(e=>setError(e.message)); }}>โหลดใหม่</Button>} />}
     {loadError && <Alert type="warning" message="โหลดข้อมูลไม่สำเร็จ" description={loadError} action={<Button loading={refreshing} onClick={()=>void refresh()}>ลองใหม่</Button>} />}
     {success && <Alert type="success" message={success} closable onClose={() => setSuccess('')} />}
-    {admin && <div className="adm-catalog-section">
-      <div className="adm-catalog-header">
-        <div>
-          <strong>สินค้าที่เปิดให้เบิก</strong>
-          <span className="adm-catalog-count">{catalog.filter(c=>c.enabled).length} / {catalog.length} รายการ</span>
-        </div>
-      </div>
 
-      {/* Search + add row */}
-      <div className="adm-catalog-toolbar">
-        <Select
-          style={{ flex: 1, minWidth: 0 }}
-          aria-label="เพิ่มสินค้าใหม่"
-          placeholder="ค้นหาสินค้าในคลังเพื่อเพิ่มเข้ารายการ…"
-          showSearch
-          optionFilterProp="label"
-          value={newItem}
-          onChange={setNewItem}
-          disabled={busy}
-          options={Object.keys(data?.stocks ?? {})
-            .filter(id => !catalog.some(c => c.item_id === id))
-            .map(id => ({ value: id, label: data?.itemNames[id] || 'ไม่พบชื่อสินค้า' }))}
-          {...withdrawalItemVisuals}
-          allowClear
-        />
-        <Button type="primary" disabled={!newItem || busy} onClick={() => newItem && void setAllowed(newItem, true)}>
-          เพิ่มรายการ
-        </Button>
-      </div>
+    {admin ? (
+      /* ── Admin 2-column layout ── */
+      <div className="adm-layout">
 
-      {/* Full list — all catalog items with toggle */}
-      {catalog.length === 0
-        ? <p className="adm-catalog-empty">ยังไม่มีสินค้าในรายการ — ค้นหาและเพิ่มจากช่องด้านบน</p>
-        : (() => {
-            const allItems = catalog
-              .map(c => ({
-                ...c,
-                name: data?.itemNames[c.item_id] || 'ไม่พบชื่อสินค้า',
-                stock: data?.stocks[c.item_id] ?? 0,
-                available: availability[c.item_id] ?? 0,
-              }))
-              .sort((a, b) => {
-                // enabled first, then A-Z
-                if (a.enabled !== b.enabled) return a.enabled ? -1 : 1;
-                return a.name.localeCompare(b.name, 'th');
-              });
-            return (
-              <div className="adm-catalog-items">
-                {allItems.map(c => (
-                  <div className={`adm-catalog-item${c.enabled ? '' : ' adm-catalog-item--off'}`} key={c.item_id}>
-                    <ItemLabel id={c.item_id} name={c.name} reserveImage size={28} />
-                    {c.enabled && (
-                      <div className="adm-catalog-item-stocks">
-                        <span className="adm-catalog-available" title="เบิกได้ (หักที่จองแล้ว)">
-                          {c.available.toLocaleString('th-TH')}
-                          <em>เบิกได้</em>
-                        </span>
-                        <span className="adm-catalog-total" title="สต็อกรวม">
-                          {c.stock.toLocaleString('th-TH')}
-                          <em>คลัง</em>
-                        </span>
-                      </div>
-                    )}
-                    <button
-                      className={`adm-toggle${c.enabled ? ' adm-toggle--on' : ''}`}
-                      disabled={busy}
-                      onClick={() => void setAllowed(c.item_id, !c.enabled)}
-                      aria-label={c.enabled ? 'ปิดให้เบิก' : 'เปิดให้เบิก'}
-                      title={c.enabled ? 'คลิกเพื่อปิดให้เบิก' : 'คลิกเพื่อเปิดให้เบิก'}
-                    >
-                      <span className="adm-toggle-thumb" />
-                    </button>
-                  </div>
-                ))}
+        {/* LEFT — catalog panel */}
+        <aside className="adm-sidebar">
+          <div className="adm-catalog-section">
+            <div className="adm-catalog-header">
+              <div>
+                <strong>สินค้าที่เปิดให้เบิก</strong>
+                <span className="adm-catalog-count">{catalog.filter(c=>c.enabled).length} / {catalog.length} รายการ</span>
               </div>
-            );
-          })()
-      }
-    </div>}
-    {!admin && <fieldset disabled={busy} className="withdrawal-form">
-      <div className="withdrawal-people"><label>ผู้เบิก<Select {...personSelectVisuals} aria-label="ผู้เบิก" disabled={busy} placeholder="เลือกคนที่เบิก" options={peopleOptions} value={requester || undefined} onChange={value=>{setRequester(value);if(value !== 'other'){const person=CONTRIBUTOR_PROFILES.find(p=>p.name===value);setRecipient(value);setRecipientName(person?.name ?? '');setCharacter(person?.memberId ?? '');}setRequestId(crypto.randomUUID());}} /></label>
-      {requester === 'other' && <label>ชื่อผู้เบิก<Input maxLength={100} value={requesterOther} onChange={e=>{setRequesterOther(e.target.value);setRequestId(crypto.randomUUID());}} /></label>}
-      <label>ส่งให้ตัวละคร<Select {...personSelectVisuals} aria-label="ตัวละครผู้รับ" disabled={busy} placeholder="เลือกผู้รับ" options={peopleOptions} value={recipient || undefined} onChange={value=>{
-        setRecipient(value); const profile = CONTRIBUTOR_PROFILES.find(p=>p.name===value);
-        setRecipientName(profile?.name ?? ''); setCharacter(profile?.memberId ?? ''); setRequestId(crypto.randomUUID());
-      }} /></label>
-      {recipient && recipient !== 'other' && <span className="withdrawal-recipient-id">ไอดี {character}</span>}
+            </div>
+            <div className="adm-catalog-toolbar">
+              <Select
+                style={{ flex: 1, minWidth: 0 }}
+                aria-label="เพิ่มสินค้าใหม่"
+                placeholder="ค้นหาสินค้าในคลัง…"
+                showSearch optionFilterProp="label"
+                value={newItem} onChange={setNewItem} disabled={busy}
+                options={Object.keys(data?.stocks ?? {})
+                  .filter(id => !catalog.some(c => c.item_id === id))
+                  .map(id => ({ value: id, label: data?.itemNames[id] || 'ไม่พบชื่อสินค้า' }))}
+                {...withdrawalItemVisuals} allowClear
+              />
+              <Button type="primary" disabled={!newItem || busy} onClick={() => newItem && void setAllowed(newItem, true)}>เพิ่ม</Button>
+            </div>
+            {catalog.length === 0
+              ? <p className="adm-catalog-empty">ยังไม่มีสินค้าในรายการ</p>
+              : <div className="adm-catalog-items">
+                  {catalog
+                    .map(c => ({ ...c, name: data?.itemNames[c.item_id] || 'ไม่พบชื่อสินค้า', stock: data?.stocks[c.item_id] ?? 0, available: availability[c.item_id] ?? 0 }))
+                    .sort((a, b) => { if (a.enabled !== b.enabled) return a.enabled ? -1 : 1; return a.name.localeCompare(b.name, 'th'); })
+                    .map(c => (
+                      <div className={`adm-catalog-item${c.enabled ? '' : ' adm-catalog-item--off'}`} key={c.item_id}>
+                        <ItemLabel id={c.item_id} name={c.name} reserveImage size={26} />
+                        {c.enabled && (
+                          <div className="adm-catalog-item-stocks">
+                            <span className="adm-catalog-available" title="เบิกได้">{c.available.toLocaleString('th-TH')}<em>เบิกได้</em></span>
+                            <span className="adm-catalog-total" title="คลัง">{c.stock.toLocaleString('th-TH')}<em>คลัง</em></span>
+                          </div>
+                        )}
+                        <button
+                          className={`adm-toggle${c.enabled ? ' adm-toggle--on' : ''}`}
+                          disabled={busy}
+                          onClick={() => void setAllowed(c.item_id, !c.enabled)}
+                          aria-label={c.enabled ? 'ปิดให้เบิก' : 'เปิดให้เบิก'}
+                        ><span className="adm-toggle-thumb" /></button>
+                      </div>
+                    ))}
+                </div>}
+          </div>
+        </aside>
+
+        {/* RIGHT — ticket list */}
+        <div className="adm-tickets">
+          <div className="withdrawal-history-heading">
+            <h3>ใบเบิกสินค้า <small>{matched} / {total} ใบ</small></h3>
+            <Button loading={refreshing} disabled={busy} onClick={() => void refresh().catch(e => setError(e.message))}>รีเฟรช</Button>
+          </div>
+          <div className="withdrawal-history-filters">
+            <Input.Search aria-label="ค้นหาใบเบิก" placeholder="ชื่อ ไอดี เลขใบเบิก หรือสินค้า" allowClear value={filter} onChange={e => setFilter(e.target.value)} />
+            <Select aria-label="กรองสถานะ" placeholder="ทุกสถานะ" allowClear value={statusFilter} onChange={setStatusFilter} options={Object.entries(labels).map(([value, label]) => ({ value, label }))} />
+            <Select {...personSelectVisuals} aria-label="กรองผู้เบิก" placeholder="ผู้เบิกทุกคน" allowClear showSearch optionFilterProp="label" value={personFilter} onChange={setPersonFilter} options={people.map(name => ({ value: name, label: name }))} />
+            <Select aria-label="กรองสินค้า" placeholder="สินค้าทั้งหมด" allowClear showSearch optionFilterProp="label" value={productFilter} onChange={setProductFilter} options={historyProducts} {...withdrawalItemVisuals} />
+            {(filter || statusFilter || personFilter || productFilter) && <Button type="text" onClick={() => { setFilter(''); setStatusFilter(undefined); setPersonFilter(undefined); setProductFilter(undefined); }}>ล้างตัวกรอง</Button>}
+          </div>
+          <div className="withdrawal-history-list">
+            {visible.map(t => <details className="withdrawal-history-row" key={t.id}>
+              <summary>
+                <span className="withdrawal-history-person"><PersonLabel name={t.recipient_name || 'ไม่ระบุชื่อ'} characterId={t.character_id} size={24} /><small>{t.character_id}</small></span>
+                <span className="withdrawal-history-quantity">{t.withdrawal_lines.length} รายการ</span>
+                <Tag color={t.status === 'pending' ? 'gold' : t.status === 'sent' ? 'green' : 'default'}>{labels[t.status]}</Tag>
+                <time className="withdrawal-history-time" dateTime={t.created_at} title={new Date(t.created_at).toLocaleString('th-TH')}>{new Date(t.created_at).toLocaleString('th-TH', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' })}</time>
+                <span className="withdrawal-history-chevron" aria-hidden="true">⌄</span>
+              </summary>
+              <div className="withdrawal-history-body">
+                <div className="withdrawal-history-owner"><small>ผู้เบิก</small><span>{t.requester_name || 'ไม่ระบุ'}</span></div>
+                <small>{new Date(t.created_at).toLocaleString('th-TH')}</small>
+                {t.withdrawal_lines.map(l => <div className="withdrawal-ticket-line" key={l.item_id}><ItemLabel id={l.item_id} name={data?.itemNames[l.item_id] ?? 'ไม่พบชื่อสินค้า'} reserveImage /><strong title={`${l.quantity.toLocaleString()} ชิ้น`}>{stacks(l.quantity)}</strong></div>)}
+                {t.note && <p>{t.note}</p>}
+                <div className="adm-ticket-actions">
+                  <Button onClick={() => void navigator.clipboard.writeText(t.character_id).catch(() => setError('คัดลอกไม่ได้'))}>คัดลอกไอดี {t.character_id}</Button>
+                  {t.status === 'pending' && <>
+                    <Popconfirm title="ยืนยันส่งของแล้วและหักสต็อก?" okText="ยืนยัน" cancelText="ยกเลิก" onConfirm={() => change(t, 'sent')}><Button disabled={busy} type="primary">ส่งแล้ว — หักสต็อก</Button></Popconfirm>
+                    <Popconfirm title="ยกเลิกใบเบิกและคืนยอดจอง?" okText="ยกเลิกใบเบิก" cancelText="ไม่" onConfirm={() => change(t, 'cancelled')}><Button disabled={busy} danger>ยกเลิกใบเบิก</Button></Popconfirm>
+                  </>}
+                </div>
+                <small className="withdrawal-receipt-number">ใบเบิก {t.id}</small>
+              </div>
+            </details>)}
+          </div>
+          <Pagination size="small" current={currentPage} pageSize={10} total={matched} onChange={setPage} showSizeChanger={false} hideOnSinglePage />
+          {data && !visible.length && <p>ยังไม่มีใบเบิกที่ตรงกับรายการค้นหา</p>}
+        </div>
+
       </div>
-      {recipient === 'other' && <div className="withdrawal-custom-recipient"><label>ชื่อตัวละครผู้รับ<Input maxLength={100} value={recipientName} onChange={e=>{setRecipientName(e.target.value);setRequestId(crypto.randomUUID());}} /></label>
-      <label>ไอดีตัวละครผู้รับ<Input value={character} inputMode="numeric" onChange={e => {setCharacter(e.target.value);setRequestId(crypto.randomUUID());}} /></label></div>}
-      <div className="withdrawal-items-heading"><strong>สินค้า</strong><span>จำนวน (กอง)</span></div>
-      {lines.map((line,index) => <div className="withdrawal-line" key={index}>
-        <Select aria-label="สินค้าเบิก" disabled={busy} placeholder="เลือกสินค้า" showSearch optionFilterProp="label" value={line.item_id || undefined} onChange={id=>patchLine(index,{item_id:id})} options={options} {...withdrawalItemVisuals} />
-        <InputNumber aria-label="จำนวนเบิก (กอง)" disabled={busy} min={1} max={21691754} precision={0} value={line.quantity / 99} onChange={quantity=>patchLine(index,{quantity:(quantity ?? 0) * 99})} />
-        <Button disabled={busy} onClick={()=>patchLine(index,{quantity:line.quantity+99})}>+1 กอง</Button>
-        <Button disabled={busy || lines.length===1} danger onClick={()=>{setLines(lines.filter((_,i)=>i!==index));setRequestId(crypto.randomUUID());}}>ลบ</Button>
-        {line.item_id && <small className={requested[line.item_id] > (availability[line.item_id] ?? 0) ? 'withdrawal-quantity-error' : ''} role="status">{requested[line.item_id] > (availability[line.item_id] ?? 0) ? `เกินยอดที่เบิกได้ ${stacks(requested[line.item_id]-(availability[line.item_id] ?? 0))} · รวมทุกแถว ${stacks(requested[line.item_id])}` : `เหลือให้จอง ${stacks(availability[line.item_id] ?? 0)} · 1 กอง = 99 ชิ้น`}</small>}
-      </div>)}
-      <div className="withdrawal-extras"><Button className="withdrawal-add" type="dashed" disabled={busy || lines.length>=50} onClick={()=>{setLines([...lines,{item_id:'',quantity:99}]);setRequestId(crypto.randomUUID());}}>เพิ่มสินค้า</Button></div>
-      <label className="withdrawal-note-field">หมายเหตุ (ไม่จำเป็น)<Input.TextArea aria-label="หมายเหตุ (ไม่จำเป็น)" placeholder="รายละเอียดเพิ่มเติม" autoSize={{ minRows: 1, maxRows: 3 }} maxLength={1000} value={note} onChange={e=>{setNote(e.target.value);setRequestId(crypto.randomUUID());}} /></label>
-      <div className="withdrawal-submit"><span>{lines.filter(l=>l.item_id).length} รายการ</span><Button type="primary" loading={busy} disabled={!data || overLimit || refreshing || !!loadError || !requesterName || !recipientName.trim() || !/^\d{1,30}$/.test(character.trim()) || lines.some(l=>!l.item_id || !Number.isSafeInteger(l.quantity) || l.quantity<=0)} onClick={submit}>ส่งใบเบิก</Button></div>
-    </fieldset>}
-    <div className="withdrawal-history-heading"><h3>ใบเบิกสินค้า <small>{matched} / {total} ใบ</small></h3><Button loading={refreshing} disabled={busy} onClick={()=>void refresh().catch(e=>setError(e.message))}>รีเฟรช</Button></div>
-    <div className="withdrawal-history-filters">
-      <Input.Search aria-label="ค้นหาใบเบิก" placeholder="ชื่อ ไอดี เลขใบเบิก หรือสินค้า" allowClear value={filter} onChange={e=>setFilter(e.target.value)} />
-      <Select aria-label="กรองสถานะ" placeholder="ทุกสถานะ" allowClear value={statusFilter} onChange={setStatusFilter} options={Object.entries(labels).map(([value,label])=>({value,label}))} />
-      <Select {...personSelectVisuals} aria-label="กรองผู้เบิก" placeholder="ผู้เบิกทุกคน" allowClear showSearch optionFilterProp="label" value={personFilter} onChange={setPersonFilter} options={people.map(name=>({value:name,label:name}))} />
-      <Select aria-label="กรองสินค้า" placeholder="สินค้าทั้งหมด" allowClear showSearch optionFilterProp="label" value={productFilter} onChange={setProductFilter} options={historyProducts} {...withdrawalItemVisuals} />
-      {(filter || statusFilter || personFilter || productFilter) && <Button type="text" onClick={()=>{setFilter('');setStatusFilter(undefined);setPersonFilter(undefined);setProductFilter(undefined);}}>ล้างตัวกรอง</Button>}
-    </div>
-    <div className="withdrawal-history-list">
-    {visible.map(t=><details className="withdrawal-history-row" key={t.id}>
-      <summary>
-        <span className="withdrawal-history-person"><PersonLabel name={t.recipient_name || 'ไม่ระบุชื่อ'} characterId={t.character_id} size={24} /><small>{t.character_id}</small></span>
-        <span className="withdrawal-history-quantity">{t.withdrawal_lines.length} รายการ</span>
-        <Tag color={t.status==='pending'?'gold':t.status==='sent'?'green':'default'}>{labels[t.status]}</Tag>
-        <time className="withdrawal-history-time" dateTime={t.created_at} title={new Date(t.created_at).toLocaleString('th-TH')}>{new Date(t.created_at).toLocaleString('th-TH', {day:'numeric',month:'numeric',hour:'2-digit',minute:'2-digit'})}</time>
-        <span className="withdrawal-history-chevron" aria-hidden="true">⌄</span>
-      </summary>
-      <div className="withdrawal-history-body"><div className="withdrawal-history-owner"><small>ผู้เบิก</small><span>{t.requester_name || 'ไม่ระบุ'}</span></div><small>{new Date(t.created_at).toLocaleString('th-TH')}</small>
-      {t.withdrawal_lines.map(l=><div className="withdrawal-ticket-line" key={l.item_id}><ItemLabel id={l.item_id} name={data?.itemNames[l.item_id] ?? 'ไม่พบชื่อสินค้า'} reserveImage /><strong title={`${l.quantity.toLocaleString()} ชิ้น`}>{stacks(l.quantity)}</strong></div>)}
-      {t.note && <p>{t.note}</p>}
-      {admin && <div className="adm-ticket-actions"><Button onClick={()=>void navigator.clipboard.writeText(t.character_id).catch(()=>setError('คัดลอกไม่ได้ กรุณาคัดลอกไอดีด้วยตนเอง'))}>คัดลอกไอดี {t.character_id}</Button>{t.status==='pending' && <><Popconfirm title="ยืนยันส่งของแล้วและหักสต็อก?" okText="ยืนยัน" cancelText="ยกเลิก" onConfirm={()=>change(t,'sent')}><Button disabled={busy} type="primary">ส่งแล้ว — หักสต็อก</Button></Popconfirm><Popconfirm title="ยกเลิกใบเบิกและคืนยอดจอง?" okText="ยกเลิกใบเบิก" cancelText="ไม่" onConfirm={()=>change(t,'cancelled')}><Button disabled={busy} danger>ยกเลิกใบเบิก</Button></Popconfirm></>}</div>}
-      <small className="withdrawal-receipt-number">ใบเบิก {t.id}</small>
-    </div></details>)}
-    </div>
-    <Pagination size="small" current={currentPage} pageSize={10} total={matched} onChange={setPage} showSizeChanger={false} hideOnSinglePage />
-    {data && !visible.length && <p>ยังไม่มีใบเบิกที่ตรงกับรายการค้นหา</p>}
+    ) : (
+      /* ── User (non-admin) layout ── */
+      <>
+        <fieldset disabled={busy} className="withdrawal-form">
+          <div className="withdrawal-people">
+            <label>ผู้เบิก<Select {...personSelectVisuals} aria-label="ผู้เบิก" disabled={busy} placeholder="เลือกคนที่เบิก" options={peopleOptions} value={requester || undefined} onChange={value=>{setRequester(value);if(value !== 'other'){const person=CONTRIBUTOR_PROFILES.find(p=>p.name===value);setRecipient(value);setRecipientName(person?.name ?? '');setCharacter(person?.memberId ?? '');}setRequestId(crypto.randomUUID());}} /></label>
+            {requester === 'other' && <label>ชื่อผู้เบิก<Input maxLength={100} value={requesterOther} onChange={e=>{setRequesterOther(e.target.value);setRequestId(crypto.randomUUID());}} /></label>}
+            <label>ส่งให้ตัวละคร<Select {...personSelectVisuals} aria-label="ตัวละครผู้รับ" disabled={busy} placeholder="เลือกผู้รับ" options={peopleOptions} value={recipient || undefined} onChange={value=>{setRecipient(value); const profile = CONTRIBUTOR_PROFILES.find(p=>p.name===value); setRecipientName(profile?.name ?? ''); setCharacter(profile?.memberId ?? ''); setRequestId(crypto.randomUUID());}} /></label>
+            {recipient && recipient !== 'other' && <span className="withdrawal-recipient-id">ไอดี {character}</span>}
+          </div>
+          {recipient === 'other' && <div className="withdrawal-custom-recipient"><label>ชื่อตัวละครผู้รับ<Input maxLength={100} value={recipientName} onChange={e=>{setRecipientName(e.target.value);setRequestId(crypto.randomUUID());}} /></label><label>ไอดีตัวละครผู้รับ<Input value={character} inputMode="numeric" onChange={e => {setCharacter(e.target.value);setRequestId(crypto.randomUUID());}} /></label></div>}
+          <div className="withdrawal-items-heading"><strong>สินค้า</strong><span>จำนวน (กอง)</span></div>
+          {lines.map((line,index) => <div className="withdrawal-line" key={index}>
+            <Select aria-label="สินค้าเบิก" disabled={busy} placeholder="เลือกสินค้า" showSearch optionFilterProp="label" value={line.item_id || undefined} onChange={id=>patchLine(index,{item_id:id})} options={options} {...withdrawalItemVisuals} />
+            <InputNumber aria-label="จำนวนเบิก (กอง)" disabled={busy} min={1} max={21691754} precision={0} value={line.quantity / 99} onChange={quantity=>patchLine(index,{quantity:(quantity ?? 0) * 99})} />
+            <Button disabled={busy} onClick={()=>patchLine(index,{quantity:line.quantity+99})}>+1 กอง</Button>
+            <Button disabled={busy || lines.length===1} danger onClick={()=>{setLines(lines.filter((_,i)=>i!==index));setRequestId(crypto.randomUUID());}}>ลบ</Button>
+            {line.item_id && <small className={requested[line.item_id] > (availability[line.item_id] ?? 0) ? 'withdrawal-quantity-error' : ''} role="status">{requested[line.item_id] > (availability[line.item_id] ?? 0) ? `เกินยอดที่เบิกได้ ${stacks(requested[line.item_id]-(availability[line.item_id] ?? 0))} · รวมทุกแถว ${stacks(requested[line.item_id])}` : `เหลือให้จอง ${stacks(availability[line.item_id] ?? 0)} · 1 กอง = 99 ชิ้น`}</small>}
+          </div>)}
+          <div className="withdrawal-extras"><Button className="withdrawal-add" type="dashed" disabled={busy || lines.length>=50} onClick={()=>{setLines([...lines,{item_id:'',quantity:99}]);setRequestId(crypto.randomUUID());}}>เพิ่มสินค้า</Button></div>
+          <label className="withdrawal-note-field">หมายเหตุ (ไม่จำเป็น)<Input.TextArea aria-label="หมายเหตุ (ไม่จำเป็น)" placeholder="รายละเอียดเพิ่มเติม" autoSize={{ minRows: 1, maxRows: 3 }} maxLength={1000} value={note} onChange={e=>{setNote(e.target.value);setRequestId(crypto.randomUUID());}} /></label>
+          <div className="withdrawal-submit"><span>{lines.filter(l=>l.item_id).length} รายการ</span><Button type="primary" loading={busy} disabled={!data || overLimit || refreshing || !!loadError || !requesterName || !recipientName.trim() || !/^\d{1,30}$/.test(character.trim()) || lines.some(l=>!l.item_id || !Number.isSafeInteger(l.quantity) || l.quantity<=0)} onClick={submit}>ส่งใบเบิก</Button></div>
+        </fieldset>
+        <div className="withdrawal-history-heading"><h3>ใบเบิกสินค้า <small>{matched} / {total} ใบ</small></h3><Button loading={refreshing} disabled={busy} onClick={()=>void refresh().catch(e=>setError(e.message))}>รีเฟรช</Button></div>
+        <div className="withdrawal-history-filters">
+          <Input.Search aria-label="ค้นหาใบเบิก" placeholder="ชื่อ ไอดี เลขใบเบิก หรือสินค้า" allowClear value={filter} onChange={e=>setFilter(e.target.value)} />
+          <Select aria-label="กรองสถานะ" placeholder="ทุกสถานะ" allowClear value={statusFilter} onChange={setStatusFilter} options={Object.entries(labels).map(([value,label])=>({value,label}))} />
+          <Select {...personSelectVisuals} aria-label="กรองผู้เบิก" placeholder="ผู้เบิกทุกคน" allowClear showSearch optionFilterProp="label" value={personFilter} onChange={setPersonFilter} options={people.map(name=>({value:name,label:name}))} />
+          <Select aria-label="กรองสินค้า" placeholder="สินค้าทั้งหมด" allowClear showSearch optionFilterProp="label" value={productFilter} onChange={setProductFilter} options={historyProducts} {...withdrawalItemVisuals} />
+          {(filter || statusFilter || personFilter || productFilter) && <Button type="text" onClick={()=>{setFilter('');setStatusFilter(undefined);setPersonFilter(undefined);setProductFilter(undefined);}}>ล้างตัวกรอง</Button>}
+        </div>
+        <div className="withdrawal-history-list">
+          {visible.map(t=><details className="withdrawal-history-row" key={t.id}>
+            <summary>
+              <span className="withdrawal-history-person"><PersonLabel name={t.recipient_name || 'ไม่ระบุชื่อ'} characterId={t.character_id} size={24} /><small>{t.character_id}</small></span>
+              <span className="withdrawal-history-quantity">{t.withdrawal_lines.length} รายการ</span>
+              <Tag color={t.status==='pending'?'gold':t.status==='sent'?'green':'default'}>{labels[t.status]}</Tag>
+              <time className="withdrawal-history-time" dateTime={t.created_at} title={new Date(t.created_at).toLocaleString('th-TH')}>{new Date(t.created_at).toLocaleString('th-TH', {day:'numeric',month:'numeric',hour:'2-digit',minute:'2-digit'})}</time>
+              <span className="withdrawal-history-chevron" aria-hidden="true">⌄</span>
+            </summary>
+            <div className="withdrawal-history-body"><div className="withdrawal-history-owner"><small>ผู้เบิก</small><span>{t.requester_name || 'ไม่ระบุ'}</span></div><small>{new Date(t.created_at).toLocaleString('th-TH')}</small>
+            {t.withdrawal_lines.map(l=><div className="withdrawal-ticket-line" key={l.item_id}><ItemLabel id={l.item_id} name={data?.itemNames[l.item_id] ?? 'ไม่พบชื่อสินค้า'} reserveImage /><strong title={`${l.quantity.toLocaleString()} ชิ้น`}>{stacks(l.quantity)}</strong></div>)}
+            {t.note && <p>{t.note}</p>}
+            <small className="withdrawal-receipt-number">ใบเบิก {t.id}</small>
+            </div>
+          </details>)}
+        </div>
+        <Pagination size="small" current={currentPage} pageSize={10} total={matched} onChange={setPage} showSizeChanger={false} hideOnSinglePage />
+        {data && !visible.length && <p>ยังไม่มีใบเบิกที่ตรงกับรายการค้นหา</p>}
+      </>
+    )}
   </section>;
 }
