@@ -227,6 +227,53 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (error) throw error;
         return res.json({ ok: true });
       }
+      // PATCH /api/withdrawals/:id/fulfill — partial fulfillment
+      if (method === 'PATCH' && segments[1] && segments[2] === 'fulfill') {
+        const { actual_lines, admin_note } = req.body ?? {};
+        if (!Array.isArray(actual_lines) || !actual_lines.length
+          || actual_lines.some((l: unknown) => !l || typeof (l as { item_id: unknown }).item_id !== 'string'
+            || !Number.isSafeInteger((l as { quantity: unknown }).quantity) || (l as { quantity: number }).quantity < 0))
+          return res.status(400).json({ error: 'actual_lines ไม่ถูกต้อง' });
+        const { error } = await db.rpc('partial_fulfill_withdrawal', {
+          p_id: segments[1],
+          p_actual_lines: actual_lines,
+          p_admin_note: typeof admin_note === 'string' ? admin_note.trim() : '',
+        });
+        if (error) throw error;
+        return res.json({ ok: true });
+      }
+      return res.status(405).json({ error: 'Method not allowed' });
+    } catch (e) { return res.status(400).json({ error: (e as Error).message }); }
+  }
+
+  // ── /api/stock-adjustments ────────────────────────────────────────────────
+  if (segments[0] === 'stock-adjustments') {
+    const db = getSupabase();
+    try {
+      if (method === 'GET') {
+        const limit = Math.min(200, Number(new URL(req.url ?? '', 'http://localhost').searchParams.get('limit') ?? 50));
+        const { data, error } = await db
+          .from('stock_adjustments')
+          .select('id, item_id, delta, reason, created_at')
+          .order('created_at', { ascending: false })
+          .limit(limit);
+        if (error) throw error;
+        return res.json(data ?? []);
+      }
+      if (method === 'POST') {
+        const { item_id, delta, reason } = req.body ?? {};
+        if (typeof item_id !== 'string' || !item_id.trim())
+          return res.status(400).json({ error: 'item_id is required' });
+        if (!Number.isSafeInteger(delta) || delta === 0)
+          return res.status(400).json({ error: 'delta must be a non-zero integer' });
+        const { data, error } = await db.rpc('apply_stock_adjustment', {
+          p_item_id: item_id.trim(),
+          p_delta: delta,
+          p_reason: typeof reason === 'string' ? reason.trim() : '',
+        });
+        if (error) throw error;
+        return res.status(201).json({ id: data });
+      }
       return res.status(405).json({ error: 'Method not allowed' });
     } catch (e) { return res.status(400).json({ error: (e as Error).message }); }
   }

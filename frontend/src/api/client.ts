@@ -280,3 +280,45 @@ export async function saveAssignment(row: Omit<ContributorAssignment, 'id'>): Pr
 export async function deleteAssignment(id: string): Promise<void> {
   await handleResponse(await fetch(`/api/assignments/${encodeURIComponent(id)}`, { method: 'DELETE' }));
 }
+
+// ── Partial fulfillment ───────────────────────────────────────────────────────
+
+export interface ActualLine { item_id: string; quantity: number }
+
+export async function partialFulfillWithdrawal(
+  id: string,
+  actualLines: ActualLine[],
+  adminNote: string
+): Promise<void> {
+  await handleResponse(await fetch(`/api/withdrawals/${encodeURIComponent(id)}/fulfill`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ actual_lines: actualLines, admin_note: adminNote }),
+  }));
+}
+
+// ── Stock adjustments ─────────────────────────────────────────────────────────
+
+export interface StockAdjustment {
+  id: string;
+  item_id: string;
+  delta: number;
+  reason: string;
+  created_at: string;
+}
+
+export async function fetchStockAdjustments(limit = 50): Promise<StockAdjustment[]> {
+  return handleResponse(await fetch(`/api/stock-adjustments?limit=${limit}`));
+}
+
+export async function createStockAdjustment(
+  item_id: string,
+  delta: number,
+  reason: string
+): Promise<{ id: string }> {
+  return handleResponse(await fetch('/api/stock-adjustments', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ item_id, delta, reason }),
+  }));
+}

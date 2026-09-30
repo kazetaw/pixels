@@ -2,9 +2,10 @@ import { UserOutlined } from '@ant-design/icons';
 import type { SelectProps } from 'antd';
 import { CONTRIBUTOR_PROFILES } from '../shared/contributors';
 import { useEffect, useRef, useState } from 'react';
-import { Avatar, Alert, Button, Input, InputNumber, Pagination, Popconfirm, Select, Tag } from 'antd';
+import { Avatar, Alert, Button, Input, InputNumber, Modal, Pagination, Popconfirm, Select, Tag } from 'antd';
+import { MinusCircleOutlined, PlusCircleOutlined } from '@ant-design/icons';
 import { ItemLabel } from '../shared/ItemVisual';
-import { fetchAllData } from '../../api/client';
+import { fetchAllData, partialFulfillWithdrawal, createStockAdjustment, fetchStockAdjustments, type ActualLine, type StockAdjustment } from '../../api/client';
 import type { AppData } from '../../types';
 function PersonLabel({ name, characterId, size = 26 }: { name: string; characterId?: string; size?: number }) {
   const profile = CONTRIBUTOR_PROFILES.find(p => characterId ? p.memberId === characterId : p.name === name);
@@ -20,6 +21,218 @@ const withdrawalItemVisuals: Pick<SelectProps, 'optionRender' | 'labelRender'> =
 };
 type Line = { item_id: string; quantity: number };
 type Ticket = { requester_name: string; recipient_name: string; id: string; character_id: string; note: string; status: 'pending'|'sent'|'cancelled'; created_at: string; withdrawal_lines: Line[] };
+
+// ── Manual stock adjustment panel ────────────────────────────────────────────
+function StockAdjustPanel({ data, onDone }: {
+  data: AppData | undefined;
+  onDone: () => void;
+}) {
+  const [itemId, setItemId] = useState<string>();
+  const [delta, setDelta] = useState<number | null>(null);
+  const [isDeduct, setIsDeduct] = useState(true);
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [log, setLog] = useState<StockAdjustment[]>([]);
+  const [loadingLog, setLoadingLog] = useState(true);
+
+  useEffect(() => {
+    void fetchStockAdjustments(20)
+      .then(setLog)
+      .catch(() => {/* silent */})
+      .finally(() => setLoadingLog(false));
+  }, []);
+
+  const itemOptions = Object.entries(data?.itemNames ?? {})
+    .map(([id, name]) => ({ value: id, label: name }))
+    .sort((a, b) => a.label.localeCompare(b.label, 'th'));
+
+  async function submit() {
+    if (!itemId || !delta || delta <= 0) return;
+    setBusy(true); setError('');
+    try {
+      const actualDelta = isDeduct ? -delta : delta;
+      await createStockAdjustment(itemId, actualDelta, reason.trim());
+      setLog(prev => [{
+        id: crypto.randomUUID(), item_id: itemId,
+        delta: actualDelta, reason: reason.trim(),
+        created_at: new Date().toISOString(),
+      }, ...prev].slice(0, 20));
+      setDelta(null); setReason(''); setItemId(undefined);
+      onDone();
+    } catch (e) { setError((e as Error).message); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <div className="adm-adjust-panel">
+      <div className="adm-catalog-header">
+        <div>
+          <strong>ปรับสต็อกด้วยมือ</strong>
+        </div>
+      </div>
+
+      {error && <div style={{ padding: '8px 16px' }}><Alert type="error" message={error} showIcon /></div>}
+
+      <div className="adm-adjust-form">
+        {/* Mode toggle */}
+        <div className="adm-adjust-mode">
+          <button
+            className={`adm-adjust-mode-btn${isDeduct ? ' active-deduct' : ''}`}
+            onClick={() => setIsDeduct(true)}
+          >
+            <MinusCircleOutlined /> หักออก
+          </button>
+          <button
+            className={`adm-adjust-mode-btn${!isDeduct ? ' active-add' : ''}`}
+            onClick={() => setIsDeduct(false)}
+          >
+            <PlusCircleOutlined /> เพิ่มเข้า
+          </button>
+        </div>
+
+        <Select
+          showSearch
+          optionFilterProp="label"
+          value={itemId}
+          onChange={setItemId}
+          placeholder="เลือกสินค้า…"
+          options={itemOptions}
+          style={{ width: '100%' }}
+          disabled={busy}
+        />
+
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <InputNumber
+            min={1}
+            precision={0}
+            value={delta}
+            onChange={setDelta}
+            placeholder="จำนวน"
+            style={{ flex: 1 }}
+            disabled={busy}
+          />
+          {itemId && data && (
+            <span style={{ fontSize: 12, color: '#64748b', whiteSpace: 'nowrap' }}>
+              คลัง {(data.stocks[itemId] ?? 0).toLocaleString('th-TH')}
+            </span>
+          )}
+        </div>
+
+        <Input.TextArea
+          value={reason}
+          onChange={e => setReason(e.target.value)}
+          placeholder="เหตุผล เช่น แจกไปก่อนมีระบบ / รับของเพิ่ม"
+          autoSize={{ minRows: 2, maxRows: 3 }}
+          maxLength={300}
+          disabled={busy}
+        />
+
+        <Button
+          type="primary"
+          loading={busy}
+          disabled={!itemId || !delta || delta <= 0}
+          onClick={() => void submit()}
+          danger={isDeduct}
+          block
+        >
+          {isDeduct ? `หักออก ${delta ? delta.toLocaleString('th-TH') : ''}` : `เพิ่ม ${delta ? delta.toLocaleString('th-TH') : ''}`} ชิ้น
+        </Button>
+      </div>
+
+      {/* Recent log */}
+      {!loadingLog && log.length > 0 && (
+        <div className="adm-adjust-log">
+          <p className="adm-adjust-log-label">ล่าสุด</p>
+          {log.map(entry => (
+            <div key={entry.id} className="adm-adjust-log-row">
+              <ItemLabel id={entry.item_id} name={data?.itemNames[entry.item_id] ?? 'ไม่พบชื่อ'} size={22} reserveImage />
+              <span style={{ color: entry.delta < 0 ? '#dc2626' : '#16a34a', fontWeight: 600, whiteSpace: 'nowrap', fontSize: 12 }}>
+                {entry.delta > 0 ? '+' : ''}{entry.delta.toLocaleString('th-TH')}
+              </span>
+              <span style={{ fontSize: 11, color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {entry.reason || '—'}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Partial send modal ────────────────────────────────────────────────────────
+function PartialSendModal({ ticket, itemNames, open, busy, onConfirm, onCancel }: {
+  ticket: Ticket;
+  itemNames: Record<string, string>;
+  open: boolean;
+  busy: boolean;
+  onConfirm: (actualLines: ActualLine[], adminNote: string) => void;
+  onCancel: () => void;
+}) {
+  const [lines, setLines] = useState<ActualLine[]>([]);
+  const [note, setNote] = useState('');
+
+  useEffect(() => {
+    if (open) {
+      setLines(ticket.withdrawal_lines.map(l => ({ item_id: l.item_id, quantity: l.quantity })));
+      setNote('');
+    }
+  }, [open, ticket]);
+
+  const setQty = (item_id: string, quantity: number) => {
+    setLines(prev => prev.map(l => l.item_id === item_id ? { ...l, quantity } : l));
+  };
+
+  return (
+    <Modal
+      open={open}
+      title="ส่งบางส่วน"
+      okText="ยืนยัน — หักสต็อกตามจำนวนจริง"
+      cancelText="ยกเลิก"
+      onOk={() => onConfirm(lines, note)}
+      onCancel={onCancel}
+      confirmLoading={busy}
+      okButtonProps={{ danger: false }}
+    >
+      <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 12px' }}>
+        แก้จำนวนจริงที่ส่งได้ต่อรายการ — ระบบจะหักสต็อกตามจำนวนนี้และปิดใบเบิก
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
+        {lines.map(l => {
+          const requested = ticket.withdrawal_lines.find(r => r.item_id === l.item_id)?.quantity ?? 0;
+          const name = itemNames[l.item_id] ?? 'ไม่พบชื่อสินค้า';
+          return (
+            <div key={l.item_id} style={{ display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', gap: 10 }}>
+              <ItemLabel id={l.item_id} name={name} size={28} reserveImage />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <InputNumber
+                  min={0}
+                  max={requested}
+                  precision={0}
+                  value={l.quantity}
+                  onChange={v => setQty(l.item_id, v ?? 0)}
+                  style={{ width: 90 }}
+                />
+                <span style={{ fontSize: 12, color: '#94a3b8', whiteSpace: 'nowrap' }}>/ {requested.toLocaleString('th-TH')}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>หมายเหตุสำหรับ admin (ไม่บังคับ)</span>
+        <Input.TextArea
+          value={note}
+          onChange={e => setNote(e.target.value)}
+          placeholder="เช่น ของเหลือน้อย คงคลังไว้ก่อน 50 ชิ้น"
+          autoSize={{ minRows: 2, maxRows: 4 }}
+          maxLength={500}
+        />
+      </label>
+    </Modal>
+  );
+}
 const stacks = (pieces: number) => `${Math.floor(pieces / 99).toLocaleString()} กอง${pieces % 99 ? ` + ${(pieces % 99).toLocaleString()} ชิ้น` : ''}`;
 const labels = { pending: 'รอจัดส่ง', sent: 'ส่งแล้ว', cancelled: 'ยกเลิก' };
 async function request(method = 'GET', body?: unknown, id = '') {
@@ -62,6 +275,7 @@ export function Withdrawals({ admin = false, onData }: { admin?: boolean; onData
   const [statusFilter, setStatusFilter] = useState<string>();
   const [personFilter, setPersonFilter] = useState<string>();
   const [productFilter, setProductFilter] = useState<string>();
+  const [partialTicket, setPartialTicket] = useState<Ticket | null>(null);
   useEffect(() => { setPage(1); }, [filter, statusFilter, personFilter, productFilter]);
   const [catalog, setCatalog] = useState<{item_id: string; enabled: boolean}[]>([]);
   const [newItem, setNewItem] = useState<string>();
@@ -108,6 +322,16 @@ export function Withdrawals({ admin = false, onData }: { admin?: boolean; onData
     setBusy(true); setError('');
     try { await request('PATCH',{status},ticket.id); setSuccess('เปลี่ยนสถานะใบเบิกแล้ว'); await latestRefresh.current(); } catch(e) { setError((e as Error).message); } finally { setBusy(false); }
   }
+  async function fulfillPartial(actualLines: ActualLine[], adminNote: string) {
+    if (!partialTicket) return;
+    setBusy(true); setError('');
+    try {
+      await partialFulfillWithdrawal(partialTicket.id, actualLines, adminNote);
+      setSuccess('ส่งบางส่วนเรียบร้อย — หักสต็อกแล้ว');
+      setPartialTicket(null);
+      await latestRefresh.current();
+    } catch(e) { setError((e as Error).message); } finally { setBusy(false); }
+  }
   async function setAllowed(item_id: string, enabled: boolean) {
     setBusy(true); setError('');
     try { await request('PUT', {item_id, enabled}, 'catalog'); setSuccess('บันทึกสินค้าที่เปิดให้เบิกแล้ว'); await latestRefresh.current(); setNewItem(undefined); }
@@ -128,8 +352,7 @@ export function Withdrawals({ admin = false, onData }: { admin?: boolean; onData
 
         {/* LEFT — catalog panel */}
         <aside className="adm-sidebar">
-          <div className="adm-catalog-section">
-            <div className="adm-catalog-header">
+          <div className="adm-catalog-section">            <div className="adm-catalog-header">
               <div>
                 <strong>สินค้าที่เปิดให้เบิก</strong>
                 <span className="adm-catalog-count">{catalog.filter(c=>c.enabled).length} / {catalog.length} รายการ</span>
@@ -174,6 +397,7 @@ export function Withdrawals({ admin = false, onData }: { admin?: boolean; onData
                     ))}
                 </div>}
           </div>
+          <StockAdjustPanel data={data} onDone={() => void refresh()} />
         </aside>
 
         {/* RIGHT — ticket list */}
@@ -206,7 +430,8 @@ export function Withdrawals({ admin = false, onData }: { admin?: boolean; onData
                 <div className="adm-ticket-actions">
                   <Button onClick={() => void navigator.clipboard.writeText(t.character_id).catch(() => setError('คัดลอกไม่ได้'))}>คัดลอกไอดี {t.character_id}</Button>
                   {t.status === 'pending' && <>
-                    <Popconfirm title="ยืนยันส่งของแล้วและหักสต็อก?" okText="ยืนยัน" cancelText="ยกเลิก" onConfirm={() => change(t, 'sent')}><Button disabled={busy} type="primary">ส่งแล้ว — หักสต็อก</Button></Popconfirm>
+                    <Popconfirm title="ยืนยันส่งของแล้วและหักสต็อก?" okText="ยืนยัน" cancelText="ยกเลิก" onConfirm={() => change(t, 'sent')}><Button disabled={busy} type="primary">ส่งครบ — หักสต็อก</Button></Popconfirm>
+                    <Button disabled={busy} onClick={() => setPartialTicket(t)}>ส่งบางส่วน…</Button>
                     <Popconfirm title="ยกเลิกใบเบิกและคืนยอดจอง?" okText="ยกเลิกใบเบิก" cancelText="ไม่" onConfirm={() => change(t, 'cancelled')}><Button disabled={busy} danger>ยกเลิกใบเบิก</Button></Popconfirm>
                   </>}
                 </div>
@@ -269,6 +494,16 @@ export function Withdrawals({ admin = false, onData }: { admin?: boolean; onData
         <Pagination size="small" current={currentPage} pageSize={10} total={matched} onChange={setPage} showSizeChanger={false} hideOnSinglePage />
         {data && !visible.length && <p>ยังไม่มีใบเบิกที่ตรงกับรายการค้นหา</p>}
       </>
+    )}
+    {partialTicket && (
+      <PartialSendModal
+        ticket={partialTicket}
+        itemNames={data?.itemNames ?? {}}
+        open={!!partialTicket}
+        busy={busy}
+        onConfirm={fulfillPartial}
+        onCancel={() => setPartialTicket(null)}
+      />
     )}
   </section>;
 }
