@@ -278,6 +278,59 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } catch (e) { return res.status(400).json({ error: (e as Error).message }); }
   }
 
+  // ── GET /api/assignment-summary ───────────────────────────────────────────
+  if (segments[0] === 'assignment-summary' && method === 'GET') {
+    try {
+      const db = getSupabase();
+      const [{ data: assignments }, { data: sentLines }, { data: stocks }, { data: itemRows }] = await Promise.all([
+        db.from('contributor_assignments').select('contributor, item_id, target'),
+        db.from('withdrawal_lines')
+          .select('item_id, quantity, withdrawals!inner(status)')
+          .eq('withdrawals.status', 'sent'),
+        db.from('stocks').select('item_id, quantity'),
+        db.from('items').select('item_id, name'),
+      ]);
+
+      if (!assignments) return res.json([]);
+
+      // Build lookup maps
+      const stockMap = new Map((stocks ?? []).map(r => [r.item_id, r.quantity as number]));
+      const nameMap  = new Map((itemRows ?? []).map(r => [r.item_id, r.name as string]));
+
+      // Aggregate sent qty per item across all sent withdrawals
+      const sentMap = new Map<string, number>();
+      for (const line of sentLines ?? []) {
+        sentMap.set(line.item_id, (sentMap.get(line.item_id) ?? 0) + (line.quantity as number));
+      }
+
+      // Group assignments by item_id
+      const byItem = new Map<string, { total_target: number; contributors: { name: string; target: number }[] }>();
+      for (const row of assignments) {
+        const existing = byItem.get(row.item_id) ?? { total_target: 0, contributors: [] };
+        existing.total_target += row.target as number;
+        existing.contributors.push({ name: row.contributor as string, target: row.target as number });
+        byItem.set(row.item_id, existing);
+      }
+
+      const result = Array.from(byItem.entries()).map(([item_id, group]) => {
+        const sent       = sentMap.get(item_id) ?? 0;
+        const in_stock   = stockMap.get(item_id) ?? 0;
+        const remaining  = Math.max(0, group.total_target - sent);
+        return {
+          item_id,
+          item_name:    nameMap.get(item_id) ?? item_id,
+          total_target: group.total_target,
+          in_stock,
+          sent,
+          remaining,
+          contributors: group.contributors.sort((a, b) => a.name.localeCompare(b.name, 'th')),
+        };
+      }).sort((a, b) => b.remaining - a.remaining || a.item_name.localeCompare(b.item_name, 'th'));
+
+      return res.json(result);
+    } catch (e) { return res.status(500).json({ error: (e as Error).message }); }
+  }
+
   if (segments[0] === 'assignments') {
     try {
       const db = getSupabase();

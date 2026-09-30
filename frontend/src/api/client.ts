@@ -322,3 +322,19 @@ export async function createStockAdjustment(
     body: JSON.stringify({ item_id, delta, reason }),
   }));
 }
+
+// ── Assignment summary ────────────────────────────────────────────────────────
+
+export interface AssignmentSummaryItem {
+  item_id: string;
+  item_name: string;
+  total_target: number;
+  in_stock: number;
+  sent: number;
+  remaining: number;
+  contributors: { name: string; target: number }[];
+}
+
+export async function fetchAssignmentSummary(): Promise<AssignmentSummaryItem[]> {
+  return handleResponse(await fetch('/api/assignment-summary'));
+}

@@ -46,6 +46,7 @@ import { FloorTimerDashboard } from './components/Floors/FloorTimerDashboard';
 import { BudgetHistory } from './components/DataEditor/BudgetHistory';
 import { ProductionTargetsBoard } from './components/Targets/ProductionTargetsBoard';
 import { AssignmentEditor } from './components/Organization/AssignmentEditor';
+import { AssignmentSummary } from './components/Organization/AssignmentSummary';
 import { OrganizationChart } from './components/Organization/OrganizationChart';
 import { ProductionFlowBoard } from './components/Planner/ProductionFlowBoard';
 import type { SaveStatus } from './hooks/useAppState';
@@ -966,7 +967,21 @@ export default function App() {
             </div>
           )}
 
-          {view === 'assignments' && <div className="page-content"><PageHead title="มอบหมายงาน" sub="ใครทำอะไร จำนวนเท่าไหร่" /><AssignmentEditor recipes={recipes} stocks={stocks} itemNames={itemNames} /></div>}
+          {view === 'assignments' && (
+            <div className="page-content">
+              <PageHead title="มอบหมายงาน" sub="ใครทำอะไร จำนวนเท่าไหร่" />
+              <div className="assignments-layout">
+                <section className="assignments-summary-panel">
+                  <h3 className="assignments-panel-title">ภาพรวมความคืบหน้า</h3>
+                  <AssignmentSummary />
+                </section>
+                <section className="assignments-editor-panel">
+                  <h3 className="assignments-panel-title">มอบหมายงาน</h3>
+                  <AssignmentEditor recipes={recipes} stocks={stocks} itemNames={itemNames} />
+                </section>
+              </div>
+            </div>
+          )}
 
           {view === 'organization' && (
             <div className="page-content organization-page-content">

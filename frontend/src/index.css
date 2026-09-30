@@ -1496,3 +1496,111 @@ body {
   gap: 6px;
   align-items: center;
 }
+
+/* ── Assignment Summary ─────────────────────────────────────────────────── */
+.asmt-root { display: flex; flex-direction: column; gap: 0; }
+
+/* Overall header */
+.asmt-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  padding: 16px 0 14px;
+  border-bottom: 2px solid #e2e8f0;
+  margin-bottom: 8px;
+}
+.asmt-header-stats { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.asmt-header-bar { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 120px; }
+.asmt-stat { display: flex; flex-direction: column; align-items: flex-start; }
+.asmt-stat strong { font-size: 20px; font-weight: 700; color: #0f172a; line-height: 1.1; }
+.asmt-stat span { font-size: 11px; color: #94a3b8; }
+.asmt-stat--divider { font-size: 20px; color: #cbd5e1; align-self: center; }
+.asmt-stat--remain strong { font-size: 15px; }
+
+/* Shared progress bar */
+.asmt-bar { flex: 1; height: 6px; border-radius: 99px; background: #f1f5f9; overflow: hidden; }
+.asmt-bar-fill { height: 100%; border-radius: 99px; background: #6366f1; transition: width 0.4s; }
+.asmt-bar-fill.is-done { background: #16a34a; }
+
+/* List */
+.asmt-list { display: flex; flex-direction: column; }
+
+/* Row */
+.asmt-row {
+  border-bottom: 1px solid #f1f5f9;
+}
+.asmt-row:last-child { border-bottom: none; }
+.asmt-row-head {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0,1.4fr) minmax(80px,1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s;
+}
+.asmt-row-head:hover { background: #fafafa; }
+.asmt-row-item { min-width: 0; }
+.asmt-bar-wrap { display: flex; align-items: center; gap: 6px; }
+.asmt-bar-pct { font-size: 11px; font-weight: 600; white-space: nowrap; }
+
+/* Numbers cluster */
+.asmt-nums { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+.asmt-num {
+  display: flex; flex-direction: column; align-items: flex-end;
+  font-size: 12px; font-weight: 600; color: #374151;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.asmt-num em { font-style: normal; font-size: 10px; font-weight: 400; color: #94a3b8; }
+.asmt-num--sent   { color: #6366f1; }
+.asmt-num--remain { font-size: 13px; }
+.asmt-num--stock  { color: #0369a1; }
+.asmt-chevron { font-size: 10px; color: #94a3b8; flex-shrink: 0; }
+
+/* Contributor breakdown */
+.asmt-contributors {
+  display: flex; flex-direction: column;
+  background: #f8fafc;
+  border-top: 1px solid #f1f5f9;
+  padding: 6px 16px 8px;
+  gap: 4px;
+}
+.asmt-contributor {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; padding: 3px 0;
+}
+.asmt-contributor-name { flex: 1; color: #374151; font-weight: 500; }
+.asmt-contributor-target { color: #0f172a; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.asmt-contributor-stacks { white-space: nowrap; }
+
+@media (max-width: 600px) {
+  .asmt-row-head { grid-template-columns: minmax(0,1fr) auto; }
+  .asmt-bar-wrap { grid-column: 1 / -1; }
+  .asmt-nums { justify-content: flex-start; }
+}
+
+/* ── Assignments page layout ────────────────────────────────────────────── */
+.assignments-layout {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 24px;
+  align-items: start;
+}
+.assignments-summary-panel,
+.assignments-editor-panel {
+  min-width: 0;
+}
+.assignments-panel-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 12px;
+}
+@media (max-width: 900px) {
+  .assignments-layout { grid-template-columns: 1fr; }
+}
