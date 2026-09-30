@@ -3,9 +3,9 @@ import type { SelectProps } from 'antd';
 import { CONTRIBUTOR_PROFILES } from '../shared/contributors';
 import { useEffect, useRef, useState } from 'react';
 import { Avatar, Alert, Button, Input, InputNumber, Modal, Pagination, Popconfirm, Select, Tag } from 'antd';
-import { MinusCircleOutlined, PlusCircleOutlined } from '@ant-design/icons';
+import { SearchOutlined } from '@ant-design/icons';
 import { ItemLabel } from '../shared/ItemVisual';
-import { fetchAllData, partialFulfillWithdrawal, createStockAdjustment, fetchStockAdjustments, type ActualLine, type StockAdjustment } from '../../api/client';
+import { fetchAllData, partialFulfillWithdrawal, createStockAdjustment, type ActualLine } from '../../api/client';
 import type { AppData } from '../../types';
 function PersonLabel({ name, characterId, size = 26 }: { name: string; characterId?: string; size?: number }) {
   const profile = CONTRIBUTOR_PROFILES.find(p => characterId ? p.memberId === characterId : p.name === name);
@@ -27,38 +27,27 @@ function StockAdjustPanel({ data, onDone }: {
   data: AppData | undefined;
   onDone: () => void;
 }) {
-  const [itemId, setItemId] = useState<string>();
-  const [delta, setDelta] = useState<number | null>(null);
-  const [isDeduct, setIsDeduct] = useState(true);
+  const [search, setSearch] = useState('');
+  const [deductId, setDeductId] = useState<string | null>(null);
+  const [deductQty, setDeductQty] = useState<number | null>(null);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [log, setLog] = useState<StockAdjustment[]>([]);
-  const [loadingLog, setLoadingLog] = useState(true);
 
-  useEffect(() => {
-    void fetchStockAdjustments(20)
-      .then(setLog)
-      .catch(() => {/* silent */})
-      .finally(() => setLoadingLog(false));
-  }, []);
+  const rows = Object.entries(data?.stocks ?? {})
+    .map(([id, qty]) => ({ id, qty, name: data?.itemNames[id] ?? 'ไม่พบชื่อ' }))
+    .filter(r => {
+      const q = search.trim().toLowerCase();
+      return !q || r.name.toLowerCase().includes(q);
+    })
+    .sort((a, b) => b.qty - a.qty || a.name.localeCompare(b.name, 'th'));
 
-  const itemOptions = Object.entries(data?.itemNames ?? {})
-    .map(([id, name]) => ({ value: id, label: name }))
-    .sort((a, b) => a.label.localeCompare(b.label, 'th'));
-
-  async function submit() {
-    if (!itemId || !delta || delta <= 0) return;
+  async function confirmDeduct(id: string) {
+    if (!deductQty || deductQty <= 0) return;
     setBusy(true); setError('');
     try {
-      const actualDelta = isDeduct ? -delta : delta;
-      await createStockAdjustment(itemId, actualDelta, reason.trim());
-      setLog(prev => [{
-        id: crypto.randomUUID(), item_id: itemId,
-        delta: actualDelta, reason: reason.trim(),
-        created_at: new Date().toISOString(),
-      }, ...prev].slice(0, 20));
-      setDelta(null); setReason(''); setItemId(undefined);
+      await createStockAdjustment(id, -deductQty, reason.trim());
+      setDeductId(null); setDeductQty(null); setReason('');
       onDone();
     } catch (e) { setError((e as Error).message); }
     finally { setBusy(false); }
@@ -68,95 +57,89 @@ function StockAdjustPanel({ data, onDone }: {
     <div className="adm-adjust-panel">
       <div className="adm-catalog-header">
         <div>
-          <strong>ปรับสต็อกด้วยมือ</strong>
+          <strong>คลังสต็อก</strong>
+          <span className="adm-catalog-count">{rows.length} รายการ</span>
         </div>
       </div>
 
-      {error && <div style={{ padding: '8px 16px' }}><Alert type="error" message={error} showIcon /></div>}
-
-      <div className="adm-adjust-form">
-        {/* Mode toggle */}
-        <div className="adm-adjust-mode">
-          <button
-            className={`adm-adjust-mode-btn${isDeduct ? ' active-deduct' : ''}`}
-            onClick={() => setIsDeduct(true)}
-          >
-            <MinusCircleOutlined /> หักออก
-          </button>
-          <button
-            className={`adm-adjust-mode-btn${!isDeduct ? ' active-add' : ''}`}
-            onClick={() => setIsDeduct(false)}
-          >
-            <PlusCircleOutlined /> เพิ่มเข้า
-          </button>
-        </div>
-
-        <Select
-          showSearch
-          optionFilterProp="label"
-          value={itemId}
-          onChange={setItemId}
-          placeholder="เลือกสินค้า…"
-          options={itemOptions}
-          style={{ width: '100%' }}
-          disabled={busy}
+      <div style={{ padding: '8px 16px 4px' }}>
+        <Input
+          prefix={<SearchOutlined style={{ color: '#94a3b8' }} />}
+          placeholder="ค้นหาสินค้า…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          allowClear
+          size="small"
         />
-
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <InputNumber
-            min={1}
-            precision={0}
-            value={delta}
-            onChange={setDelta}
-            placeholder="จำนวน"
-            style={{ flex: 1 }}
-            disabled={busy}
-          />
-          {itemId && data && (
-            <span style={{ fontSize: 12, color: '#64748b', whiteSpace: 'nowrap' }}>
-              คลัง {(data.stocks[itemId] ?? 0).toLocaleString('th-TH')}
-            </span>
-          )}
-        </div>
-
-        <Input.TextArea
-          value={reason}
-          onChange={e => setReason(e.target.value)}
-          placeholder="เหตุผล เช่น แจกไปก่อนมีระบบ / รับของเพิ่ม"
-          autoSize={{ minRows: 2, maxRows: 3 }}
-          maxLength={300}
-          disabled={busy}
-        />
-
-        <Button
-          type="primary"
-          loading={busy}
-          disabled={!itemId || !delta || delta <= 0}
-          onClick={() => void submit()}
-          danger={isDeduct}
-          block
-        >
-          {isDeduct ? `หักออก ${delta ? delta.toLocaleString('th-TH') : ''}` : `เพิ่ม ${delta ? delta.toLocaleString('th-TH') : ''}`} ชิ้น
-        </Button>
       </div>
 
-      {/* Recent log */}
-      {!loadingLog && log.length > 0 && (
-        <div className="adm-adjust-log">
-          <p className="adm-adjust-log-label">ล่าสุด</p>
-          {log.map(entry => (
-            <div key={entry.id} className="adm-adjust-log-row">
-              <ItemLabel id={entry.item_id} name={data?.itemNames[entry.item_id] ?? 'ไม่พบชื่อ'} size={22} reserveImage />
-              <span style={{ color: entry.delta < 0 ? '#dc2626' : '#16a34a', fontWeight: 600, whiteSpace: 'nowrap', fontSize: 12 }}>
-                {entry.delta > 0 ? '+' : ''}{entry.delta.toLocaleString('th-TH')}
-              </span>
-              <span style={{ fontSize: 11, color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {entry.reason || '—'}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
+      {error && <div style={{ padding: '0 16px 8px' }}><Alert type="error" message={error} showIcon /></div>}
+
+      <div className="adm-adjust-list">
+        {rows.length === 0 && (
+          <p style={{ padding: '16px', color: '#94a3b8', fontSize: 13, margin: 0, textAlign: 'center' }}>ไม่พบสินค้า</p>
+        )}
+        {rows.map(row => (
+          <div key={row.id} className="adm-adjust-row">
+            {deductId === row.id ? (
+              /* Inline deduct form */
+              <div className="adm-adjust-inline">
+                <ItemLabel id={row.id} name={row.name} size={24} reserveImage />
+                <div className="adm-adjust-inline-controls">
+                  <span style={{ fontSize: 12, color: '#64748b' }}>คงเหลือ {row.qty.toLocaleString('th-TH')}</span>
+                  <InputNumber
+                    autoFocus
+                    min={1}
+                    max={row.qty}
+                    precision={0}
+                    value={deductQty}
+                    onChange={setDeductQty}
+                    placeholder="หักกี่ชิ้น"
+                    size="small"
+                    style={{ width: 90 }}
+                  />
+                  <Input
+                    value={reason}
+                    onChange={e => setReason(e.target.value)}
+                    placeholder="เหตุผล…"
+                    size="small"
+                    maxLength={200}
+                    style={{ flex: 1, minWidth: 80 }}
+                    onPressEnter={() => void confirmDeduct(row.id)}
+                  />
+                  <Button
+                    type="primary"
+                    danger
+                    size="small"
+                    loading={busy}
+                    disabled={!deductQty || deductQty <= 0}
+                    onClick={() => void confirmDeduct(row.id)}
+                  >หัก</Button>
+                  <Button size="small" onClick={() => { setDeductId(null); setDeductQty(null); setReason(''); setError(''); }}>
+                    ยกเลิก
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              /* Normal row */
+              <>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <ItemLabel id={row.id} name={row.name} size={24} reserveImage />
+                </div>
+                <span className="adm-adjust-qty" style={{ color: row.qty === 0 ? '#dc2626' : '#0f172a' }}>
+                  {row.qty.toLocaleString('th-TH')}
+                </span>
+                <Button
+                  size="small"
+                  danger
+                  disabled={row.qty === 0}
+                  onClick={() => { setDeductId(row.id); setDeductQty(null); setReason(''); setError(''); }}
+                >หัก</Button>
+              </>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

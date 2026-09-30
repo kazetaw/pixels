@@ -1457,45 +1457,42 @@ body {
   border-radius: 12px;
   overflow: hidden;
 }
-.adm-adjust-form {
+.adm-adjust-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px 16px;
+  max-height: 340px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #e2e8f0 transparent;
 }
-.adm-adjust-mode {
+.adm-adjust-row {
   display: flex;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  overflow: hidden;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-bottom: 1px solid #f1f5f9;
+  min-height: 44px;
 }
-.adm-adjust-mode-btn {
-  flex: 1;
-  padding: 6px 0;
+.adm-adjust-row:last-child { border-bottom: none; }
+.adm-adjust-row:hover { background: #fafafa; }
+.adm-adjust-qty {
   font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  border: none;
-  background: #f8fafc;
-  color: #64748b;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  min-width: 52px;
+  text-align: right;
+}
+.adm-adjust-inline {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  transition: background 0.15s, color 0.15s;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  padding: 4px 0;
 }
-.adm-adjust-mode-btn.active-deduct { background: #fef2f2; color: #dc2626; }
-.adm-adjust-mode-btn.active-add    { background: #f0fdf4; color: #16a34a; }
-
-/* Log */
-.adm-adjust-log { border-top: 1px solid #f1f5f9; padding: 8px 16px; }
-.adm-adjust-log-label { font-size: 11px; color: #94a3b8; margin: 0 0 6px; font-weight: 600; letter-spacing: .05em; }
-.adm-adjust-log-row {
-  display: grid;
-  grid-template-columns: 1fr auto minmax(0, 1.2fr);
+.adm-adjust-inline-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
   align-items: center;
-  gap: 8px;
-  padding: 5px 0;
-  border-bottom: 1px solid #f8fafc;
 }
-.adm-adjust-log-row:last-child { border-bottom: none; }
