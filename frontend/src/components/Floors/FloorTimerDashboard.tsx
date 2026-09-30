@@ -156,10 +156,35 @@ export function FloorTimerDashboard() {
   return <ItemVisualProvider recipes={recipes} machines={machines} stockImages={stockImages}><div className="floor-dashboard">
     {contextHolder}
     {error && <Alert type="error" showIcon message="โหลดข้อมูลชั้นไม่สำเร็จ" description={error} action={<Button size="small" onClick={() => void load()}>ลองอีกครั้ง</Button>} />}
-    <div className="floor-dashboard__toolbar">
-      <div className="floor-dashboard__legend">
-        {(Object.keys(statusMeta) as FloorDisplayStatus[]).map((status) => <span key={status}><i className={`floor-dot floor-dot--${status}`} />{statusMeta[status].label} <b>{counts[status]}</b></span>)}
+
+    {/* ── Overview mini-grid ── */}
+    {!loading && displayFloors.length > 0 && (
+      <div className="floor-overview">
+        <div className="floor-overview__cells">
+          {displayFloors.map((floor) => (
+            <button
+              key={floor.floor_number}
+              className={`floor-overview-cell floor-overview-cell--${floor.displayStatus}`}
+              title={`ชั้น ${floor.floor_number} — ${statusMeta[floor.displayStatus].label}`}
+              onClick={() => {
+                document.getElementById(`floor-card-${floor.floor_number}`)
+                  ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }}
+            >
+              {floor.floor_number}
+            </button>
+          ))}
+        </div>
+        <div className="floor-overview__legend">
+          {(Object.keys(statusMeta) as FloorDisplayStatus[]).map((s) => (
+            counts[s] > 0 && <span key={s}><i className={`floor-dot floor-dot--${s}`} />{statusMeta[s].label} <b>{counts[s]}</b></span>
+          ))}
+        </div>
       </div>
+    )}
+
+    <div className="floor-dashboard__toolbar">
+      <div className="floor-dashboard__legend" style={{ display: 'none' }} />
       <Button type="primary" icon={<PlusOutlined />} onClick={openAddFloor}>เพิ่มชั้น</Button>
     </div>
 
@@ -172,7 +197,7 @@ export function FloorTimerDashboard() {
         const machineName = machine?.machine_name;
         const recipe = recipes.find((item) => item.id === floor.recipe_id);
         const finishTime = floor.start_time && floor.estimated_duration_seconds ? new Date(new Date(floor.start_time).getTime() + floor.estimated_duration_seconds * 1000) : null;
-        return <Card key={floor.floor_number} className={`floor-card floor-card--${floor.displayStatus}`} size="small">
+        return <Card id={`floor-card-${floor.floor_number}`} key={floor.floor_number} className={`floor-card floor-card--${floor.displayStatus}`} size="small">
           <div className="floor-card__head"><div><strong>ชั้น {floor.floor_number}</strong><span><ItemLabel id={floor.profession} name={floor.profession || 'ยังไม่ระบุอาชีพ'} size={16} /></span></div><Tag color={meta.color}>{meta.label}</Tag></div>
           <div className="floor-card__selection">
             <ItemThumbnail id={machine?.machine_id} image={machine?.image} size={32} />
