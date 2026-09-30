@@ -369,11 +369,35 @@ function SidebarContent({
   view,
   setView,
   onNavClick,
+  pendingWithdrawals = 0,
 }: {
   view: MainView;
   setView: (v: MainView) => void;
   onNavClick?: () => void;
+  pendingWithdrawals?: number;
 }) {
+  // Build nav items with live badge on admin withdrawal view
+  const navItems = NAV_ITEMS.map(item => {
+    if (item.key === 'withdrawals' && pendingWithdrawals > 0) {
+      return {
+        ...item,
+        label: (
+          <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+            {item.label}
+            <span style={{
+              background: '#ef4444', color: '#fff', borderRadius: 99,
+              fontSize: 10, fontWeight: 700, minWidth: 16, height: 16,
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              padding: '0 4px', lineHeight: 1, marginLeft: 6,
+            }}>
+              {pendingWithdrawals > 99 ? '99+' : pendingWithdrawals}
+            </span>
+          </span>
+        ),
+      };
+    }
+    return item;
+  });
   return (
     <div
       style={{
@@ -420,7 +444,7 @@ function SidebarContent({
           window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
           onNavClick?.();
         }}
-        items={NAV_ITEMS}
+        items={navItems}
         style={{
           borderRight: 0,
           paddingTop: 6,
@@ -676,6 +700,53 @@ export default function App() {
   });
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [bomOpen, setBomOpen] = useState(false);
+  const [pendingWithdrawals, setPendingWithdrawals] = useState(0);
+
+  // Update document title with pending badge
+  useEffect(() => {
+    document.title = pendingWithdrawals > 0
+      ? `(${pendingWithdrawals}) โรงงานคำนวณทรัพยากร`
+      : 'โรงงานคำนวณทรัพยากร';
+  }, [pendingWithdrawals]);
+
+  // Poll pending withdrawal count every 30s — show badge + browser notification on new ones
+  useEffect(() => {
+    let lastCount = -1;
+    const check = async () => {
+      try {
+        const res = await fetch('/api/withdrawals?status=pending&page=1');
+        if (!res.ok) return;
+        const data = await res.json() as { matched?: number };
+        const count = data.matched ?? 0;
+        setPendingWithdrawals(count);
+        if (lastCount >= 0 && count > lastCount) {
+          const diff = count - lastCount;
+          // Browser notification
+          if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+            new Notification('ใบเบิกสินค้าใหม่', {
+              body: `มีใบเบิกรอส่ง ${diff} ใบใหม่ รวม ${count} ใบ`,
+              icon: '/favicon.ico',
+            });
+          }
+        }
+        lastCount = count;
+      } catch { /* silent */ }
+    };
+    void check();
+    const id = window.setInterval(() => void check(), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  // Request notification permission once when user interacts
+  useEffect(() => {
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      const ask = () => {
+        void Notification.requestPermission();
+        window.removeEventListener('click', ask);
+      };
+      window.addEventListener('click', ask, { once: true });
+    }
+  }, []);
 
   const setView = (next: MainView) => {
     setViewState(next);
@@ -716,6 +787,7 @@ export default function App() {
   const sidebarProps = {
     view,
     setView,
+    pendingWithdrawals,
   };
 
   if (bomOpen) {
