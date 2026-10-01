@@ -32,7 +32,7 @@ export const CONTRIBUTOR_PROFILES: ContributorProfile[] = [
     role: 'หัวหน้าทีม',
   },
   {
-    name: 'พี่ปาม',
+    name: 'PiePalm',
     memberId: '85865',
     avatar: '/avatars/contributors/pam.png',
     flipAvatar: true,
