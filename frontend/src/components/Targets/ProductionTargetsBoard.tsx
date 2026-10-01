@@ -163,11 +163,20 @@ export function ProductionTargetsBoard({ recipes, machines, stocks, itemNames = 
           <h4>ผลิตตามแผน</h4>
           {products.map(({ recipe, target }) => {
             const inStock = stocks[recipe.id] ?? 0;
+            const remaining = Math.max(0, target - inStock);
             const progress = Math.min(100, Math.round((inStock / target) * 100));
+            const done = inStock >= target;
             return <div className="production-targets__item" key={recipe.id}>
               <div className="production-targets__item-name"><ItemLabel id={recipe.id} name={recipe.name} image={recipe.image} size={38} reserveImage /></div>
-              <div className="production-targets__counts"><span>มี <b>{formatNumber(inStock)}</b></span><span>/</span><strong>{formatNumber(target)}</strong></div>
-              <div className="production-targets__progress" aria-label={`มี ${inStock} จากเป้าหมาย ${target}`}><div className="production-targets__progress-track"><i className={inStock >= target ? 'is-complete' : ''} style={{ width: `${progress}%` }} /></div><span>{progress}%</span></div>
+              <div className="production-targets__counts">
+                <span>มี <b>{formatNumber(inStock)}</b></span>
+                <span>/</span>
+                <strong>{formatNumber(target)}</strong>
+                {done
+                  ? <span style={{ color: '#16a34a', fontSize: 12, fontWeight: 600 }}>✓ ครบแล้ว</span>
+                  : <span style={{ color: '#dc2626', fontSize: 12 }}>เหลืออีก <b>{formatNumber(remaining)}</b></span>}
+              </div>
+              <div className="production-targets__progress" aria-label={`มี ${inStock} จากเป้าหมาย ${target}`}><div className="production-targets__progress-track"><i className={done ? 'is-complete' : ''} style={{ width: `${progress}%` }} /></div><span>{progress}%</span></div>
             </div>;
           })}
         </div>
