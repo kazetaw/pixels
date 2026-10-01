@@ -16,7 +16,7 @@ import {
 } from 'antd';
 
 import {
-  BarChartOutlined,
+  BarChartOutlined as _BarChartOutlined,
   DatabaseOutlined,
   SaveOutlined,
   PlayCircleOutlined,
@@ -30,7 +30,7 @@ import {
   CloudOutlined,
   CloseCircleFilled,
   TeamOutlined,
-  ApartmentOutlined,
+  ApartmentOutlined as _ApartmentOutlined,
 } from '@ant-design/icons';
 
 import { useAppState } from './hooks/useAppState';
@@ -59,19 +59,9 @@ const NAV_ITEMS = [
   { key: 'withdrawals', icon: <InboxOutlined />, label: 'เบิกสินค้า' },
   { key: 'assignments', icon: <TeamOutlined />, label: 'มอบหมายงาน' },
   {
-    key: 'planner',
-    icon: <BarChartOutlined />,
-    label: 'แผนส่วนตัว',
-  },
-  {
     key: 'shared-planner',
     icon: <CloudOutlined />,
     label: 'แผนส่วนกลาง',
-  },
-  {
-    key: 'production-flow',
-    icon: <ApartmentOutlined />,
-    label: 'แผนส่งต่อ',
   },
   {
     key: 'data',
@@ -991,10 +981,11 @@ export default function App() {
 
               <StockInventory
                 stocks={stocks}
-              stockImages={stockImages}
-              itemNames={itemNames}
-              recipes={recipes}
-            />
+                stockImages={stockImages}
+                itemNames={itemNames}
+                recipes={recipes}
+                onStockChanged={async () => { /* reload handled by useAppState polling */ }}
+              />
             </div>
           )}
 

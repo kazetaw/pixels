@@ -1617,8 +1617,8 @@ body {
   gap: 10px;
 }
 .floor-overview__cells {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(7, 32px);
   gap: 5px;
 }
 .floor-overview-cell {

@@ -58,10 +58,10 @@ export function FloorTimerDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [stockImages, setStockImages] = useState<StockImageMap>({});
-  const [selected, setSelected] = useState<FloorTimer | null>(null);
-  const [configuring, setConfiguring] = useState<FloorTimer | null>(null);
+  const [_selected, _setSelected] = useState<FloorTimer | null>(null);
+  const [_timerForm] = Form.useForm<{ hours: number; minutes: number; seconds: number }>();  const [configuring, setConfiguring] = useState<FloorTimer | null>(null);
   const [addOpen, setAddOpen] = useState(false);
-  const [timerForm] = Form.useForm<{ hours: number; minutes: number; seconds: number }>();
+  const [_timerForm2] = Form.useForm<{ hours: number; minutes: number; seconds: number }>();
   const [floorForm] = Form.useForm<{ floor_number: number; profession?: string }>();
   const [configForm] = Form.useForm<{ profession?: string; machine_id?: string; recipe_id?: string }>();
   const [messageApi, contextHolder] = message.useMessage();
@@ -95,22 +95,12 @@ export function FloorTimerDashboard() {
     finally { setSaving(false); }
   };
 
-  const start = async () => {
-    const values = await timerForm.validateFields();
-    if (!selected) return;
-    const duration = (values.hours || 0) * 3600 + (values.minutes || 0) * 60 + (values.seconds || 0);
-    if (!duration) { timerForm.setFields([{ name: 'seconds', errors: ['ตั้งเวลาอย่างน้อย 1 วินาที'] }]); return; }
-    await patchFloor(selected.floor_number, {
-      status: 'running', start_time: new Date().toISOString(), estimated_duration_seconds: duration, completed_at: null,
-    }, `เริ่มจับเวลาชั้น ${selected.floor_number} แล้ว`);
-    setSelected(null);
-  };
-
-  const openTimer = (floor: FloorTimer) => {
+  const startDirect = async (floor: FloorTimer) => {
     const recipe = recipes.find((item) => item.id === floor.recipe_id);
-    const seconds = recipeSeconds(recipe);
-    timerForm.setFieldsValue({ hours: Math.floor(seconds / 3600), minutes: Math.floor((seconds % 3600) / 60), seconds: seconds % 60 });
-    setSelected(floor);
+    const duration = recipeSeconds(recipe);
+    await patchFloor(floor.floor_number, {
+      status: 'running', start_time: new Date().toISOString(), estimated_duration_seconds: duration, completed_at: null,
+    }, `เริ่มจับเวลาชั้น ${floor.floor_number} แล้ว`);
   };
 
   const openConfig = (floor: FloorTimer) => {
@@ -211,21 +201,13 @@ export function FloorTimerDashboard() {
           </div>
           <div className="floor-card__actions">
             <Button icon={<SettingOutlined />} onClick={() => openConfig(floor)} aria-label={`ตั้งค่าเครื่องชั้น ${floor.floor_number}`} />
-            {floor.displayStatus === 'running' ? <Button icon={<PauseCircleOutlined />} onClick={() => void patchFloor(floor.floor_number, { status: 'idle', start_time: null, estimated_duration_seconds: 0, completed_at: null }, 'หยุดตัวจับเวลาแล้ว')}>หยุด</Button> : <Button type="primary" icon={<PlayCircleOutlined />} disabled={!floor.recipe_id} onClick={() => openTimer(floor)}>เริ่ม</Button>}
+            {floor.displayStatus === 'running' ? <Button icon={<PauseCircleOutlined />} onClick={() => void patchFloor(floor.floor_number, { status: 'idle', start_time: null, estimated_duration_seconds: 0, completed_at: null }, 'หยุดตัวจับเวลาแล้ว')}>หยุด</Button> : <Button type="primary" icon={<PlayCircleOutlined />} disabled={!floor.recipe_id} loading={saving} onClick={() => void startDirect(floor)}>เริ่ม</Button>}
             <Button icon={<ReloadOutlined />} onClick={() => void patchFloor(floor.floor_number, { status: 'idle', start_time: null, estimated_duration_seconds: 0, completed_at: null }, 'รีเซ็ตชั้นแล้ว')} />
           </div>
         </Card>;
       })}
     </div>}
 
-    <Modal open={!!selected} onCancel={() => setSelected(null)} onOk={() => void start()} okText="เริ่มทำงาน" okButtonProps={{ loading: saving, icon: <PlayCircleOutlined /> }} cancelText="ยกเลิก" title={`ตั้งเวลาทำงาน — ชั้น ${selected?.floor_number ?? ''}`}>
-      <p className="floor-modal-note">ระบบจะแสดง “เสร็จแล้ว” เมื่อหมดเวลา และเปลี่ยนเป็น “ลอย” หลังจากนั้น 15 นาที</p>
-      <Form form={timerForm} layout="vertical" initialValues={{ hours: 0, minutes: 30, seconds: 0 }}><div className="floor-time-inputs">
-        <Form.Item label="ชั่วโมง" name="hours" rules={[{ required: true }]}><InputNumber min={0} max={99} /></Form.Item>
-        <Form.Item label="นาที" name="minutes" rules={[{ required: true }]}><InputNumber min={0} max={59} /></Form.Item>
-        <Form.Item label="วินาที" name="seconds" rules={[{ required: true }]}><InputNumber min={0} max={59} /></Form.Item>
-      </div></Form>
-    </Modal>
 
     <Modal open={!!configuring} onCancel={() => setConfiguring(null)} onOk={() => void saveConfig()} okText="บันทึกการตั้งค่า" okButtonProps={{ loading: saving }} cancelText="ยกเลิก" title={`ตั้งค่าเครื่องและสูตร — ชั้น ${configuring?.floor_number ?? ''}`}>
       <p className="floor-modal-note">เปลี่ยนอาชีพได้จากตรงนี้ โดยเครื่องและสูตรเดิมจะถูกล้างเพื่อให้เลือกใหม่อย่างถูกต้อง</p>
