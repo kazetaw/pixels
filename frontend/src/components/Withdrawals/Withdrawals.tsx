@@ -22,6 +22,94 @@ const withdrawalItemVisuals: Pick<SelectProps, 'optionRender' | 'labelRender'> =
 type Line = { item_id: string; quantity: number };
 type Ticket = { requester_name: string; recipient_name: string; id: string; character_id: string; note: string; status: 'pending'|'sent'|'cancelled'; created_at: string; withdrawal_lines: Line[] };
 
+// ── Catalog panel (searchable + filterable) ──────────────────────────────────
+function CatalogPanel({ catalog, data, availability, busy, onToggle }: {
+  catalog: { item_id: string; enabled: boolean }[];
+  data: AppData | undefined;
+  availability: Record<string, number>;
+  busy: boolean;
+  onToggle: (id: string, enabled: boolean) => void;
+}) {
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<'all' | 'on' | 'off'>('all');
+
+  const rows = catalog
+    .map(c => ({
+      ...c,
+      name: data?.itemNames[c.item_id] || 'ไม่พบชื่อสินค้า',
+      stock: data?.stocks[c.item_id] ?? 0,
+      available: availability[c.item_id] ?? 0,
+    }))
+    .filter(c => {
+      const q = search.trim().toLowerCase();
+      const matchSearch = !q || c.name.toLowerCase().includes(q);
+      const matchFilter = filter === 'all' || (filter === 'on' && c.enabled) || (filter === 'off' && !c.enabled);
+      return matchSearch && matchFilter;
+    })
+    .sort((a, b) => {
+      if (a.enabled !== b.enabled) return a.enabled ? -1 : 1;
+      return a.name.localeCompare(b.name, 'th');
+    });
+
+  const onCount  = catalog.filter(c => c.enabled).length;
+  const offCount = catalog.length - onCount;
+
+  return (
+    <>
+      {/* Search bar */}
+      <div style={{ padding: '8px 12px 4px' }}>
+        <Input
+          prefix={<SearchOutlined style={{ color: '#94a3b8' }} />}
+          placeholder="ค้นหาชื่อสินค้า…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          allowClear
+          size="small"
+        />
+      </div>
+      {/* Filter tabs */}
+      <div style={{ padding: '4px 12px 8px', display: 'flex', gap: 4 }}>
+        {([['all', `ทั้งหมด ${catalog.length}`], ['on', `เปิด ${onCount}`], ['off', `ปิด ${offCount}`]] as const).map(([val, label]) => (
+          <button
+            key={val}
+            onClick={() => setFilter(val)}
+            style={{
+              padding: '2px 10px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 600,
+              background: filter === val ? '#2563eb' : '#f1f5f9',
+              color: filter === val ? '#fff' : '#64748b',
+              transition: 'background 0.15s',
+            }}
+          >{label}</button>
+        ))}
+      </div>
+      {/* List */}
+      {catalog.length === 0
+        ? <p className="adm-catalog-empty">ยังไม่มีสินค้าในรายการ</p>
+        : rows.length === 0
+          ? <p className="adm-catalog-empty">ไม่พบสินค้าที่ค้นหา</p>
+          : <div className="adm-catalog-items">
+              {rows.map(c => (
+                <div className={`adm-catalog-item${c.enabled ? '' : ' adm-catalog-item--off'}`} key={c.item_id}>
+                  <ItemLabel id={c.item_id} name={c.name} reserveImage size={26} />
+                  {c.enabled && (
+                    <div className="adm-catalog-item-stocks">
+                      <span className="adm-catalog-available" title="เบิกได้">{c.available.toLocaleString('th-TH')}<em>เบิกได้</em></span>
+                      <span className="adm-catalog-total" title="คลัง">{c.stock.toLocaleString('th-TH')}<em>คลัง</em></span>
+                    </div>
+                  )}
+                  <button
+                    className={`adm-toggle${c.enabled ? ' adm-toggle--on' : ''}`}
+                    disabled={busy}
+                    onClick={() => onToggle(c.item_id, !c.enabled)}
+                    aria-label={c.enabled ? 'ปิดให้เบิก' : 'เปิดให้เบิก'}
+                  ><span className="adm-toggle-thumb" /></button>
+                </div>
+              ))}
+            </div>}
+    </>
+  );
+}
+
 // ── Manual stock adjustment panel ────────────────────────────────────────────
 function StockAdjustPanel({ data, onDone }: {
   data: AppData | undefined;
@@ -355,30 +443,14 @@ export function Withdrawals({ admin = false, onData }: { admin?: boolean; onData
               />
               <Button type="primary" disabled={!newItem || busy} onClick={() => newItem && void setAllowed(newItem, true)}>เพิ่ม</Button>
             </div>
-            {catalog.length === 0
-              ? <p className="adm-catalog-empty">ยังไม่มีสินค้าในรายการ</p>
-              : <div className="adm-catalog-items">
-                  {catalog
-                    .map(c => ({ ...c, name: data?.itemNames[c.item_id] || 'ไม่พบชื่อสินค้า', stock: data?.stocks[c.item_id] ?? 0, available: availability[c.item_id] ?? 0 }))
-                    .sort((a, b) => { if (a.enabled !== b.enabled) return a.enabled ? -1 : 1; return a.name.localeCompare(b.name, 'th'); })
-                    .map(c => (
-                      <div className={`adm-catalog-item${c.enabled ? '' : ' adm-catalog-item--off'}`} key={c.item_id}>
-                        <ItemLabel id={c.item_id} name={c.name} reserveImage size={26} />
-                        {c.enabled && (
-                          <div className="adm-catalog-item-stocks">
-                            <span className="adm-catalog-available" title="เบิกได้">{c.available.toLocaleString('th-TH')}<em>เบิกได้</em></span>
-                            <span className="adm-catalog-total" title="คลัง">{c.stock.toLocaleString('th-TH')}<em>คลัง</em></span>
-                          </div>
-                        )}
-                        <button
-                          className={`adm-toggle${c.enabled ? ' adm-toggle--on' : ''}`}
-                          disabled={busy}
-                          onClick={() => void setAllowed(c.item_id, !c.enabled)}
-                          aria-label={c.enabled ? 'ปิดให้เบิก' : 'เปิดให้เบิก'}
-                        ><span className="adm-toggle-thumb" /></button>
-                      </div>
-                    ))}
-                </div>}
+            {/* Search + filter */}
+            <CatalogPanel
+              catalog={catalog}
+              data={data}
+              availability={availability}
+              busy={busy}
+              onToggle={(id, enabled) => void setAllowed(id, enabled)}
+            />
           </div>
           <StockAdjustPanel data={data} onDone={() => void refresh()} />
         </aside>
