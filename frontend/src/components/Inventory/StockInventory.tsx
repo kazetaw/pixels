@@ -277,7 +277,9 @@ export function StockInventory({ stocks, stockImages, recipes, itemNames, onStoc
         </div>
 
         <div className="inventory-toolbar">
-          <Input
+           <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 16 }}>
+          <PinLock onUnlocked={() => setUnlocked(true)} />
+        </div><Input
             prefix={<SearchOutlined style={{ color: '#94a3b8' }} />}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -309,9 +311,7 @@ export function StockInventory({ stocks, stockImages, recipes, itemNames, onStoc
           rowClassName={(row) => row.qty === 0 ? 'opacity-50' : ''}
         />
 
-        <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 16 }}>
-          <PinLock onUnlocked={() => setUnlocked(true)} />
-        </div>
+       
       </div>
     );
   }
