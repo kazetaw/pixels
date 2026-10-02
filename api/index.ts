@@ -285,7 +285,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const [{ data: assignments }, { data: sentLines }, { data: stocks }, { data: itemRows }] = await Promise.all([
         db.from('contributor_assignments').select('contributor, item_id, target'),
         db.from('withdrawal_lines')
-          .select('item_id, quantity, withdrawals!inner(status)')
+          .select('item_id, quantity, withdrawals!inner(status, requester_name)')
           .eq('withdrawals.status', 'sent'),
         db.from('stocks').select('item_id, quantity'),
         db.from('items').select('item_id, name'),
@@ -293,22 +293,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (!assignments) return res.json([]);
 
-      // Build lookup maps
       const stockMap = new Map((stocks ?? []).map(r => [r.item_id, r.quantity as number]));
       const nameMap  = new Map((itemRows ?? []).map(r => [r.item_id, r.name as string]));
 
-      // Aggregate sent qty per item across all sent withdrawals
+      // Aggregate sent qty: total per item AND per (item, contributor)
       const sentMap = new Map<string, number>();
+      const sentByContributor = new Map<string, number>(); // key = `${item_id}::${requester_name}`
       for (const line of sentLines ?? []) {
-        sentMap.set(line.item_id, (sentMap.get(line.item_id) ?? 0) + (line.quantity as number));
+        const qty = line.quantity as number;
+        sentMap.set(line.item_id, (sentMap.get(line.item_id) ?? 0) + qty);
+        const w = (line as { withdrawals: { requester_name: string } }).withdrawals;
+        const requester = w?.requester_name?.trim() ?? '';
+        if (requester) {
+          const key = `${line.item_id}::${requester}`;
+          sentByContributor.set(key, (sentByContributor.get(key) ?? 0) + qty);
+        }
       }
 
-      // Group assignments by item_id
-      const byItem = new Map<string, { total_target: number; contributors: { name: string; target: number }[] }>();
+      const byItem = new Map<string, { total_target: number; contributors: { name: string; target: number; sent: number }[] }>();
       for (const row of assignments) {
         const existing = byItem.get(row.item_id) ?? { total_target: 0, contributors: [] };
         existing.total_target += row.target as number;
-        existing.contributors.push({ name: row.contributor as string, target: row.target as number });
+        const contributorSent = sentByContributor.get(`${row.item_id}::${row.contributor}`) ?? 0;
+        existing.contributors.push({ name: row.contributor as string, target: row.target as number, sent: contributorSent });
         byItem.set(row.item_id, existing);
       }
 

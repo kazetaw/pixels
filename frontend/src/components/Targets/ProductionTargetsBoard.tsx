@@ -1,5 +1,5 @@
 import { Alert, Button, Empty, Spin, Tag } from 'antd';
-import { DownOutlined, ReloadOutlined, RightOutlined } from '@ant-design/icons';
+import { CheckCircleFilled, DownOutlined, ExclamationCircleFilled, ReloadOutlined, RightOutlined } from '@ant-design/icons';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchSharedPlannerPlan, runPlan } from '../../api/client';
 import type { BomTreeNode, Machine, PlanRequest, PlanResponse, Recipe, StockMap } from '../../types';
@@ -85,8 +85,8 @@ function MaterialNeedRow({ material, stocks, depth = 0 }: { material: DisplayMat
       </span>
       <span style={{ color: '#64748b', fontSize: 12, whiteSpace: 'nowrap' }}>{Math.ceil(material.quantity / 99)} กอง</span>
       {isSufficient
-        ? <span style={{ color: '#16a34a', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>✓ พอ</span>
-        : <span style={{ color: '#dc2626', fontSize: 11, whiteSpace: 'nowrap' }}>ขาด {formatNumber(remaining)}</span>}
+        ? <span style={{ color: '#16a34a', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}><CheckCircleFilled style={{ marginRight: 3 }} />พอ</span>
+        : <span style={{ color: '#dc2626', fontSize: 11, whiteSpace: 'nowrap' }}><ExclamationCircleFilled style={{ marginRight: 3 }} />ขาด {formatNumber(remaining)}</span>}
     </div>
     {hasChildren && open && <div className="material-children">{material.children.map((child) => <MaterialNeedRow key={child.id} material={child} stocks={stocks} depth={depth + 1} />)}</div>}
   </div>;
@@ -177,8 +177,8 @@ export function ProductionTargetsBoard({ recipes, machines, stocks, itemNames = 
                 <span>/</span>
                 <strong>{formatNumber(target)}</strong>
                 {done
-                  ? <span style={{ color: '#16a34a', fontSize: 12, fontWeight: 600 }}>✓ ครบแล้ว</span>
-                  : <span style={{ color: '#dc2626', fontSize: 12 }}>เหลืออีก <b>{formatNumber(remaining)}</b></span>}
+                  ? <span style={{ color: '#16a34a', fontSize: 12, fontWeight: 600 }}><CheckCircleFilled style={{ marginRight: 4 }} />ครบแล้ว</span>
+                  : <span style={{ color: '#dc2626', fontSize: 12 }}><ExclamationCircleFilled style={{ marginRight: 3 }} />เหลืออีก <b>{formatNumber(remaining)}</b></span>}
               </div>
               <div className="production-targets__progress" aria-label={`มี ${inStock} จากเป้าหมาย ${target}`}><div className="production-targets__progress-track"><i className={done ? 'is-complete' : ''} style={{ width: `${progress}%` }} /></div><span>{progress}%</span></div>
             </div>;

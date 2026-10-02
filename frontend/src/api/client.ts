@@ -332,7 +332,7 @@ export interface AssignmentSummaryItem {
   in_stock: number;
   sent: number;
   remaining: number;
-  contributors: { name: string; target: number }[];
+  contributors: { name: string; target: number; sent: number }[];
 }
 
 export async function fetchAssignmentSummary(): Promise<AssignmentSummaryItem[]> {
