@@ -2,6 +2,7 @@
 // กรอกเวลา HH:MM:SS ด้วย spinner แยก 3 ช่อง พร้อม preset buttons
 
 import { useState, useEffect } from 'react';
+import { CaretUpOutlined, CaretDownOutlined } from '@ant-design/icons';
 
 interface TimeInputProps {
   value: string | null;          // "HH:MM:SS" or null
@@ -33,7 +34,7 @@ function Spinner({
         type="button"
         onClick={() => onChange(value >= max ? min : value + 1)}
         className="w-8 h-6 text-gray-400 hover:text-gray-700 text-sm leading-none select-none"
-      >▲</button>
+      ><CaretUpOutlined /></button>
       <input
         type="number" min={min} max={max}
         value={value}
@@ -47,7 +48,7 @@ function Spinner({
         type="button"
         onClick={() => onChange(value <= min ? max : value - 1)}
         className="w-8 h-6 text-gray-400 hover:text-gray-700 text-sm leading-none select-none"
-      >▼</button>
+      ><CaretDownOutlined /></button>
       <span className="text-xs text-gray-400 mt-0.5">{label}</span>
     </div>
   );

@@ -4,7 +4,7 @@ import {
   Input, InputNumber, Select, Button, Tag, Space, Popconfirm, Modal, Form,
 } from 'antd';
 import {
-  PlusOutlined, DeleteOutlined, SearchOutlined, EditOutlined,
+  CheckOutlined, PlusOutlined, DeleteOutlined, SearchOutlined, EditOutlined,
 } from '@ant-design/icons';
 import { Recipe, Machine, StockMap } from '../../types';
 import { createRecipe, updateRecipe, deleteRecipe } from '../../api/client';
@@ -324,7 +324,7 @@ function RecipeForm({ initial, recipes, machines, stocks, itemNames, onSave, onC
                       <div style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.machine_name}</div>
                       <div style={{ fontSize: 11, color: '#94a3b8' }}>ชั้น {m.floor_number}{m.occupation ? ` · ${m.occupation}` : ''}</div>
                     </div>
-                    {machineId === m.machine_id && <span style={{ marginLeft: 'auto', color: '#2563eb', flexShrink: 0 }}>✓</span>}
+                    {machineId === m.machine_id && <CheckOutlined style={{ marginLeft: 'auto', color: '#2563eb', flexShrink: 0 }} />}
                   </li>
                 ))}
               </ul>

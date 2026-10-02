@@ -2,6 +2,7 @@
 // กรอกระยะเวลา Event ด้วย preset + spinner วัน/ชม./นาที
 
 import { Dispatch, SetStateAction } from 'react';
+import { CaretUpOutlined, CaretDownOutlined } from '@ant-design/icons';
 
 interface EventDurationInputProps {
   days: number;
@@ -26,14 +27,14 @@ function NumBox({
   return (
     <div className="flex flex-col items-center gap-0.5">
       <button type="button" onClick={() => onChange(Math.min(max, value + 1))}
-        className="w-8 h-5 text-xs text-gray-400 hover:text-gray-700 select-none leading-none">▲</button>
+        className="w-8 h-5 text-xs text-gray-400 hover:text-gray-700 select-none leading-none"><CaretUpOutlined /></button>
       <input
         type="number" min={min} max={max} value={value}
         onChange={(e) => onChange(Math.max(min, Math.min(max, Number(e.target.value) || 0)))}
         className="w-14 rounded border border-gray-300 text-center text-sm py-1 font-mono focus:border-blue-500 focus:outline-none"
       />
       <button type="button" onClick={() => onChange(Math.max(min, value - 1))}
-        className="w-8 h-5 text-xs text-gray-400 hover:text-gray-700 select-none leading-none">▼</button>
+        className="w-8 h-5 text-xs text-gray-400 hover:text-gray-700 select-none leading-none"><CaretDownOutlined /></button>
       <span className="text-xs text-gray-400">{label}</span>
     </div>
   );

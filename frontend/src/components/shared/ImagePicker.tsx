@@ -16,7 +16,7 @@ import { useItemImage } from './ItemVisual';
  */
 import { useEffect, useRef, useState } from 'react';
 import type { ChangeEvent, DragEvent } from 'react';
-import { DeleteOutlined, EyeOutlined, UploadOutlined } from '@ant-design/icons';
+import { CloseOutlined, DeleteOutlined, EyeOutlined, UploadOutlined } from '@ant-design/icons';
 import { Modal } from 'antd';
 import { uploadImage } from '../../api/client';
 
@@ -251,7 +251,7 @@ export function ImagePicker({
                 className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-xs leading-none hover:bg-red-600"
                 title="ลบรูป"
               >
-                ✕
+                <CloseOutlined style={{ fontSize: 8 }} />
               </button>
             )}
             {uploading && (

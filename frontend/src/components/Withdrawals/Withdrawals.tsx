@@ -1,4 +1,4 @@
-import { UserOutlined } from '@ant-design/icons';
+import { UserOutlined, CaretDownOutlined } from '@ant-design/icons';
 import type { SelectProps } from 'antd';
 import { CONTRIBUTOR_PROFILES } from '../shared/contributors';
 import { useEffect, useRef, useState } from 'react';
@@ -475,7 +475,7 @@ export function Withdrawals({ admin = false, onData }: { admin?: boolean; onData
                 <span className="withdrawal-history-quantity">{t.withdrawal_lines.length} รายการ</span>
                 <Tag color={t.status === 'pending' ? 'gold' : t.status === 'sent' ? 'green' : 'default'}>{labels[t.status]}</Tag>
                 <time className="withdrawal-history-time" dateTime={t.created_at} title={new Date(t.created_at).toLocaleString('th-TH')}>{new Date(t.created_at).toLocaleString('th-TH', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' })}</time>
-                <span className="withdrawal-history-chevron" aria-hidden="true">⌄</span>
+                <span className="withdrawal-history-chevron" aria-hidden="true"><CaretDownOutlined /></span>
               </summary>
               <div className="withdrawal-history-body">
                 <div className="withdrawal-history-owner"><small>ผู้เบิก</small><span>{t.requester_name || 'ไม่ระบุ'}</span></div>

@@ -3,7 +3,7 @@ import { DailyTargets } from './DailyTargets';
 import { fetchAssignments, type ContributorAssignment } from '../../api/client';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { Alert, Modal } from 'antd';
-import { UnorderedListOutlined } from '@ant-design/icons';
+import { CheckCircleFilled, ExclamationCircleFilled, UnorderedListOutlined } from '@ant-design/icons';
 import { contributorLabel, CONTRIBUTOR_PROFILES, type ContributorProfile } from '../shared/contributors';
 import { OCCUPATION_IMAGE } from '../shared/OccupationSelect';
 import { ItemLabel } from '../shared/ItemVisual';
@@ -79,7 +79,7 @@ function AssignmentRow({ itemId, label, inStock, target }: { itemId: string; lab
       </div>
       {shared && <small>รับผิดชอบ {target.toLocaleString()} ชิ้น · ตัวเลขด้านบนเป็นคลัง / เป้ารวมทีม</small>}
       <div className={`org-target-warning${done ? ' is-complete' : ''}`} role="status">
-        {done ? '✓ คลังครบเป้าแล้ว' : <>ยังขาด {remaining.toLocaleString()} ชิ้น{shared ? ' (รวมทีม)' : ''} · {days === null ? 'ตั้งวันครบกำหนดเพื่อดูขั้นต่ำต่อวัน' : daily === null ? 'ถึงกำหนดแล้ว ต้องเติมให้ครบ' : <>ขั้นต่ำ <strong>{daily.toLocaleString()} ชิ้น/วัน</strong> ({Math.floor(daily / 99).toLocaleString()} กอง + {daily % 99} ชิ้น)</>}</>}
+        {done ? <><CheckCircleFilled style={{ color: '#16a34a', marginRight: 4 }} />คลังครบเป้าแล้ว</> : <>ยังขาด {remaining.toLocaleString()} ชิ้น{shared ? ' (รวมทีม)' : ''} · {days === null ? 'ตั้งวันครบกำหนดเพื่อดูขั้นต่ำต่อวัน' : daily === null ? 'ถึงกำหนดแล้ว ต้องเติมให้ครบ' : <><ExclamationCircleFilled style={{ color: '#f59e0b', marginRight: 3 }} />ขั้นต่ำ <strong>{daily.toLocaleString()} ชิ้น/วัน</strong> ({Math.floor(daily / 99).toLocaleString()} กอง + {daily % 99} ชิ้น)</>}</>}
         {shared && !done && <div>เป้าร่วมกับผู้รับผิดชอบคนอื่น · ขั้นต่ำนี้เป็นยอดรวมทีม ไม่ต้องทำซ้ำทุกคน</div>}
       </div>
       <div className="org-assignment-bar" aria-label={`${pct}%`}>

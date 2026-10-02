@@ -149,7 +149,7 @@ export function AssignmentSummary() {
           </div>
           <div className="asmt-stat asmt-stat--remain">
             <strong style={{ color: totalRemaining === 0 ? '#16a34a' : '#dc2626' }}>
-              {totalRemaining === 0 ? '✓ ครบหมดแล้ว' : stacks(totalRemaining)}
+            {totalRemaining === 0 ? <><CheckCircleFilled style={{ marginRight: 4 }} />ครบหมดแล้ว</> : stacks(totalRemaining)}
             </strong>
             <span>ยังต้องส่ง</span>
           </div>

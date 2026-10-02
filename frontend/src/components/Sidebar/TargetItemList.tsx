@@ -1,5 +1,6 @@
 import { ItemLabel } from '../shared/ItemVisual';
 import { Recipe, TargetItem } from '../../types';
+import { CloseOutlined } from '@ant-design/icons';
 
 interface TargetItemListProps {
   items: TargetItem[];
@@ -31,7 +32,7 @@ export function TargetItemList({ items, recipes, onRemove }: TargetItemListProps
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: 14, lineHeight: 1, padding: 0 }}
               aria-label="ลบ"
             >
-              ✕
+              <CloseOutlined />
             </button>
           </div>
         </li>
