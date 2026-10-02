@@ -72,6 +72,7 @@ function MaterialNeedRow({ material, stocks, depth = 0 }: { material: DisplayMat
   const hasChildren = material.children.length > 0;
   const inStock = stocks[material.id] ?? 0;
   const isSufficient = inStock >= material.quantity;
+  const remaining = Math.max(0, material.quantity - inStock);
 
   return <div>
     <div className="production-targets__material" style={depth ? { background: '#fafcff' } : undefined}>
@@ -83,6 +84,9 @@ function MaterialNeedRow({ material, stocks, depth = 0 }: { material: DisplayMat
         {formatNumber(inStock)}<span style={{ color: '#94a3b8', margin: '0 2px' }}>/</span><strong>{formatNumber(material.quantity)}</strong>
       </span>
       <span style={{ color: '#64748b', fontSize: 12, whiteSpace: 'nowrap' }}>{Math.ceil(material.quantity / 99)} กอง</span>
+      {isSufficient
+        ? <span style={{ color: '#16a34a', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>✓ พอ</span>
+        : <span style={{ color: '#dc2626', fontSize: 11, whiteSpace: 'nowrap' }}>ขาด {formatNumber(remaining)}</span>}
     </div>
     {hasChildren && open && <div className="material-children">{material.children.map((child) => <MaterialNeedRow key={child.id} material={child} stocks={stocks} depth={depth + 1} />)}</div>}
   </div>;
