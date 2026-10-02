@@ -302,8 +302,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       for (const line of sentLines ?? []) {
         const qty = line.quantity as number;
         sentMap.set(line.item_id, (sentMap.get(line.item_id) ?? 0) + qty);
-        const w = (line as { withdrawals: { requester_name: string } }).withdrawals;
-        const requester = w?.requester_name?.trim() ?? '';
+        const w = (line as unknown as { withdrawals: { requester_name: string }[] }).withdrawals;
+        const requester = (Array.isArray(w) ? w[0] : w)?.requester_name?.trim() ?? '';
         if (requester) {
           const key = `${line.item_id}::${requester}`;
           sentByContributor.set(key, (sentByContributor.get(key) ?? 0) + qty);
