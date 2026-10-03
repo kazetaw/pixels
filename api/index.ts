@@ -282,28 +282,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (segments[0] === 'assignment-summary' && method === 'GET') {
     try {
       const db = getSupabase();
-      const [{ data: assignments }, { data: sentLines }, { data: stocks }, { data: itemRows }] = await Promise.all([
+      const [assignmentResult, purchases, stockResult, itemResult] = await Promise.all([
         db.from('contributor_assignments').select('contributor, item_id, target'),
-        db.from('withdrawal_lines')
-          .select('item_id, quantity, withdrawals!inner(status, requester_name)')
-          .eq('withdrawals.status', 'sent'),
+        readAllPurchases(),
         db.from('stocks').select('item_id, quantity'),
         db.from('items').select('item_id, name'),
       ]);
 
+      for (const result of [assignmentResult, stockResult, itemResult]) {
+        if (result.error) throw result.error;
+      }
+      const assignments = assignmentResult.data;
+      const stocks = stockResult.data;
+      const itemRows = itemResult.data;
       if (!assignments) return res.json([]);
 
       const stockMap = new Map((stocks ?? []).map(r => [r.item_id, r.quantity as number]));
       const nameMap  = new Map((itemRows ?? []).map(r => [r.item_id, r.name as string]));
 
-      // Aggregate sent qty: total per item AND per (item, contributor)
+      // Count stock contributions recorded in the budget purchase history, not outgoing withdrawals.
       const sentMap = new Map<string, number>();
-      const sentByContributor = new Map<string, number>(); // key = `${item_id}::${requester_name}`
-      for (const line of sentLines ?? []) {
+      const sentByContributor = new Map<string, number>(); // key = `${item_id}::${contributor}`
+      for (const line of purchases) {
         const qty = line.quantity as number;
         sentMap.set(line.item_id, (sentMap.get(line.item_id) ?? 0) + qty);
-        const w = (line as unknown as { withdrawals: { requester_name: string }[] }).withdrawals;
-        const requester = (Array.isArray(w) ? w[0] : w)?.requester_name?.trim() ?? '';
+        const requester = line.contributor?.trim() ?? '';
         if (requester) {
           const key = `${line.item_id}::${requester}`;
           sentByContributor.set(key, (sentByContributor.get(key) ?? 0) + qty);
@@ -314,7 +317,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       for (const row of assignments) {
         const existing = byItem.get(row.item_id) ?? { total_target: 0, contributors: [] };
         existing.total_target += row.target as number;
-        const contributorSent = sentByContributor.get(`${row.item_id}::${row.contributor}`) ?? 0;
+        const contributorSent = sentByContributor.get(`${row.item_id}::${row.contributor.trim()}`) ?? 0;
         existing.contributors.push({ name: row.contributor as string, target: row.target as number, sent: contributorSent });
         byItem.set(row.item_id, existing);
       }

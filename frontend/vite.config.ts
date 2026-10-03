@@ -26,6 +26,10 @@ export default defineConfig({
         target: 'https://backoffice-pixel.vercel.app',
         changeOrigin: true,
       },
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
     },
   },
 });

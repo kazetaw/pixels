@@ -1,14 +1,14 @@
 import { dailyTargets } from './dailyTargetMath';
 import { DailyTargets } from './DailyTargets';
-import { fetchAssignments, type ContributorAssignment } from '../../api/client';
-import { createContext, useContext, useEffect, useState } from 'react';
-import { Alert, Modal } from 'antd';
+import { fetchAllStockPurchases, fetchAssignments, type ContributorAssignment } from '../../api/client';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { Alert, Button, Modal, Spin } from 'antd';
 import { CheckCircleFilled, ExclamationCircleFilled, UnorderedListOutlined } from '@ant-design/icons';
 import { contributorLabel, CONTRIBUTOR_PROFILES, type ContributorProfile } from '../shared/contributors';
 import { OCCUPATION_IMAGE } from '../shared/OccupationSelect';
 import { ItemLabel } from '../shared/ItemVisual';
 import type { Occupation } from '../shared/OccupationSelect';
-import type { StockMap } from '../../types';
+import type { StockMap, StockPurchase } from '../../types';
 
 interface OrganizationChartProps {
   stocks?: StockMap;
@@ -58,7 +58,7 @@ function AvatarCircle({ profile, size = 56 }: { profile: ContributorProfile; siz
 
 // ── Assignment row (used inside modal) ───────────────────────────────────────
 
-function AssignmentRow({ itemId, label, inStock, target }: { itemId: string; label: string; inStock: number; target: number }) {
+function AssignmentRow({ itemId, label, inStock, target, contributions }: { itemId: string; label: string; inStock: number; target: number; contributions?: { name: string; quantity: number }[] }) {
   const { days, totals } = useContext(TargetContext);
   const total = totals.find(row => row.id === itemId);
   const shared = !!total && total.target > target;
@@ -85,6 +85,20 @@ function AssignmentRow({ itemId, label, inStock, target }: { itemId: string; lab
       <div className="org-assignment-bar" aria-label={`${pct}%`}>
         <div className={`org-assignment-fill${done ? ' is-done' : ''}`} style={{ width: `${pct}%` }} />
       </div>
+      {contributions && <details className="org-contribution-details">
+        <summary>เพิ่มเติม ({contributions.length})</summary>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, padding: '4px 0' }}>
+          {contributions.map(({ name, quantity }) => {
+            const profile = CONTRIBUTOR_PROFILES.find(person => person.name === name);
+            return <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+              {profile ? <AvatarCircle profile={profile} size={24} /> : <span className="org-contribution-fallback" aria-hidden="true">{name.slice(0, 1)}</span>}
+              <span>{contributorLabel(name)}</span>
+              <strong style={{ color: '#6366f1' }}>{quantity.toLocaleString('th-TH')}</strong>
+            </div>;
+          })}
+          {contributions.length === 0 && <span style={{ color: '#94a3b8', fontSize: 12 }}>ยังไม่มีประวัติเติมสินค้านี้</span>}
+        </div>
+      </details>}
     </div>
   );
 }
@@ -109,6 +123,37 @@ function AssignmentModal({
     return entry ? (stocks[entry[0]] ?? 0) : 0;
   };
 
+  const [purchases, setPurchases] = useState<StockPurchase[]>([]);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryError, setSummaryError] = useState('');
+  const [retry, setRetry] = useState(0);
+  useEffect(() => {
+    if (!open) return;
+    let active = true;
+    setPurchases([]);
+    setSummaryLoading(true);
+    setSummaryError('');
+    fetchAllStockPurchases()
+      .then(data => { if (active) setPurchases(data); })
+      .catch(() => { if (active) setSummaryError('โหลดประวัติเติมสต็อกไม่สำเร็จ'); })
+      .finally(() => { if (active) setSummaryLoading(false); });
+    return () => { active = false; };
+  }, [open, retry]);
+
+  const contributionsByItem = useMemo(() => {
+    const items = new Map<string, Map<string, number>>();
+    for (const purchase of purchases) {
+      const name = purchase.contributor?.trim() || 'ไม่ระบุชื่อ';
+      const people = items.get(purchase.item_id) ?? new Map<string, number>();
+      people.set(name, (people.get(name) ?? 0) + purchase.quantity);
+      items.set(purchase.item_id, people);
+    }
+    return new Map([...items].map(([id, people]) => [id, [...people]
+      .map(([name, quantity]) => ({ name, quantity }))
+      .filter(person => person.quantity > 0)
+      .sort((a, b) => b.quantity - a.quantity || a.name.localeCompare(b.name, 'th'))]));
+  }, [purchases]);
+
   const assignments = profile.assignments ?? [];
 
   return (
@@ -131,6 +176,8 @@ function AssignmentModal({
       }
       styles={{ body: { paddingTop: 8 } }}
     >
+      {summaryLoading && <div style={{ padding: 12, textAlign: 'center' }}><Spin size="small" /> กำลังโหลดผู้ช่วยเติมสต็อก</div>}
+      {summaryError && <Alert type="error" message={summaryError} action={<Button size="small" onClick={() => setRetry(n => n + 1)}>ลองใหม่</Button>} />}
       {!!profile.farmItems?.length && <section style={{ display: 'grid', gap: 14, padding: '8px 0 20px' }}>
         <div><strong>ฟาร์ม</strong><div style={{ color: '#64748b', fontSize: 12 }}>ซัพพอร์ตทีม · เติมได้เรื่อย ๆ ไม่มีเป้าหมายจำกัด · ยอดที่แสดงคือคลังรวม</div></div>
         {profile.farmItems.map(name => {
@@ -157,6 +204,7 @@ function AssignmentModal({
               label={itemNames[a.item_id] ?? a.label}
               inStock={resolveStock(a.item_id)}
               target={a.target}
+              contributions={summaryLoading || summaryError ? undefined : contributionsByItem.get(a.item_id) ?? []}
             />
           ))}
         </div>

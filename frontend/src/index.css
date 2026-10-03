@@ -1658,3 +1658,30 @@ body {
   color: #374151;
 }
 .floor-overview__legend b { font-weight: 700; }
+
+.org-contribution-details { margin-top: 10px; }
+.org-contribution-details > summary {
+  width: fit-content;
+  padding: 4px 0;
+  color: #64748b;
+  font-size: 12px;
+  cursor: pointer;
+}
+.org-contribution-details > summary:hover { color: #4f46e5; }
+.org-contribution-details > summary:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+.org-contribution-details[open] > summary { margin-bottom: 6px; }
+.org-contribution-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #eef2ff;
+  color: #6366f1;
+  font-weight: 700;
+}
