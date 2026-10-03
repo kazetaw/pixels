@@ -231,7 +231,7 @@ function MemberCard({
     <>
       <article className={`org-card${isCeo ? ' org-card--ceo' : ''}`}>
         <div className="org-card-header">
-          <AvatarCircle profile={profile} size={isCeo ? 80 : 56} />
+          <AvatarCircle profile={profile} size={isCeo ? 64 : 44} />
           <div className="org-card-identity">
             <strong className="org-card-name">{contributorLabel(profile.name)}</strong>
             {profile.role && <span className="org-card-role">{profile.role}</span>}
