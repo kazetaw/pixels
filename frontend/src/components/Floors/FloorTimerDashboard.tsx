@@ -1,6 +1,6 @@
-import { ItemLabel, ItemThumbnail, ItemVisualProvider, itemSelectVisuals } from '../shared/ItemVisual';
+import { ItemLabel, ItemVisualProvider, itemSelectVisuals } from '../shared/ItemVisual';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Card, Empty, Form, InputNumber, Modal, Select, Spin, Tag, message } from 'antd';
+import { Alert, Button, Empty, Form, InputNumber, Modal, Select, Spin, Tag, message } from 'antd';
 import { ClockCircleOutlined, PauseCircleOutlined, PlayCircleOutlined, PlusOutlined, ReloadOutlined, SettingOutlined } from '@ant-design/icons';
 import { createFloorTimer, fetchAllData, fetchFloorTimers, updateFloorTimer } from '../../api/client';
 import type { FloorDisplayStatus, FloorTimer, Machine, Recipe, StockImageMap } from '../../types';
@@ -147,7 +147,20 @@ export function FloorTimerDashboard() {
     {contextHolder}
     {error && <Alert type="error" showIcon message="โหลดข้อมูลชั้นไม่สำเร็จ" description={error} action={<Button size="small" onClick={() => void load()}>ลองอีกครั้ง</Button>} />}
 
-    {/* ── Overview mini-grid ── */}
+    {/* ── Stats bar ── */}
+    {!loading && displayFloors.length > 0 && (
+      <div className="floor-stats-bar">
+        {(Object.keys(statusMeta) as FloorDisplayStatus[]).map((s) => (
+          <span key={s} className={`floor-stat floor-stat--${s}`}>
+            <i className={`floor-dot floor-dot--${s}`} />
+            {statusMeta[s].label} <b>{counts[s]}</b>
+          </span>
+        ))}
+        <Button size="small" type="primary" icon={<PlusOutlined />} onClick={openAddFloor} style={{ marginLeft: 'auto' }}>เพิ่มชั้น</Button>
+      </div>
+    )}
+
+    {/* ── Overview grid ── */}
     {!loading && displayFloors.length > 0 && (
       <div className="floor-overview">
         <div className="floor-overview__cells">
@@ -158,55 +171,69 @@ export function FloorTimerDashboard() {
               title={`ชั้น ${floor.floor_number} — ${statusMeta[floor.displayStatus].label}`}
               onClick={() => {
                 document.getElementById(`floor-card-${floor.floor_number}`)
-                  ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  ?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
               }}
             >
               {floor.floor_number}
             </button>
           ))}
         </div>
-        <div className="floor-overview__legend">
-          {(Object.keys(statusMeta) as FloorDisplayStatus[]).map((s) => (
-            counts[s] > 0 && <span key={s}><i className={`floor-dot floor-dot--${s}`} />{statusMeta[s].label} <b>{counts[s]}</b></span>
-          ))}
-        </div>
+        <p className="floor-overview__hint">คลิกเพื่อไปยังและเลือกชั้น</p>
       </div>
     )}
 
-    <div className="floor-dashboard__toolbar">
-      <div className="floor-dashboard__legend" style={{ display: 'none' }} />
-      <Button type="primary" icon={<PlusOutlined />} onClick={openAddFloor}>เพิ่มชั้น</Button>
-    </div>
-
-    {loading ? <div className="floor-dashboard__loading"><Spin /><span>กำลังโหลดสถานะชั้น…</span></div> : displayFloors.length === 0 ? (
-      <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="ยังไม่มีชั้นในระบบ"><Button type="primary" onClick={openAddFloor}>เพิ่มชั้นแรก</Button></Empty>
-    ) : <div className="floor-dashboard__grid">
-      {displayFloors.map((floor) => {
-        const meta = statusMeta[floor.displayStatus];
-        const machine = machines.find((item) => item.machine_id === floor.machine_id);
-        const machineName = machine?.machine_name;
-        const recipe = recipes.find((item) => item.id === floor.recipe_id);
-        const finishTime = floor.start_time && floor.estimated_duration_seconds ? new Date(new Date(floor.start_time).getTime() + floor.estimated_duration_seconds * 1000) : null;
-        return <Card id={`floor-card-${floor.floor_number}`} key={floor.floor_number} className={`floor-card floor-card--${floor.displayStatus}`} size="small">
-          <div className="floor-card__head"><div><strong>ชั้น {floor.floor_number}</strong><span><ItemLabel id={floor.profession} name={floor.profession || 'ยังไม่ระบุอาชีพ'} size={16} /></span></div><Tag color={meta.color}>{meta.label}</Tag></div>
-          <div className="floor-card__selection">
-            <ItemThumbnail id={machine?.machine_id} image={machine?.image} size={32} />
-            <div><span>{machineName || 'ยังไม่ได้เลือกเครื่อง'}</span><b>{recipe ? <ItemLabel id={recipe.id} name={recipe.name} image={recipe.image} size={24} /> : 'ยังไม่ได้เลือกสูตร'}</b></div>
-          </div>
-          <div className="floor-card__body">
-            {floor.displayStatus === 'idle' && <><ClockCircleOutlined /><span>พร้อมเริ่มงาน</span></>}
-            {floor.displayStatus === 'running' && <><b>{clock(floor.remaining)}</b><span>เสร็จ {finishTime?.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}</span></>}
-            {floor.displayStatus === 'completed' && <><b>เสร็จแล้ว</b><span>เหลือ {clock(floor.remaining)} ก่อนลอย</span></>}
-            {floor.displayStatus === 'floating' && <><b>เกินเวลารับงาน</b><span>รีเซ็ตเพื่อเริ่มรอบใหม่</span></>}
-          </div>
-          <div className="floor-card__actions">
-            <Button icon={<SettingOutlined />} onClick={() => openConfig(floor)} aria-label={`ตั้งค่าเครื่องชั้น ${floor.floor_number}`} />
-            {floor.displayStatus === 'running' ? <Button icon={<PauseCircleOutlined />} onClick={() => void patchFloor(floor.floor_number, { status: 'idle', start_time: null, estimated_duration_seconds: 0, completed_at: null }, 'หยุดตัวจับเวลาแล้ว')}>หยุด</Button> : <Button type="primary" icon={<PlayCircleOutlined />} disabled={!floor.recipe_id} loading={saving} onClick={() => void startDirect(floor)}>เริ่ม</Button>}
-            <Button icon={<ReloadOutlined />} onClick={() => void patchFloor(floor.floor_number, { status: 'idle', start_time: null, estimated_duration_seconds: 0, completed_at: null }, 'รีเซ็ตชั้นแล้ว')} />
-          </div>
-        </Card>;
-      })}
-    </div>}
+    {/* ── Floor cards ── */}
+    {loading
+      ? <div className="floor-dashboard__loading"><Spin /><span>กำลังโหลดสถานะชั้น…</span></div>
+      : displayFloors.length === 0
+        ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="ยังไม่มีชั้นในระบบ"><Button type="primary" onClick={openAddFloor}>เพิ่มชั้นแรก</Button></Empty>
+        : <><div className="floor-cards-heading"><h3>รายละเอียดชั้น</h3><span>{displayFloors.length} ชั้น</span></div>
+            <div className="floor-cards-scroll">
+              {displayFloors.map((floor) => {
+                const meta = statusMeta[floor.displayStatus];
+                const machine = machines.find((m) => m.machine_id === floor.machine_id);
+                const recipe = recipes.find((r) => r.id === floor.recipe_id);
+                const finishTime = floor.start_time && floor.estimated_duration_seconds
+                  ? new Date(new Date(floor.start_time).getTime() + floor.estimated_duration_seconds * 1000) : null;
+                const profImg = professionImages[floor.profession ?? ''];
+                return (
+                  <div id={`floor-card-${floor.floor_number}`} key={floor.floor_number}
+                    className={`floor-card2 floor-card2--${floor.displayStatus}`}>
+                    {/* Head */}
+                    <div className="floor-card2__head">
+                      <span className="floor-card2__num">ชั้น {floor.floor_number}</span>
+                      <Tag color={meta.color} style={{ margin: 0, fontSize: 10, padding: '0 5px' }}>{meta.label}</Tag>
+                    </div>
+                    {/* Machine */}
+                    <div className="floor-card2__machine">{machine?.machine_name ?? 'ยังไม่ได้เลือกเครื่อง'}</div>
+                    {/* Avatar */}
+                    <div className="floor-card2__avatar">
+                      {profImg
+                        ? <img src={profImg} alt={floor.profession ?? ''} />
+                        : <ClockCircleOutlined style={{ fontSize: 28, color: '#94a3b8' }} />}
+                    </div>
+                    {/* Status */}
+                    <div className="floor-card2__status">
+                      {floor.displayStatus === 'idle' && <span className="fcs--idle">พร้อมใช้งาน</span>}
+                      {floor.displayStatus === 'running' && <><b className="fcs--timer">{clock(floor.remaining)}</b><span className="fcs--sub">เสร็จ {finishTime?.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}</span></>}
+                      {floor.displayStatus === 'completed' && <><b className="fcs--done">เสร็จแล้ว!!</b><span className="fcs--sub">{clock(floor.remaining)} ก่อนลอย</span></>}
+                      {floor.displayStatus === 'floating' && <b className="fcs--float">เกินเวลารับงาน</b>}
+                    </div>
+                    {/* Recipe */}
+                    {recipe && <div className="floor-card2__recipe"><ItemLabel id={recipe.id} name={recipe.name} image={recipe.image} size={16} reserveImage /></div>}
+                    {/* Actions */}
+                    <div className="floor-card2__actions">
+                      {floor.displayStatus === 'running'
+                        ? <Button size="small" icon={<PauseCircleOutlined />} onClick={() => void patchFloor(floor.floor_number, { status: 'idle', start_time: null, estimated_duration_seconds: 0, completed_at: null }, 'หยุดแล้ว')}>หยุด</Button>
+                        : <Button size="small" type="primary" icon={<PlayCircleOutlined />} disabled={!floor.recipe_id} loading={saving} onClick={() => void startDirect(floor)}>เริ่ม</Button>}
+                      <Button size="small" icon={<ReloadOutlined />} onClick={() => void patchFloor(floor.floor_number, { status: 'idle', start_time: null, estimated_duration_seconds: 0, completed_at: null }, 'รีเซ็ตแล้ว')} />
+                      <Button size="small" icon={<SettingOutlined />} onClick={() => openConfig(floor)} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div></>
+    }
 
 
     <Modal open={!!configuring} onCancel={() => setConfiguring(null)} onOk={() => void saveConfig()} okText="บันทึกการตั้งค่า" okButtonProps={{ loading: saving }} cancelText="ยกเลิก" title={`ตั้งค่าเครื่องและสูตร — ชั้น ${configuring?.floor_number ?? ''}`}>
