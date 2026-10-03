@@ -1,10 +1,18 @@
 import { ItemLabel } from '../shared/ItemVisual';
 import { MachineWorkloadEntry } from '../../types';
-import { Table, Tag } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
 
 interface Props {
   entries: MachineWorkloadEntry[];
+}
+
+/** 209.17 → "209 ชม. 10 นาที" */
+function formatHours(h: number): string {
+  const totalMin = Math.round(h * 60);
+  const hrs = Math.floor(totalMin / 60);
+  const mins = totalMin % 60;
+  if (hrs === 0) return `${mins} นาที`;
+  if (mins === 0) return `${hrs.toLocaleString('th-TH')} ชม.`;
+  return `${hrs.toLocaleString('th-TH')} ชม. ${mins} นาที`;
 }
 
 export function MachineWorkloadTable({ entries }: Props) {
@@ -12,78 +20,47 @@ export function MachineWorkloadTable({ entries }: Props) {
     return <p style={{ fontSize: 13, color: '#94a3b8', fontStyle: 'italic' }}>ไม่มีภาระงานเครื่องจักร</p>;
 
   const sorted = [...entries].sort((a, b) => b.hours_required - a.hours_required);
-
-  const columns: ColumnsType<MachineWorkloadEntry> = [
-    {
-      title: '',
-      width: 12,
-      render: (_, row) => {
-        const over = row.hours_required > row.max_hours_limit;
-        return (
-          <span style={{
-            display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
-            background: over ? '#ef4444' : '#22c55e',
-          }} />
-        );
-      },
-    },
-    {
-      title: 'ชื่อเครื่องจักร',
-      dataIndex: 'machine_name',
-      render: (name, row) => <ItemLabel id={row.machine_id} name={name} size={32} reserveImage />,
-    },
-    {
-      title: 'ชั้น',
-      dataIndex: 'floor_number',
-      width: 60,
-      align: 'center',
-      render: (n) => <span style={{ fontSize: 12, color: '#64748b' }}>{n}</span>,
-    },
-    {
-      title: 'ชั่วโมงที่ต้องใช้',
-      dataIndex: 'hours_required',
-      align: 'right',
-      render: (v, row) => {
-        const over = row.hours_required > row.max_hours_limit;
-        return (
-          <span style={{ fontSize: 13, fontWeight: 600, color: over ? '#dc2626' : '#0f172a' }}>
-            {v.toFixed(2)}h
-          </span>
-        );
-      },
-    },
-    {
-      title: 'สูงสุด',
-      dataIndex: 'max_hours_limit',
-      align: 'right',
-      render: (v) => <span style={{ fontSize: 13, color: '#64748b' }}>{v}h</span>,
-    },
-    {
-      title: 'การใช้งาน',
-      align: 'right',
-      render: (_, row) => {
-        const over = row.hours_required > row.max_hours_limit;
-        const pct = row.max_hours_limit > 0
-          ? Math.round((row.hours_required / row.max_hours_limit) * 100)
-          : 0;
-        return (
-          <Tag color={over ? 'red' : pct >= 80 ? 'orange' : 'green'} style={{ fontWeight: 600 }}>
-            {pct}%
-          </Tag>
-        );
-      },
-    },
-  ];
+  const maxHours = sorted[0]?.hours_required ?? 1;
 
   return (
-    <Table<MachineWorkloadEntry>
-      scroll={{ x: 560 }}
-      columns={columns}
-      dataSource={sorted}
-      rowKey="machine_id"
-      pagination={false}
-      size="small"
-      rowClassName={(row) => row.hours_required > row.max_hours_limit ? 'bg-red-50' : ''}
-    />
+    <div className="mw-table">
+      {sorted.map((row) => {
+        const over = row.max_hours_limit > 0 && row.hours_required > row.max_hours_limit;
+        const pct = row.max_hours_limit > 0
+          ? Math.min(100, Math.round((row.hours_required / row.max_hours_limit) * 100))
+          : Math.round((row.hours_required / maxHours) * 100);
+        const barColor = over ? '#ef4444' : pct >= 80 ? '#f59e0b' : '#22c55e';
+
+        return (
+          <div key={row.machine_id} className={`mw-row${over ? ' mw-row--over' : ''}`}>
+            {/* Machine name + floor */}
+            <div className="mw-info">
+              <ItemLabel id={row.machine_id} name={row.machine_name} size={28} reserveImage />
+              {row.floor_number > 0 && (
+                <span className="mw-floor">ชั้น {row.floor_number}</span>
+              )}
+            </div>
+
+            {/* Progress bar + time */}
+            <div className="mw-progress-wrap">
+              <div className="mw-bar-row">
+                <div className="mw-bar">
+                  <div className="mw-bar-fill" style={{ width: `${pct}%`, background: barColor }} />
+                </div>
+                <span className="mw-pct" style={{ color: barColor }}>{pct}%</span>
+              </div>
+              <div className="mw-times">
+                <span className="mw-required" style={{ color: over ? '#ef4444' : '#0f172a' }}>
+                  {formatHours(row.hours_required)}
+                </span>
+                {row.max_hours_limit > 0 && (
+                  <span className="mw-limit">สูงสุด {formatHours(row.max_hours_limit)}</span>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }

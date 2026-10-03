@@ -1646,3 +1646,44 @@ body {
   color: #6366f1;
   font-weight: 700;
 }
+
+/* ── Machine workload table ─────────────────────────────────────────────── */
+.mw-table { display: flex; flex-direction: column; gap: 10px; }
+
+.mw-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.8fr);
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  transition: background 0.1s;
+}
+.mw-row--over { border-color: #fca5a5; background: #fff8f8; }
+.mw-row:hover { background: #f8fafc; }
+
+.mw-info { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.mw-floor {
+  font-size: 11px; color: #94a3b8; white-space: nowrap;
+  background: #f1f5f9; padding: 1px 6px; border-radius: 20px;
+  flex-shrink: 0;
+}
+
+.mw-progress-wrap { display: flex; flex-direction: column; gap: 4px; }
+.mw-bar-row { display: flex; align-items: center; gap: 8px; }
+.mw-bar {
+  flex: 1; height: 8px; border-radius: 99px;
+  background: #f1f5f9; overflow: hidden;
+}
+.mw-bar-fill { height: 100%; border-radius: 99px; transition: width 0.4s; }
+.mw-pct { font-size: 11px; font-weight: 700; white-space: nowrap; min-width: 34px; text-align: right; }
+
+.mw-times { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.mw-required { font-size: 13px; font-weight: 600; }
+.mw-limit { font-size: 11px; color: #94a3b8; }
+
+@media (max-width: 540px) {
+  .mw-row { grid-template-columns: 1fr; }
+}
