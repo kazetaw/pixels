@@ -49,6 +49,7 @@ import { AssignmentEditor } from './components/Organization/AssignmentEditor';
 import { AssignmentSummary } from './components/Organization/AssignmentSummary';
 import { OrganizationChart } from './components/Organization/OrganizationChart';
 import { ProductionFlowBoard } from './components/Planner/ProductionFlowBoard';
+import { ProductionCalculator } from './components/shared/ProductionCalculator';
 import type { SaveStatus } from './hooks/useAppState';
 
 const { Sider, Content } = Layout;
@@ -360,11 +361,13 @@ function SidebarContent({
   setView,
   onNavClick,
   pendingWithdrawals = 0,
+  recipes = [],
 }: {
   view: MainView;
   setView: (v: MainView) => void;
   onNavClick?: () => void;
   pendingWithdrawals?: number;
+  recipes?: import('./types').Recipe[];
 }) {
   // Build nav items with live badge on admin withdrawal view
   const navItems = NAV_ITEMS.map(item => {
@@ -445,6 +448,7 @@ function SidebarContent({
 
       {/* Calculator */}
       <Divide99Calculator />
+      <ProductionCalculator recipes={recipes} />
     </div>
   );
 }
@@ -778,6 +782,7 @@ export default function App() {
     view,
     setView,
     pendingWithdrawals,
+    recipes,
   };
 
   if (bomOpen) {

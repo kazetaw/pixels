@@ -1687,3 +1687,81 @@ body {
 @media (max-width: 540px) {
   .mw-row { grid-template-columns: 1fr; }
 }
+
+/* ── Production Calculator (sidebar) ───────────────────────────────────── */
+.prod-calc {
+  margin: 0 12px 14px;
+  padding: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.prod-calc__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.prod-calc__title { font-size: 12px; font-weight: 600; color: '#0f172a'; }
+.prod-calc__tabs {
+  display: flex;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.prod-calc__tabs button {
+  padding: 3px 8px;
+  font-size: 11px;
+  border: none;
+  background: #fff;
+  color: '#64748b';
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  transition: background 0.15s, color 0.15s;
+}
+.prod-calc__tabs button.active {
+  background: #2563eb;
+  color: #fff;
+}
+.prod-calc__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: #374151;
+}
+.prod-calc__info {
+  font-size: 10px;
+  color: #94a3b8;
+  background: #fff;
+  border-radius: 5px;
+  padding: 3px 6px;
+}
+.prod-calc__result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 4px 4px;
+  border-top: 1px solid #e2e8f0;
+  margin-top: 2px;
+}
+.prod-calc__result-num {
+  font-size: 22px;
+  font-weight: 700;
+  color: #2563eb;
+  line-height: 1.1;
+}
+.prod-calc__result-unit {
+  font-size: 12px;
+  color: '#64748b';
+}
+.prod-calc__result-stacks {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 2px;
+}
