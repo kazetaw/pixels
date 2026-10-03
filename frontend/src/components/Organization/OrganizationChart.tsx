@@ -18,11 +18,6 @@ interface OrganizationChartProps {
 
 const TargetContext = createContext<{ days: number | null; totals: ReturnType<typeof dailyTargets> }>({ days: null, totals: [] });
 
-const WAREHOUSE_WITHDRAWAL_ITEMS = [
-  'เห็ดพิษ', 'นมแกะ', 'เนย', 'ไส้เดือนดิน', 'ขี้ไก่', 'ไข่หนอนผีเสื้อ',
-  'ละอองผีเสื้อ', 'ดิน', 'โซดา', 'ก้อนโคลน', 'น้ำกรด', 'เมล็ดพืชพันธุ์ดี',
-];
-
 // ── Occupation colours ────────────────────────────────────────────────────────
 
 const OCC_BG: Record<string, string> = {
