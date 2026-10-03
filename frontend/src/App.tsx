@@ -902,7 +902,8 @@ export default function App() {
           left: 0,
           top: 0,
           bottom: 0,
-          overflow: 'hidden',
+          overflow: 'auto',
+          overflowX: 'hidden',
         }}
         className="desktop-sider"
       >
