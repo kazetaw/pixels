@@ -330,7 +330,7 @@ body {
 .org-warehouse-note li { min-width: 0; overflow-wrap: anywhere; }
 
 /* CEO row */
-.org-ceo-row { display: flex; justify-content: center; margin-bottom: 0; }
+.org-ceo-row { display: flex; justify-content: center; padding-top: 12px; margin-bottom: 20px; }
 
 /* Bridge connector */
 .org-bridge { position: relative; height: 52px; margin: 0 auto; }

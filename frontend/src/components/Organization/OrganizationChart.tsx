@@ -158,6 +158,7 @@ function AssignmentModal({
 
   return (
     <Modal
+      width={440}
       open={open}
       onCancel={onClose}
       footer={null}
@@ -291,14 +292,14 @@ export function OrganizationChart({ stocks = {}, itemNames = {}, nameToId = {} }
       <div className="org-team-grid">
         {members.map((p) => <MemberCard key={p.name} profile={p} {...cardProps} />)}
       </div>
-      <aside className="org-warehouse-note" aria-labelledby="org-warehouse-note-title">
+      {/* <aside className="org-warehouse-note" aria-labelledby="org-warehouse-note-title">
         <h3 id="org-warehouse-note-title">รายการที่เบิกจากคลังได้</h3>
         <ul>
           {WAREHOUSE_WITHDRAWAL_ITEMS.map(name => <li key={name}>
             <ItemLabel id={nameToId[name] ?? name} name={name} size={28} reserveImage />
           </li>)}
         </ul>
-      </aside>
+      </aside> */}
     </section></TargetContext.Provider>
   );
 }
