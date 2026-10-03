@@ -1,0 +1,61 @@
+/* Layout and status palette adapted from kazetaw/pixel's floor dashboard. */
+.floor-dashboard { container-type: inline-size; max-width: 1280px; margin: 0 auto; padding: 16px; background: linear-gradient(135deg, #f8fafc, #eff6ff 55%, #faf5ff); border-radius: 16px; }
+.floor-summary-panel, .floor-details-panel { background: #ffffffdd; border: 1px solid #ffffff; border-radius: 12px; box-shadow: 0 4px 8px #0f172a12; }
+.floor-summary-panel { padding: 24px; margin-bottom: 24px; }
+.floor-stats-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+.floor-stat { display: flex; align-items: center; gap: 8px; padding: 12px; font-size: 14px; color: #475569; }
+.floor-stat b { margin-left: auto; }
+.floor-dot { width: 12px; height: 12px; border-radius: 50%; background: #cbd5e1; flex-shrink: 0; }
+.floor-dot--running { background: #3b82f6; }
+.floor-dot--completed { background: #10b981; }
+.floor-dot--floating { background: #ef4444; }
+.floor-stat--running { color: #2563eb; }
+.floor-stat--completed { color: #059669; }
+.floor-stat--floating { color: #dc2626; }
+.floor-overview__cells { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 8px; max-width: 672px; margin: auto; }
+.floor-overview-cell { width: 48px; max-width: 100%; height: 48px; justify-self: center; border: 1px solid #e2e8f0; border-radius: 12px; background: #f1f5f9; color: #475569; font-size: 12px; font-weight: 700; cursor: pointer; box-shadow: 0 1px 2px #0f172a0d; transition: transform .15s; }
+.floor-overview-cell:hover { transform: scale(1.08); }
+.floor-overview-cell:focus-visible { outline: 3px solid #fbbf24; outline-offset: 3px; }
+.floor-overview-cell--running { background: linear-gradient(135deg,#3b82f6,#2563eb); color: white; border-color: #3b82f6; }
+.floor-overview-cell--completed { background: linear-gradient(135deg,#10b981,#059669); color: white; border-color: #10b981; }
+.floor-overview-cell--floating { background: linear-gradient(135deg,#ef4444,#dc2626); color: white; border-color: #ef4444; }
+.floor-overview__hint { text-align: center; color: #64748b; font-size: 12px; margin: 16px 0 0; }
+.floor-details-panel { padding: 16px; }
+.floor-cards-heading { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+.floor-cards-heading h3 { font-size: 18px; font-weight: 600; color: #1e293b; margin: 0 auto 0 0; }
+.floor-cards-heading > span { font-size: 12px; color: #64748b; background: #f1f5f9; border-radius: 99px; padding: 4px 8px; }
+.floor-cards-scroll { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+.floor-card2 { min-width: 0; height: 248px; display: flex; flex-direction: column; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; background: white; box-shadow: 0 1px 2px #0f172a0d; scroll-margin: 24px; }
+.floor-card2.is-highlighted { outline: 3px solid #fbbf24; outline-offset: 2px; }
+.floor-card2--running { background: linear-gradient(135deg,#eff6ff,#dbeafe); border-color: #bfdbfe; }
+.floor-card2--completed { background: linear-gradient(135deg,#ecfdf5,#d1fae5); border-color: #a7f3d0; }
+.floor-card2--floating { background: linear-gradient(135deg,#fef2f2,#fee2e2); border-color: #fecaca; }
+.floor-card2__head { display: flex; align-items: center; gap: 4px; }
+.floor-card2__num { font-size: 16px; font-weight: 700; color: #1e293b; margin-right: auto; white-space: nowrap; }
+.floor-card2__head .ant-tag { border-radius: 99px; margin: 0; font-size: 11px; line-height: 18px; padding: 0 6px; }
+.floor-card2__settings.ant-btn { width: 22px; min-width: 22px; color: #64748b; }
+.floor-card2__machine { font-size: 12px; color: #475569; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
+.floor-card2__avatar { display: flex; align-items: center; justify-content: center; width: 64px; height: 64px; flex-shrink: 0; border-radius: 50%; background: #f1f5f9; color: #94a3b8; margin: 14px auto 4px; font-size: 20px; }
+.floor-card2__avatar img { width: 64px; height: 64px; object-fit: contain; }
+.floor-card2__status { display: flex; flex-direction: column; align-items: center; font-size: 12px; min-height: 36px; }
+.fcs--idle, .fcs--sub { color: #64748b; font-size: 11px; }
+.fcs--timer { color: #1e293b; font-variant-numeric: tabular-nums; font-size: 14px; }
+.fcs--done { color: #047857; }
+.fcs--float { color: #dc2626; }
+.floor-card2__recipe { font-size: 10px; color: #64748b; overflow: hidden; margin: 3px 0; }
+.floor-card2__actions { display: flex; gap: 6px; margin-top: auto; padding-top: 8px; }
+.floor-card2__actions .ant-btn { flex: 1; min-width: 0; height: 28px; padding: 0 4px; font-size: 11px; border-radius: 8px; }
+.floor-card2__actions .ant-btn-primary:not(:disabled) { background: #3b82f6; }
+.floor-card2__actions .floor-card2__reset { background: #64748b; color: white; border-color: #64748b; }
+.floor-dashboard__loading { display: flex; justify-content: center; gap: 12px; padding: 48px; }
+@container (max-width: 1100px) { .floor-cards-scroll { grid-template-columns: repeat(5,minmax(0,1fr)); } }
+@container (max-width: 920px) { .floor-cards-scroll { grid-template-columns: repeat(4,minmax(0,1fr)); } .floor-overview__cells { grid-template-columns: repeat(10,minmax(0,1fr)); } }
+@container (max-width: 740px) { .floor-cards-scroll { grid-template-columns: repeat(3,minmax(0,1fr)); } .floor-overview__cells { grid-template-columns: repeat(8,minmax(0,1fr)); } }
+@container (max-width: 560px) { .floor-cards-scroll { grid-template-columns: repeat(2,minmax(0,1fr)); } .floor-overview__cells { grid-template-columns: repeat(5,minmax(0,1fr)); } .floor-stats-bar { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 4px; } .floor-summary-panel { padding: 16px; } .floor-stat { padding: 8px; font-size: 12px; } .floor-details-panel { padding: 12px; } }
+@container (max-width: 330px) { .floor-cards-scroll { grid-template-columns: 1fr; } .floor-cards-heading { flex-wrap: wrap; } .floor-cards-heading h3 { font-size: 16px; } .floor-overview-cell { height: 40px; } }
+@media (max-width: 600px) { .floor-dashboard { padding: 8px; } }
+@media (prefers-reduced-motion: reduce) { .floor-overview-cell { transition: none; } }
+.floor-card2__head, .floor-card2__machine, .floor-card2__status, .floor-card2__recipe, .floor-card2__actions { flex-shrink: 0; }
+.floor-card2__machine { line-height: 18px; }
+.floor-card2__recipe { height: 18px; line-height: 18px; }
+.floor-card2__avatar { margin-top: 8px; }

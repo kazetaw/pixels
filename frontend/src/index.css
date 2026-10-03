@@ -1620,48 +1620,6 @@ body {
   .assignments-layout { grid-template-columns: 1fr; }
 }
 
-/* ── Floor overview mini-grid ───────────────────────────────────────────── */
-.floor-overview {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 12px 14px;
-  margin-bottom: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.floor-overview__cells {
-  display: grid;
-  grid-template-columns: repeat(7, 32px);
-  gap: 5px;
-}
-.floor-overview-cell {
-  width: 32px; height: 32px;
-  border-radius: 7px;
-  border: none;
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: transform 0.1s, box-shadow 0.1s;
-  line-height: 1;
-}
-.floor-overview-cell:hover { transform: scale(1.15); box-shadow: 0 2px 8px rgba(0,0,0,.15); }
-.floor-overview-cell--idle      { background: #f1f5f9; color: #64748b; }
-.floor-overview-cell--running   { background: #dbeafe; color: #1d4ed8; }
-.floor-overview-cell--completed { background: #dcfce7; color: #15803d; }
-.floor-overview-cell--floating  { background: #fee2e2; color: #dc2626; }
-
-.floor-overview__legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 16px;
-  font-size: 12px;
-  color: #374151;
-}
-.floor-overview__legend b { font-weight: 700; }
-
 .org-contribution-details { margin-top: 10px; }
 .org-contribution-details > summary {
   width: fit-content;

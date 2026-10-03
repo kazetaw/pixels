@@ -1,7 +1,8 @@
+import './FloorTimerDashboard.css';
 import { ItemLabel, ItemVisualProvider, itemSelectVisuals } from '../shared/ItemVisual';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Empty, Form, InputNumber, Modal, Select, Spin, Tag, message } from 'antd';
-import { ClockCircleOutlined, PauseCircleOutlined, PlayCircleOutlined, PlusOutlined, ReloadOutlined, SettingOutlined } from '@ant-design/icons';
+import { PauseCircleOutlined, PlayCircleOutlined, PlusOutlined, ReloadOutlined, SettingOutlined } from '@ant-design/icons';
 import { createFloorTimer, fetchAllData, fetchFloorTimers, updateFloorTimer } from '../../api/client';
 import type { FloorDisplayStatus, FloorTimer, Machine, Recipe, StockImageMap } from '../../types';
 import { machinesForProfession } from './floorOptions';
@@ -58,7 +59,7 @@ export function FloorTimerDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [stockImages, setStockImages] = useState<StockImageMap>({});
-  const [_selected, _setSelected] = useState<FloorTimer | null>(null);
+  const [highlighted, setHighlighted] = useState<number | null>(null);
   const [_timerForm] = Form.useForm<{ hours: number; minutes: number; seconds: number }>();  const [configuring, setConfiguring] = useState<FloorTimer | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [_timerForm2] = Form.useForm<{ hours: number; minutes: number; seconds: number }>();
@@ -77,6 +78,11 @@ export function FloorTimerDashboard() {
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    if (highlighted === null) return;
+    const id = window.setTimeout(() => setHighlighted(null), 3000);
+    return () => window.clearTimeout(id);
+  }, [highlighted]);
   useEffect(() => { const id = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(id); }, []);
 
   const displayFloors = useMemo(() => floors.map((floor) => deriveFloor(floor, now)), [floors, now]);
@@ -149,19 +155,14 @@ export function FloorTimerDashboard() {
 
     {/* ── Stats bar ── */}
     {!loading && displayFloors.length > 0 && (
-      <div className="floor-stats-bar">
+      <section className="floor-summary-panel"><div className="floor-stats-bar">
         {(Object.keys(statusMeta) as FloorDisplayStatus[]).map((s) => (
           <span key={s} className={`floor-stat floor-stat--${s}`}>
             <i className={`floor-dot floor-dot--${s}`} />
             {statusMeta[s].label} <b>{counts[s]}</b>
           </span>
         ))}
-        <Button size="small" type="primary" icon={<PlusOutlined />} onClick={openAddFloor} style={{ marginLeft: 'auto' }}>เพิ่มชั้น</Button>
       </div>
-    )}
-
-    {/* ── Overview grid ── */}
-    {!loading && displayFloors.length > 0 && (
       <div className="floor-overview">
         <div className="floor-overview__cells">
           {displayFloors.map((floor) => (
@@ -170,16 +171,17 @@ export function FloorTimerDashboard() {
               className={`floor-overview-cell floor-overview-cell--${floor.displayStatus}`}
               title={`ชั้น ${floor.floor_number} — ${statusMeta[floor.displayStatus].label}`}
               onClick={() => {
+                setHighlighted(floor.floor_number);
                 document.getElementById(`floor-card-${floor.floor_number}`)
-                  ?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                  ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
               }}
             >
               {floor.floor_number}
             </button>
           ))}
         </div>
-        <p className="floor-overview__hint">คลิกเพื่อไปยังและเลือกชั้น</p>
-      </div>
+        <p className="floor-overview__hint">คลิกเพื่อไปยังรายละเอียดชั้น</p>
+      </div></section>
     )}
 
     {/* ── Floor cards ── */}
@@ -187,7 +189,7 @@ export function FloorTimerDashboard() {
       ? <div className="floor-dashboard__loading"><Spin /><span>กำลังโหลดสถานะชั้น…</span></div>
       : displayFloors.length === 0
         ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="ยังไม่มีชั้นในระบบ"><Button type="primary" onClick={openAddFloor}>เพิ่มชั้นแรก</Button></Empty>
-        : <><div className="floor-cards-heading"><h3>รายละเอียดชั้น</h3><span>{displayFloors.length} ชั้น</span></div>
+        : <section className="floor-details-panel"><div className="floor-cards-heading"><h3>รายละเอียดชั้น</h3><span>{displayFloors.length} ชั้น</span><Button size="small" icon={<PlusOutlined />} onClick={openAddFloor}>เพิ่มชั้น</Button></div>
             <div className="floor-cards-scroll">
               {displayFloors.map((floor) => {
                 const meta = statusMeta[floor.displayStatus];
@@ -195,29 +197,30 @@ export function FloorTimerDashboard() {
                 const recipe = recipes.find((r) => r.id === floor.recipe_id);
                 const finishTime = floor.start_time && floor.estimated_duration_seconds
                   ? new Date(new Date(floor.start_time).getTime() + floor.estimated_duration_seconds * 1000) : null;
-                const profImg = professionImages[floor.profession ?? ''];
+                const statusImage = { running: 'working', completed: 'completed', floating: 'floating', idle: '' }[floor.displayStatus];
                 return (
                   <div id={`floor-card-${floor.floor_number}`} key={floor.floor_number}
-                    className={`floor-card2 floor-card2--${floor.displayStatus}`}>
+                    className={`floor-card2 floor-card2--${floor.displayStatus}${highlighted === floor.floor_number ? " is-highlighted" : ""}`}>
                     {/* Head */}
                     <div className="floor-card2__head">
                       <span className="floor-card2__num">ชั้น {floor.floor_number}</span>
-                      <Tag color={meta.color} style={{ margin: 0, fontSize: 10, padding: '0 5px' }}>{meta.label}</Tag>
+                      <Tag color={meta.color}>{meta.label}</Tag>
+                      <Button className="floor-card2__settings" type="text" size="small" aria-label={`ตั้งค่าชั้น ${floor.floor_number}`} icon={<SettingOutlined />} onClick={() => openConfig(floor)} />
                     </div>
                     {/* Machine */}
                     <div className="floor-card2__machine">{machine?.machine_name ?? 'ยังไม่ได้เลือกเครื่อง'}</div>
                     {/* Avatar */}
                     <div className="floor-card2__avatar">
-                      {profImg
-                        ? <img src={profImg} alt={floor.profession ?? ''} />
-                        : <ClockCircleOutlined style={{ fontSize: 28, color: '#94a3b8' }} />}
+                      {statusImage
+                        ? <img src={`/floor-status/${statusImage}.png`} alt={meta.label} />
+                        : <PauseCircleOutlined /> }
                     </div>
                     {/* Status */}
                     <div className="floor-card2__status">
                       {floor.displayStatus === 'idle' && <span className="fcs--idle">พร้อมใช้งาน</span>}
                       {floor.displayStatus === 'running' && <><b className="fcs--timer">{clock(floor.remaining)}</b><span className="fcs--sub">เสร็จ {finishTime?.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}</span></>}
                       {floor.displayStatus === 'completed' && <><b className="fcs--done">เสร็จแล้ว!!</b><span className="fcs--sub">{clock(floor.remaining)} ก่อนลอย</span></>}
-                      {floor.displayStatus === 'floating' && <b className="fcs--float">เกินเวลารับงาน</b>}
+                      {floor.displayStatus === 'floating' && <><b className="fcs--float">ลอยแล้วพรี่!!</b><span className="fcs--sub">{clock(finishTime ? Math.max(0, Math.floor((now - finishTime.getTime()) / 1000) - FLOAT_GRACE_SECONDS) : 0)}</span></>}
                     </div>
                     {/* Recipe */}
                     {recipe && <div className="floor-card2__recipe"><ItemLabel id={recipe.id} name={recipe.name} image={recipe.image} size={16} reserveImage /></div>}
@@ -226,13 +229,12 @@ export function FloorTimerDashboard() {
                       {floor.displayStatus === 'running'
                         ? <Button size="small" icon={<PauseCircleOutlined />} onClick={() => void patchFloor(floor.floor_number, { status: 'idle', start_time: null, estimated_duration_seconds: 0, completed_at: null }, 'หยุดแล้ว')}>หยุด</Button>
                         : <Button size="small" type="primary" icon={<PlayCircleOutlined />} disabled={!floor.recipe_id} loading={saving} onClick={() => void startDirect(floor)}>เริ่ม</Button>}
-                      <Button size="small" icon={<ReloadOutlined />} onClick={() => void patchFloor(floor.floor_number, { status: 'idle', start_time: null, estimated_duration_seconds: 0, completed_at: null }, 'รีเซ็ตแล้ว')} />
-                      <Button size="small" icon={<SettingOutlined />} onClick={() => openConfig(floor)} />
+                      <Button className="floor-card2__reset" size="small" icon={<ReloadOutlined />} onClick={() => void patchFloor(floor.floor_number, { status: 'idle', start_time: null, estimated_duration_seconds: 0, completed_at: null }, 'รีเซ็ตแล้ว')}>รีเซ็ต</Button>
                     </div>
                   </div>
                 );
               })}
-            </div></>
+            </div></section>
     }
 
 
