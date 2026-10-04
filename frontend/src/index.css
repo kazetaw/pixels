@@ -1765,3 +1765,59 @@ body {
   color: #94a3b8;
   margin-top: 2px;
 }
+
+/* Sidebar calculators: full-width fields and separated input/result areas. */
+.prod-calc { padding: 16px; gap: 18px; margin-top: 24px; margin-bottom: 24px; background: #fff; }
+.prod-calc__header { flex-direction: column; align-items: stretch; gap: 14px; }
+.prod-calc__title { font-size: 14px; }
+.prod-calc__tabs { width: 100%; }
+.prod-calc__tabs button { flex: 1; justify-content: center; padding: 10px 4px; font-size: 11px; color: #64748b; }
+.prod-calc__tabs button.active { color: #fff; }
+.prod-calc__field, .prod-calc__row { display: flex; flex-direction: column; align-items: stretch; gap: 8px; font-size: 12px; color: #334155; }
+.prod-calc__time-inputs { display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr) auto; align-items: center; gap: 6px; }
+.prod-calc__info { font-size: 11px; color: #64748b; padding: 10px; background: #f8fafc; line-height: 1.6; }
+.prod-calc__result { padding: 16px 8px; gap: 6px; background: #eff6ff; border: 1px solid #dbeafe; border-radius: 8px; }
+.prod-calc__result-num { line-height: 1.4; }
+.prod-calc__result-unit { color: #64748b; }
+.prod-calc__result-stacks { font-size: 12px; color: #1d4ed8; }
+.prod-calc__empty { margin: 0; color: #64748b; font-size: 12px; line-height: 1.7; }
+
+/* ── Withdrawal occupation filter chips ────────────────────────────────── */
+.withdrawal-occ-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 2px;
+}
+.wof-chip {
+  padding: 3px 10px;
+  border-radius: 20px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.wof-chip:hover { border-color: #a5b4fc; color: #4f46e5; background: #eef2ff; }
+.wof-chip--active { background: #2563eb; border-color: #2563eb; color: #fff; }
+.wof-chip--active:hover { background: #1d4ed8; border-color: #1d4ed8; }
+
+/* Production calculator result layout */
+.prod-calc__result-stacks-row {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.prod-calc__result-rem {
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 500;
+}
+.prod-calc__result-total {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 2px;
+}

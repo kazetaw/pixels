@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { InputNumber, Select } from 'antd';
 import { ClockCircleOutlined, NumberOutlined } from '@ant-design/icons';
+import { ItemLabel } from './ItemVisual';
 import type { Recipe } from '../../types';
 
 interface Props { recipes: Recipe[] }
@@ -44,15 +45,17 @@ export function ProductionCalculator({ recipes }: Props) {
   const recipe = recipes.find(r => r.id === recipeId);
   const secPerUnit = parseSeconds(recipe?.time_per_unit ?? null);
 
-  // mode = qty: (machines × total_seconds) / sec_per_unit
+  // mode = qty: each cycle all machines produce simultaneously
+  // cycles = floor(totalInputSeconds / sec_per_unit)
+  // qty = cycles × machines
   const totalInputSeconds = ((hours ?? 0) * 3600 + (minutes ?? 0) * 60);
   const resultQty = secPerUnit > 0 && (machines ?? 0) > 0 && totalInputSeconds > 0
-    ? Math.floor(((machines ?? 1) * totalInputSeconds) / secPerUnit)
+    ? Math.floor(totalInputSeconds / secPerUnit) * (machines ?? 1)
     : null;
 
-  // mode = time: (quantity × sec_per_unit) / machines
+  // mode = time: cycles = ceil(quantity / machines), time = cycles × sec_per_unit
   const resultSecs = secPerUnit > 0 && (machines ?? 0) > 0 && (quantity ?? 0) > 0
-    ? Math.ceil(((quantity ?? 1) * secPerUnit) / (machines ?? 1))
+    ? Math.ceil((quantity ?? 1) / (machines ?? 1)) * secPerUnit
     : null;
 
   const hasResult = mode === 'qty' ? resultQty !== null : resultSecs !== null;
@@ -61,35 +64,39 @@ export function ProductionCalculator({ recipes }: Props) {
     <div className="prod-calc">
       <div className="prod-calc__header">
         <span className="prod-calc__title">คำนวณการผลิต</span>
-        <div className="prod-calc__tabs">
-          <button className={mode === 'qty' ? 'active' : ''} onClick={() => setMode('qty')} title="กี่ชิ้นใน X เวลา">
-            <NumberOutlined /> ชิ้น
+        <div className="prod-calc__tabs" aria-label="วิธีคำนวณ">
+          <button className={mode === 'qty' ? 'active' : ''} aria-pressed={mode === 'qty'} onClick={() => setMode('qty')} title="กี่ชิ้นใน X เวลา">
+            <NumberOutlined /> ได้กี่ชิ้น
           </button>
-          <button className={mode === 'time' ? 'active' : ''} onClick={() => setMode('time')} title="ใช้เวลาเท่าไหร่">
-            <ClockCircleOutlined /> เวลา
+          <button className={mode === 'time' ? 'active' : ''} aria-pressed={mode === 'time'} onClick={() => setMode('time')} title="ใช้เวลาเท่าไหร่">
+            <ClockCircleOutlined /> ใช้เวลาเท่าไร
           </button>
         </div>
       </div>
 
       {/* Recipe picker */}
+      <label className="prod-calc__field"><span>สินค้าที่ต้องการผลิต</span>
       <Select
+        aria-label="สินค้าที่ต้องการผลิต"
         showSearch
         optionFilterProp="label"
-        placeholder="เลือกสูตร…"
+        placeholder="ค้นหาชื่อสินค้า…"
+        optionRender={option => <ItemLabel id={String(option.value)} name={option.label} image={recipes.find(r => r.id === option.value)?.image} size={28} reserveImage />}
+        labelRender={({ value }) => <ItemLabel id={String(value)} name={recipe?.name} image={recipe?.image} size={24} reserveImage />}
         value={recipeId}
         onChange={setRecipeId}
         options={options}
         style={{ width: '100%' }}
-        size="small"
-      />
+        size="large"
+      /></label>
 
       {/* Machines */}
       <div className="prod-calc__row">
-        <span>เครื่อง</span>
+        <span>จำนวนเครื่อง</span>
         <InputNumber
-          min={1} max={27} precision={0}
+          aria-label="จำนวนเครื่อง" min={1} precision={0}
           value={machines} onChange={setMachines}
-          size="small" style={{ width: 80 }}
+          size="large" style={{ width: '100%' }}
         />
       </div>
 
@@ -97,17 +104,17 @@ export function ProductionCalculator({ recipes }: Props) {
       {mode === 'qty' ? (
         <div className="prod-calc__row">
           <span>เวลา</span>
-          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+          <div className="prod-calc__time-inputs">
             <InputNumber
-              min={0} precision={0}
+              aria-label="ชั่วโมงผลิต" min={0} precision={0}
               value={hours} onChange={setHours}
-              placeholder="0" size="small" style={{ width: 52 }}
+              placeholder="0" size="large" style={{ width: '100%' }}
             />
             <span style={{ fontSize: 11, color: '#64748b' }}>ชม.</span>
             <InputNumber
-              min={0} max={59} precision={0}
+              aria-label="นาทีผลิต" min={0} max={59} precision={0}
               value={minutes} onChange={setMinutes}
-              placeholder="0" size="small" style={{ width: 52 }}
+              placeholder="0" size="large" style={{ width: '100%' }}
             />
             <span style={{ fontSize: 11, color: '#64748b' }}>นาที</span>
           </div>
@@ -116,9 +123,9 @@ export function ProductionCalculator({ recipes }: Props) {
         <div className="prod-calc__row">
           <span>จำนวน</span>
           <InputNumber
-            min={1} precision={0}
+            aria-label="จำนวนชิ้นที่ต้องการ" min={1} precision={0}
             value={quantity} onChange={setQuantity}
-            placeholder="ชิ้น" size="small" style={{ width: 100 }}
+            placeholder="จำนวนชิ้น" size="large" style={{ width: '100%' }}
             formatter={v => v ? Number(v).toLocaleString('th-TH') : ''}
             parser={v => Number(v?.replace(/[^0-9]/g, '')) as unknown as 0}
           />
@@ -128,31 +135,40 @@ export function ProductionCalculator({ recipes }: Props) {
       {/* Time per unit display */}
       {recipe && (
         <div className="prod-calc__info">
-          {recipe.time_per_unit} / ชิ้น · {formatDuration(secPerUnit)} ต่อชิ้น
+          ผลิต 1 ชิ้น ใช้เวลา {formatDuration(secPerUnit)}
         </div>
       )}
 
+      {!hasResult && <p className="prod-calc__empty">{!recipe ? 'เลือกสินค้าก่อนเริ่มคำนวณ' : mode === 'qty' ? 'กรอกเวลาที่มี เพื่อดูจำนวนชิ้นและกอง' : 'กรอกจำนวนชิ้น เพื่อดูเวลาที่ต้องใช้'}</p>}
       {/* Result */}
       {hasResult && (
         <div className="prod-calc__result">
-          {mode === 'qty' ? (
-            <>
-              <span className="prod-calc__result-num">{(resultQty ?? 0).toLocaleString('th-TH')}</span>
-              <span className="prod-calc__result-unit">ชิ้น</span>
-              <span className="prod-calc__result-stacks">
-                ≈ {Math.floor((resultQty ?? 0) / 99)} กอง + {(resultQty ?? 0) % 99} ชิ้น
-              </span>
-            </>
-          ) : (
-            <>
-              <span className="prod-calc__result-num" style={{ fontSize: 16 }}>
-                {formatDuration(resultSecs ?? 0)}
-              </span>
-              <span className="prod-calc__result-unit" style={{ fontSize: 11 }}>
-                ({(resultSecs ?? 0).toLocaleString('th-TH')} วินาที)
-              </span>
-            </>
-          )}
+          {mode === 'qty' ? (() => {
+            const qty = resultQty ?? 0;
+            const cycles = totalInputSeconds > 0 && secPerUnit > 0 ? Math.floor(totalInputSeconds / secPerUnit) : 0;
+            const stacks = Math.floor(qty / 99);
+            const rem = qty % 99;
+            return (
+              <>
+                <div className="prod-calc__result-stacks-row">
+                  <span className="prod-calc__result-num">{stacks.toLocaleString('th-TH')}</span>
+                  <span className="prod-calc__result-unit">กอง</span>
+                  {rem > 0 && <span className="prod-calc__result-rem">+ {rem} ชิ้น</span>}
+                </div>
+                <span className="prod-calc__result-total">รวม {qty.toLocaleString('th-TH')} ชิ้น · {cycles} รอบผลิต</span>
+              </>
+            );
+          })() : (() => {
+            const cycles = (machines ?? 0) > 0 && (quantity ?? 0) > 0 ? Math.ceil((quantity ?? 1) / (machines ?? 1)) : 0;
+            return (
+              <>
+                <span className="prod-calc__result-num" style={{ fontSize: 16 }}>
+                  {formatDuration(resultSecs ?? 0)}
+                </span>
+                <span className="prod-calc__result-total">{cycles} รอบผลิต · {cycles} × {formatDuration(secPerUnit)}</span>
+              </>
+            );
+          })()}
         </div>
       )}
     </div>

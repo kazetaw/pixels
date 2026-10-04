@@ -198,7 +198,7 @@ function Divide99Calculator() {
   return (
     <div
       style={{
-        margin: '14px 12px',
+        margin: '24px 12px',
         padding: 14,
         background: '#f8fafc',
         border: '1px solid #e2e8f0',
@@ -208,10 +208,10 @@ function Divide99Calculator() {
       {/* Header */}
       <div style={{ marginBottom: 10 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>
-          ไว้คำนวณว่ากี่กอง
+          แปลงชิ้น ↔ กอง
         </div>
         <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
-          {mode === 'divide' ? 'หารด้วย 99' : 'คูณด้วย 99'}
+          1 กอง = 99 ชิ้น
         </div>
       </div>
 
@@ -231,8 +231,8 @@ function Divide99Calculator() {
             onClick={() => setMode(m)}
             style={{
               flex: 1,
-              padding: '5px 0',
-              fontSize: 16,
+              padding: '10px 4px',
+              fontSize: 12,
               fontWeight: 600,
               cursor: 'pointer',
               border: 'none',
@@ -241,7 +241,7 @@ function Divide99Calculator() {
               transition: 'background 0.15s, color 0.15s',
             }}
           >
-            {m === 'divide' ? '÷' : '×'}
+            {m === 'divide' ? 'ชิ้น → กอง' : 'กอง → ชิ้น'}
           </button>
         ))}
       </div>
@@ -251,7 +251,9 @@ function Divide99Calculator() {
         type="number"
         value={number}
         onChange={(e) => setNumber(e.target.value)}
-        placeholder="กรอกตัวเลข..."
+        aria-label={mode === 'divide' ? 'จำนวนชิ้น' : 'จำนวนกอง'}
+        min={0}
+        placeholder={mode === 'divide' ? 'กรอกจำนวนชิ้น' : 'กรอกจำนวนกอง'}
         size="large"
         suffix={
           number ? (
@@ -299,7 +301,7 @@ function Divide99Calculator() {
             wordBreak: 'break-all',
           }}
         >
-          {result}
+          {mode === 'divide' ? `${Math.floor(value / 99).toLocaleString('th-TH')} กอง + ${(value % 99).toLocaleString('th-TH')} ชิ้น` : `${result.toLocaleString('th-TH')} ชิ้น`}
         </div>
       </div>
 

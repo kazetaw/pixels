@@ -1,7 +1,7 @@
 import { UserOutlined, CaretDownOutlined } from '@ant-design/icons';
 import type { SelectProps } from 'antd';
 import { CONTRIBUTOR_PROFILES } from '../shared/contributors';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { Avatar, Alert, Button, Input, InputNumber, Modal, Pagination, Popconfirm, Select, Tag } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { ItemLabel } from '../shared/ItemVisual';
@@ -375,7 +375,38 @@ export function Withdrawals({ admin = false, onData }: { admin?: boolean; onData
     window.addEventListener('focus',update); document.addEventListener('visibilitychange',update);
     return () => { window.removeEventListener('focus',update); document.removeEventListener('visibilitychange',update); };
   }, []);
-  const options = Object.entries(data?.itemNames ?? {}).filter(([id]) => catalog.some(c => c.item_id === id && c.enabled)).map(([id,name]) => ({ value:id, label: name, available: availability[id] ?? 0 }));
+  // Build item → occupations map: item is ingredient of recipe → recipe uses machine → machine has occupation
+  const itemOccupations = useMemo(() => {
+    const machineOcc = new Map((data?.machines ?? []).map(m => [m.machine_id, m.occupation ?? '']));
+    const map = new Map<string, Set<string>>();
+    for (const r of data?.recipes ?? []) {
+      const occ = r.machine_id ? (machineOcc.get(r.machine_id) ?? '') : '';
+      if (!occ) continue;
+      for (const ingId of Object.keys(r.ingredients)) {
+        if (!map.has(ingId)) map.set(ingId, new Set());
+        map.get(ingId)!.add(occ);
+      }
+    }
+    return map;
+  }, [data?.machines, data?.recipes]);
+
+  const [occFilter, setOccFilter] = useState<string | null>(null);
+
+  // All occupations that appear in catalog items
+  const availableOccs = useMemo(() => {
+    const occs = new Set<string>();
+    for (const c of catalog) {
+      if (!c.enabled) continue;
+      const o = itemOccupations.get(c.item_id);
+      if (o) o.forEach(x => occs.add(x));
+    }
+    return [...occs].sort((a, b) => a.localeCompare(b, 'th'));
+  }, [catalog, itemOccupations]);
+
+  const options = Object.entries(data?.itemNames ?? {})
+    .filter(([id]) => catalog.some(c => c.item_id === id && c.enabled))
+    .filter(([id]) => !occFilter || itemOccupations.get(id)?.has(occFilter))
+    .map(([id, name]) => ({ value: id, label: name, available: availability[id] ?? 0 }));
   const requested = lines.reduce<Record<string,number>>((result,line)=>{ if(line.item_id) result[line.item_id]=(result[line.item_id] ?? 0)+line.quantity; return result; },{});
   const overLimit = Object.entries(requested).some(([id,quantity])=>quantity>(availability[id] ?? 0));
   const patchLine = (index: number, patch: Partial<Line>) => { setLines(prev => prev.map((l,i) => i === index ? {...l,...patch} : l)); setRequestId(crypto.randomUUID()); };
@@ -511,6 +542,24 @@ export function Withdrawals({ admin = false, onData }: { admin?: boolean; onData
           </div>
           {recipient === 'other' && <div className="withdrawal-custom-recipient"><label>ชื่อตัวละครผู้รับ<Input maxLength={100} value={recipientName} onChange={e=>{setRecipientName(e.target.value);setRequestId(crypto.randomUUID());}} /></label><label>ไอดีตัวละครผู้รับ<Input value={character} inputMode="numeric" onChange={e => {setCharacter(e.target.value);setRequestId(crypto.randomUUID());}} /></label></div>}
           <div className="withdrawal-items-heading"><strong>สินค้า</strong><span>จำนวน (กอง)</span></div>
+          {/* Occupation filter chips */}
+          {availableOccs.length > 0 && (
+            <div className="withdrawal-occ-filter">
+              <button
+                className={`wof-chip${!occFilter ? ' wof-chip--active' : ''}`}
+                onClick={() => setOccFilter(null)}
+              >ทั้งหมด</button>
+              {availableOccs.map(occ => (
+                <button
+                  key={occ}
+                  className={`wof-chip${occFilter === occ ? ' wof-chip--active' : ''}`}
+                  onClick={() => setOccFilter(occFilter === occ ? null : occ)}
+                >
+                  {occ}
+                </button>
+              ))}
+            </div>
+          )}
           {lines.map((line,index) => <div className="withdrawal-line" key={index}>
             <Select aria-label="สินค้าเบิก" disabled={busy} placeholder="เลือกสินค้า" showSearch optionFilterProp="label" value={line.item_id || undefined} onChange={id=>patchLine(index,{item_id:id})} options={options} {...withdrawalItemVisuals} />
             <InputNumber aria-label="จำนวนเบิก (กอง)" disabled={busy} min={1} max={21691754} precision={0} value={line.quantity / 99} onChange={quantity=>patchLine(index,{quantity:(quantity ?? 0) * 99})} />
