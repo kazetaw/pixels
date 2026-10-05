@@ -63,7 +63,7 @@ export function FloorTimerDashboard() {
   const [_timerForm] = Form.useForm<{ hours: number; minutes: number; seconds: number }>();  const [configuring, setConfiguring] = useState<FloorTimer | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [_timerForm2] = Form.useForm<{ hours: number; minutes: number; seconds: number }>();
-  const [floorForm] = Form.useForm<{ floor_number: number; profession?: string }>();
+  const [floorForm] = Form.useForm<{ floor_number: number; profession?: string; machine_id?: string; recipe_id?: string }>();
   const [configForm] = Form.useForm<{ profession?: string; machine_id?: string; recipe_id?: string }>();
   const [messageApi, contextHolder] = message.useMessage();
 
@@ -128,6 +128,12 @@ export function FloorTimerDashboard() {
   const chosenMachineId = Form.useWatch('machine_id', configForm);
   const configRecipes = useMemo(() => recipes.filter((recipe) => recipe.machine_id === chosenMachineId), [recipes, chosenMachineId]);
 
+  // Add floor form watchers
+  const addProfession = Form.useWatch('profession', floorForm);
+  const addMachines = useMemo(() => machinesForProfession(machines, addProfession), [machines, addProfession]);
+  const addMachineId = Form.useWatch('machine_id', floorForm);
+  const addRecipes = useMemo(() => recipes.filter((r) => r.machine_id === addMachineId), [recipes, addMachineId]);
+
   const addFloor = async () => {
     const values = await floorForm.validateFields();
     if (floors.some((floor) => floor.floor_number === values.floor_number)) {
@@ -137,7 +143,16 @@ export function FloorTimerDashboard() {
     setSaving(true);
     try {
       const created = await createFloorTimer(values.floor_number, values.profession);
-      setFloors((items) => [...items, created].sort((a, b) => a.floor_number - b.floor_number));
+      // If machine/recipe also selected, patch immediately after create
+      if (values.machine_id || values.recipe_id) {
+        const patched = await updateFloorTimer(created.floor_number, {
+          machine_id: values.machine_id ?? null,
+          recipe_id: values.recipe_id ?? null,
+        });
+        setFloors((items) => [...items, patched].sort((a, b) => a.floor_number - b.floor_number));
+      } else {
+        setFloors((items) => [...items, created].sort((a, b) => a.floor_number - b.floor_number));
+      }
       setAddOpen(false); floorForm.resetFields(); messageApi.success(`เพิ่มชั้น ${created.floor_number} แล้ว`);
     } catch (e) { messageApi.error((e as Error).message); }
     finally { setSaving(false); }
@@ -179,6 +194,14 @@ export function FloorTimerDashboard() {
               {floor.floor_number}
             </button>
           ))}
+          {/* + add button as last cell */}
+          <button
+            className="floor-overview-cell floor-overview-cell--add"
+            title="เพิ่มชั้นใหม่"
+            onClick={openAddFloor}
+          >
+            <PlusOutlined style={{ fontSize: 12 }} />
+          </button>
         </div>
         <p className="floor-overview__hint">คลิกเพื่อไปยังรายละเอียดชั้น</p>
       </div></section>
@@ -273,9 +296,42 @@ export function FloorTimerDashboard() {
     </Modal>
 
     <Modal open={addOpen} onCancel={() => setAddOpen(false)} onOk={() => void addFloor()} okText="เพิ่มชั้น" okButtonProps={{ loading: saving }} cancelText="ยกเลิก" title="เพิ่มชั้นใหม่">
-      <Form form={floorForm} layout="vertical"><Form.Item label="หมายเลขชั้น" name="floor_number" rules={[{ required: true, message: 'กรอกหมายเลขชั้น' }]}><InputNumber min={1} precision={0} style={{ width: '100%' }} /></Form.Item>
+      <Form form={floorForm} layout="vertical">
+        <Form.Item label="หมายเลขชั้น" name="floor_number" rules={[{ required: true, message: 'กรอกหมายเลขชั้น' }]}>
+          <InputNumber min={1} precision={0} style={{ width: '100%' }} />
+        </Form.Item>
         <Form.Item label="อาชีพ" name="profession" rules={[{ required: true, message: 'เลือกอาชีพประจำชั้น' }]}>
-          <Select placeholder="เลือกอาชีพ" optionLabelProp="label" labelRender={itemSelectVisuals.labelRender} options={professions.map((profession) => ({ value: profession, label: profession, children: <ProfessionOption profession={profession} /> }))} optionRender={(option) => option.data.children} />
+          <Select
+            placeholder="เลือกอาชีพ" optionLabelProp="label" labelRender={itemSelectVisuals.labelRender}
+            options={professions.map((p) => ({ value: p, label: p, children: <ProfessionOption profession={p} /> }))}
+            optionRender={(opt) => opt.data.children}
+            onChange={() => floorForm.setFieldsValue({ machine_id: undefined, recipe_id: undefined })}
+          />
+        </Form.Item>
+        <Form.Item label="เครื่องจักร (ไม่บังคับ)" name="machine_id">
+          <Select
+            showSearch optionFilterProp="label"
+            disabled={!addProfession}
+            placeholder={addProfession ? 'เลือกเครื่องจักร' : 'เลือกอาชีพก่อน'}
+            allowClear
+            optionLabelProp="label"
+            labelRender={({ value }) => <ItemLabel id={String(value)} name={machines.find((m) => m.machine_id === value)?.machine_name ?? ''} size={22} />}
+            options={addMachines.map((m) => ({
+              value: m.machine_id, label: m.machine_name,
+              children: <ItemLabel id={m.machine_id} name={m.machine_name} image={m.image} size={28} reserveImage />,
+            }))}
+            optionRender={(opt) => opt.data.children}
+            onChange={() => floorForm.setFieldValue('recipe_id', undefined)}
+          />
+        </Form.Item>
+        <Form.Item label="สูตรการผลิต (ไม่บังคับ)" name="recipe_id">
+          <Select
+            {...itemSelectVisuals} showSearch optionFilterProp="label" allowClear
+            disabled={!addMachineId}
+            placeholder={addMachineId ? 'เลือกสูตร' : 'เลือกเครื่องก่อน'}
+            labelRender={({ value }) => <ItemLabel id={String(value)} name={recipes.find((r) => r.id === value)?.name ?? ''} size={22} />}
+            options={addRecipes.map((r) => ({ value: r.id, label: `${r.name}${r.time_per_unit ? ` (${r.time_per_unit})` : ''}` }))}
+          />
         </Form.Item>
       </Form>
     </Modal>
