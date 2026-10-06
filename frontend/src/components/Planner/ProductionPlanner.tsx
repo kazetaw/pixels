@@ -1,7 +1,7 @@
 import { ItemLabel, itemSelectVisuals } from '../shared/ItemVisual';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Button, Popconfirm, Select, message } from 'antd';
-import { ArrowLeftOutlined, DownloadOutlined, PlayCircleOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, DownloadOutlined, PlayCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import type { Recipe, Machine, PlanRequest, PlanResponse, PlannerFloorRow, SharedPlannerPlan } from '../../types';
 import { fetchSharedPlannerPlan, runPlan, saveSharedPlannerPlan } from '../../api/client';
 import { PlanSummary } from './PlanSummary';
@@ -170,7 +170,7 @@ export function ProductionPlanner({ recipes, stocks, machines = [], mode = 'loca
     </div>}
     <div className="planner-navigation">
       <nav className="planner-view-switch" aria-label="หน้าวางแผน">
-        <button type="button" aria-pressed={view === 'configure'} onClick={() => setView('configure')}>กำหนดชั้น <span>{assigned.length}/{TOTAL_FLOORS}</span></button>
+        <button type="button" aria-pressed={view === 'configure'} onClick={() => setView('configure')}>กำหนดชั้น <span>{assigned.length}/{floors.length}</span></button>
         <button type="button" aria-pressed={view === 'summary'} disabled={!result} onClick={() => setView('summary')}>ผลการคำนวณ {stale && <span>ต้องคำนวณใหม่</span>}</button>
       </nav>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
@@ -238,9 +238,35 @@ export function ProductionPlanner({ recipes, stocks, machines = [], mode = 'loca
         </section>)}
       </div>
       <div className="planner-entry-footer"><p><kbd>Tab</kbd> ช่องถัดไป <span>·</span> <kbd>Shift + Tab</kbd> ย้อนกลับ <span>·</span> {SLOTS_PER_FLOOR} เครื่อง/ชั้น</p>
-        <div className="planner-entry-actions"><Popconfirm title="ล้างสูตรที่เลือกทั้ง 27 ชั้น?" okText="ล้างทั้งหมด" cancelText="ยกเลิก" onConfirm={() => {
-        if (isShared) lastSharedEditAt.current = Date.now(); setFloors((current) => current.map((floor) => ({ ...floor, occupation: '', machine_id: '', recipe_id: '' }))); setError(null);
-      }}><Button type="text" disabled={loading || !assigned.length}>ล้างทั้งหมด</Button></Popconfirm><Button type="primary" icon={<PlayCircleOutlined />} loading={loading} disabled={!assigned.length} title={!assigned.length ? 'เลือกสูตรอย่างน้อย 1 ชั้นก่อนคำนวณ' : undefined} onClick={() => void calculate()}>คำนวณแผนการผลิต</Button></div>
+        <div className="planner-entry-actions">
+          {/* Add / remove floor */}
+          <Button
+            size="small"
+            icon={<PlusOutlined />}
+            disabled={loading}
+            onClick={() => {
+              if (isShared) lastSharedEditAt.current = Date.now();
+              setFloors((current) => {
+                const next = Math.max(...current.map(f => f.floor_number), 0) + 1;
+                return [...current, { floor_number: next, occupation: '', recipe_id: '' }];
+              });
+            }}
+          >เพิ่มชั้น</Button>
+          <Button
+            size="small"
+            danger
+            disabled={loading || floors.length <= 1}
+            onClick={() => {
+              if (isShared) lastSharedEditAt.current = Date.now();
+              setFloors((current) => current.slice(0, -1));
+              setError(null);
+            }}
+          >ลบชั้นสุดท้าย</Button>
+          <Popconfirm title={`ล้างสูตรที่เลือกทั้ง ${floors.length} ชั้น?`} okText="ล้างทั้งหมด" cancelText="ยกเลิก" onConfirm={() => {
+            if (isShared) lastSharedEditAt.current = Date.now(); setFloors((current) => current.map((floor) => ({ ...floor, occupation: '', machine_id: '', recipe_id: '' }))); setError(null);
+          }}><Button type="text" disabled={loading || !assigned.length}>ล้างทั้งหมด</Button></Popconfirm>
+          <Button type="primary" icon={<PlayCircleOutlined />} loading={loading} disabled={!assigned.length} title={!assigned.length ? 'เลือกสูตรอย่างน้อย 1 ชั้นก่อนคำนวณ' : undefined} onClick={() => void calculate()}>คำนวณแผนการผลิต</Button>
+        </div>
       </div>
     </>}
     {view === 'summary' && result && <PlanSummary key={result.key} result={result.data}
