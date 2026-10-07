@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react';
-import { Button, InputNumber, Select, Alert, message } from 'antd';
+import { Button, InputNumber, Select, Alert, Modal, message } from 'antd';
 import { PlusOutlined, MinusOutlined, CloseOutlined, InboxOutlined } from '@ant-design/icons';
 import type { Machine } from '../../types';
 import { ItemLabel, ItemThumbnail } from '../shared/ItemVisual';
 import { useSharedMachineLayout } from './useSharedMachineLayout';
 import './MachineLayout.css';
+import { placeMachines } from './placeMachines';
 
 type Floor = { id: number; slots: (string | null)[] };
 type Selection = { machine: string; floor?: number; slot?: number };
@@ -21,6 +22,8 @@ export function MachineLayout({ machines }: { machines: Machine[] }) {
   const [incomingMachine, setIncomingMachine] = useState<string>();
   const [incomingQty, setIncomingQty] = useState<number | null>(1);
   const [selected, setSelected] = useState<Selection | null>(null);
+  const [placement, setPlacement] = useState<{ machine: string; floor: number; slot: number } | null>(null);
+  const [placementQty, setPlacementQty] = useState<number | null>(1);
   const dragging = useRef<Selection | null>(null);
   const pointer = useRef<{ source: Selection; x: number; y: number; moved: boolean } | null>(null);
   const suppressClick = useRef(false);
@@ -47,9 +50,22 @@ export function MachineLayout({ machines }: { machines: Machine[] }) {
     setIncomingQty(1);
   }
 
+  const placementFloor = layout.floors.find(f => f.id === placement?.floor);
+  const freeSlots = placementFloor?.slots.filter(id => id === null).length ?? 0;
+  const remainingForPlacement = placement ? (layout.owned[placement.machine] ?? 0) - (used[placement.machine] ?? 0) : 0;
+  const placementMax = Math.min(freeSlots, remainingForPlacement);
+  const validPlacement = placementQty !== null && Number.isSafeInteger(placementQty) && placementQty > 0 && placementQty <= placementMax;
+
   function move(source: Selection, floor?: number, slot?: number) {
     if (floor !== undefined && source.floor === undefined && (layout.owned[source.machine] ?? 0) <= (used[source.machine] ?? 0)) {
       msg.warning('เครื่องในคลังหมด กรุณาเพิ่มเครื่องเข้าคลังก่อนวาง');
+      return;
+    }
+    if (source.floor === undefined && floor !== undefined && slot !== undefined) {
+      const target = layout.floors.find(f => f.id === floor);
+      if (!target || target.slots[slot] !== null) return;
+      setPlacement({ machine: source.machine, floor, slot });
+      setPlacementQty(1);
       return;
     }
     setLayout(current => {
@@ -115,6 +131,25 @@ export function MachineLayout({ machines }: { machines: Machine[] }) {
   if (!ready) return <div className="machine-layout"><Alert type={error ? 'error' : 'info'} message={error || status} description={error ? 'ข้อมูลเดิมยังเก็บอยู่ในเบราว์เซอร์ เมื่อเชื่อมต่อได้ระบบจะโหลดผังส่วนกลางก่อน' : undefined} action={error ? <Button onClick={reload}>โหลดใหม่</Button> : undefined} /></div>;
   return <div className="machine-layout">
     {holder}
+    <Modal title={`วางเครื่องบนชั้น ${placement?.floor ?? ''}`} open={placement !== null} width={420}
+      onCancel={() => setPlacement(null)} cancelText="ยกเลิก" okText={`วาง ${placementQty ?? 0} เครื่อง`}
+      okButtonProps={{ disabled: !validPlacement }} onOk={() => {
+        if (!placement || !validPlacement || placementQty === null) return;
+        setLayout(current => placeMachines(current, placement, placementQty));
+        setPlacement(null); setSelected(null);
+      }}>
+      {placement && <div className="machine-placement">
+        <ItemLabel id={placement.machine} name={nameOf(placement.machine)} size={56} reserveImage />
+        <p>เหลือในคลัง <b>{remainingForPlacement}</b> เครื่อง · ชั้นนี้ว่าง <b>{freeSlots}</b> ช่อง</p>
+        <label htmlFor="placement-quantity">จำนวนที่ต้องการวาง</label>
+        <InputNumber id="placement-quantity" min={1} max={placementMax} precision={0} value={placementQty} onChange={setPlacementQty} style={{ width: '100%' }} size="large" />
+        <div className="machine-placement__presets">
+          {[1, 3, 6].map(qty => <Button key={qty} disabled={qty > placementMax} type={placementQty === qty ? 'primary' : 'default'} onClick={() => setPlacementQty(qty)}>{qty}</Button>)}
+          <Button disabled={placementMax < 1} onClick={() => setPlacementQty(placementMax)}>{remainingForPlacement >= freeSlots ? 'เต็มชั้น' : 'ทั้งหมดที่เหลือ'} ({placementMax})</Button>
+        </div>
+        <p>เติมจากช่องที่เลือก แล้วไล่ช่องว่างที่เหลือในชั้น ไม่ทับเครื่องเดิม</p>
+      </div>}
+    </Modal>
     <header className="machine-layout__header"><div><h2>จัดเครื่องลงชั้น</h2><p>กรอกเครื่องที่มี แล้วลากลงช่องว่าง · ชั้นละ 12 เครื่อง คละชนิดได้</p></div>
       <Button icon={<PlusOutlined />} onClick={() => setLayout(v => ({ ...v, floors: [...v.floors, emptyFloor(Math.max(0, ...v.floors.map(f => f.id)) + 1)] }))}>เพิ่มชั้น</Button>
     </header>
@@ -176,7 +211,7 @@ export function MachineLayout({ machines }: { machines: Machine[] }) {
             <header><h3>ชั้น {floor.id}</h3><span className={count === 12 ? 'is-full' : ''}>{count} / 12 เครื่อง {count === 12 ? '· เต็ม' : ''}</span><Button size="small" type="text" disabled={count > 0} title={count ? 'ย้ายเครื่องคืนคลังก่อนลบชั้น' : 'ลบชั้นว่าง'} aria-label={`ลบชั้น ${floor.id}`} icon={<CloseOutlined />} onClick={() => setLayout(v => ({ ...v, floors: v.floors.filter(f => f.id !== floor.id) }))} /></header>
             <div className="machine-floor__slots">
               {floor.slots.map((id, i) => <button key={i} className={`machine-slot${id ? ' is-filled' : ''}${hover === `${floor.id}-${i}` ? ' is-over' : ''}${selected?.floor === floor.id && selected.slot === i ? ' is-selected' : ''}`} data-layout-slot={`${floor.id}-${i}`} draggable={false} onPointerDown={e => id && pointerStart(e, { machine: id, floor: floor.id, slot: i })} onPointerMove={pointerMove} onPointerUp={pointerEnd} onPointerCancel={() => { pointer.current = null; setHover(null); }} title={id ? nameOf(id) : `ช่อง ${i + 1} ว่าง`} aria-label={`ชั้น ${floor.id} ช่อง ${i + 1}: ${id ? nameOf(id) : 'ว่าง'}`} onDragStart={e => id && startDrag(e, { machine: id, floor: floor.id, slot: i })} onDragOver={e => { if (!id) { e.preventDefault(); setHover(`${floor.id}-${i}`); } }} onDragLeave={() => setHover(null)} onDragEnd={() => { dragging.current = null; setHover(null); }} onDrop={e => { const value = readDrop(e); if (value && !id) move(value, floor.id, i); }} onClick={() => { if (suppressClick.current) return; if (id) setSelected({ machine: id, floor: floor.id, slot: i }); else if (selected) move(selected, floor.id, i); else msg.info('เลือกเครื่องจากคลังก่อน แล้วคลิกช่องว่าง'); }}>
-                <small>{i + 1}</small>{id ? <><ItemThumbnail id={id} image={machineById.get(id)?.image} size={38} /><span>{nameOf(id)}</span></> : <><PlusOutlined /><span>วางเครื่อง</span></>}
+                <small>{i + 1}</small>{id ? <><ItemThumbnail id={id} image={machineById.get(id)?.image} size={38} /><span className="machine-slot__name">{nameOf(id)}</span></> : <><PlusOutlined /><span>วางเครื่อง</span></>}
               </button>)}
             </div>
             <footer>{groups.size ? [...groups].map(([id, n]) => <span key={id}>{nameOf(id)} <b>× {n}</b></span>) : 'ชั้นว่าง พร้อมจัดเครื่อง'}</footer>

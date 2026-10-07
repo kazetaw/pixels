@@ -183,3 +183,23 @@
 /* Stick to the page scroll, below the mobile navigation bar. */
 .machine-pool { position: sticky; top: 16px; align-self: start; z-index: 10; background: #fff; box-shadow: 0 4px 12px #0f172a0d; }
 @media(max-width:760px) { .machine-pool { top: 60px; } }
+
+/* Let placed machines fill their slot without increasing the floor footprint. */
+.machine-slot.is-filled { padding: 3px; }
+.machine-slot.is-filled .item-thumbnail {
+  position: absolute;
+  inset: 3px;
+  width: calc(100% - 6px) !important;
+  height: calc(100% - 6px) !important;
+  background: transparent;
+  border: 0;
+  border-radius: 3px;
+}
+.machine-slot.is-filled .item-thumbnail img { width: 100%; height: 100%; object-fit: contain; }
+.machine-slot.is-filled > .machine-slot__name { display: none; }
+.machine-slot.is-filled > small { z-index: 1; background: #ffffffd9; border-radius: 2px; padding: 0 2px; }
+
+.machine-placement { padding-top: 12px; }
+.machine-placement > label { display: block; margin: 16px 0 8px; font-weight: 600; }
+.machine-placement > p { color: #64748b; line-height: 1.6; }
+.machine-placement__presets { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
