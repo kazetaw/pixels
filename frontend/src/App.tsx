@@ -1,3 +1,4 @@
+import { MachineLayout } from './components/MachineLayout/MachineLayout';
 import { Withdrawals } from './components/Withdrawals/Withdrawals';
 import { ItemVisualProvider } from './components/shared/ItemVisual';
 import { useEffect, useState } from 'react';
@@ -54,9 +55,9 @@ import type { SaveStatus } from './hooks/useAppState';
 
 const { Sider, Content } = Layout;
 
-type MainView = 'withdrawal-admin' | 'withdrawals' | 'assignments' | 'planner' | 'shared-planner' | 'production-flow' | 'data' | 'inventory' | 'floors' | 'targets' | 'budget' | 'organization';
+type MainView = 'machine-layout' | 'withdrawal-admin' | 'withdrawals' | 'assignments' | 'planner' | 'shared-planner' | 'production-flow' | 'data' | 'inventory' | 'floors' | 'targets' | 'budget' | 'organization';
 
-const ADMIN_VIEWS: MainView[] = ['withdrawal-admin', 'planner', 'production-flow', 'withdrawals', 'assignments', 'shared-planner', 'data', 'inventory', 'floors', 'targets', 'budget', 'organization'];
+const ADMIN_VIEWS: MainView[] = ['machine-layout', 'withdrawal-admin', 'planner', 'production-flow', 'withdrawals', 'assignments', 'shared-planner', 'data', 'inventory', 'floors', 'targets', 'budget', 'organization'];
 const PUBLIC_VIEWS: MainView[] = ['withdrawals', 'shared-planner', 'inventory', 'floors', 'targets', 'organization'];
 const isAdminPath = () => window.location.pathname.replace(/\/+$/, '') === '/admin';
 function savedNavigation(admin: boolean): MainView {
@@ -68,6 +69,7 @@ function savedNavigation(admin: boolean): MainView {
 }
 
 const NAV_ITEMS = [
+  { key: 'machine-layout', icon: <_ApartmentOutlined />, label: 'จัดเครื่องลงชั้น' },
   { key: 'withdrawals', icon: <InboxOutlined />, label: 'เบิกสินค้า' },
   { key: 'withdrawal-admin', icon: <InboxOutlined />, label: 'จัดการการเบิก' },
   { key: 'planner', icon: <AimOutlined />, label: 'วางแผนการผลิต' },
@@ -938,9 +940,10 @@ export default function App() {
           style={{
             minHeight: '100vh',
             background: '#f8fafc',
-            overflowY: 'auto',
+            overflowY: view === 'machine-layout' ? 'visible' : 'auto',
           }}
         >
+          {isAdmin && view === 'machine-layout' && <MachineLayout machines={_machines} />}
           {view === 'withdrawals' && <div className="page-content"><Withdrawals key="public-withdrawals" onData={applyData} /></div>}
           {isAdmin && view === 'withdrawal-admin' && <div className="page-content"><Withdrawals key="admin-withdrawals" admin onData={applyData} /></div>}
           {view === 'data' && (
