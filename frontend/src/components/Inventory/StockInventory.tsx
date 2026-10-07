@@ -1,15 +1,13 @@
 import { ItemThumbnail } from '../shared/ItemVisual';
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Alert, Button, Input, InputNumber, Segmented, Table, Tag, Empty, Typography, message } from 'antd';
-import { CheckOutlined, CloseOutlined, EditOutlined, LockOutlined, SearchOutlined } from '@ant-design/icons';
+import { CheckOutlined, CloseOutlined, EditOutlined, SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType, TableProps } from 'antd/es/table';
 import type { Recipe, StockMap, StockImageMap } from '../../types';
 import { patchStockItem } from '../../api/client';
 
 const { Text } = Typography;
 
-const STOCK_EDIT_PIN = '7774';
-const PIN_LENGTH = 4;
 
 interface RowData {
   key: string;
@@ -20,76 +18,12 @@ interface RowData {
 }
 
 interface StockInventoryProps {
+  canEdit?: boolean;
   stocks: StockMap;
   stockImages: StockImageMap;
   recipes: Recipe[];
   itemNames: Record<string, string>;
   onStockChanged?: () => Promise<void>;
-}
-
-// ── PIN lock overlay ──────────────────────────────────────────────────────────
-function PinLock({ onUnlocked }: { onUnlocked: () => void }) {
-  const [digits, setDigits] = useState(['', '', '', '']);
-  const [error, setError] = useState(false);
-  const refs = useRef<(HTMLInputElement | null)[]>([]);
-
-  const handleDigit = (i: number, value: string) => {
-    const d = value.replace(/\D/g, '').slice(-1);
-    const next = [...digits];
-    next[i] = d;
-    setDigits(next);
-    setError(false);
-    if (d && i < PIN_LENGTH - 1) refs.current[i + 1]?.focus();
-    if (d && i === PIN_LENGTH - 1) {
-      if (next.join('') === STOCK_EDIT_PIN) {
-        onUnlocked();
-      } else {
-        setError(true);
-        setTimeout(() => { setDigits(['', '', '', '']); setError(false); refs.current[0]?.focus(); }, 600);
-      }
-    }
-  };
-
-  const handleKeyDown = (i: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Backspace' && !digits[i] && i > 0) refs.current[i - 1]?.focus();
-  };
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, padding: '32px 0' }}>
-      <LockOutlined style={{ fontSize: 28, color: '#94a3b8' }} />
-      <div style={{ textAlign: 'center' }}>
-        <p style={{ fontWeight: 600, fontSize: 15, color: '#0f172a', margin: 0 }}>แก้ไขสต็อก</p>
-        <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>ใส่ PIN เพื่อเปิดโหมดแก้ไข</p>
-      </div>
-      <div style={{ display: 'flex', gap: 12 }}>
-        {digits.map((digit, i) => (
-          <div key={i} style={{ position: 'relative', width: 48, height: 48 }}>
-            <input
-              ref={(el) => { refs.current[i] = el; }}
-              type="password"
-              inputMode="numeric"
-              maxLength={1}
-              value={digit}
-              autoFocus={i === 0}
-              onChange={(e) => handleDigit(i, e.target.value)}
-              onKeyDown={(e) => handleKeyDown(i, e)}
-              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, cursor: 'text', zIndex: 1 }}
-            />
-            <div style={{
-              width: 48, height: 48, borderRadius: '50%',
-              border: `2px solid ${error ? '#ef4444' : digit ? '#2563eb' : '#cbd5e1'}`,
-              background: error ? '#fef2f2' : digit ? '#eff6ff' : '#f8fafc',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              transition: 'border-color 0.15s, background 0.15s',
-            }}>
-              {digit && <div style={{ width: 12, height: 12, borderRadius: '50%', background: error ? '#ef4444' : '#2563eb' }} />}
-            </div>
-          </div>
-        ))}
-      </div>
-      {error && <p style={{ fontSize: 12, color: '#ef4444', margin: 0 }}>PIN ไม่ถูกต้อง</p>}
-    </div>
-  );
 }
 
 // ── Inline edit cell ──────────────────────────────────────────────────────────
@@ -128,10 +62,10 @@ function EditCell({ row, onSave, onCancel, saving }: {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export function StockInventory({ stocks, stockImages, recipes, itemNames, onStockChanged }: StockInventoryProps) {
+export function StockInventory({ stocks, stockImages, recipes, itemNames, onStockChanged, canEdit = false }: StockInventoryProps) {
   const [search, setSearch] = useState('');
   const [stockFilter, setStockFilter] = useState<'available' | 'all' | 'empty'>('available');
-  const [unlocked, setUnlocked] = useState(false);
+
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [localStocks, setLocalStocks] = useState<StockMap>(stocks);
@@ -183,6 +117,7 @@ export function StockInventory({ stocks, stockImages, recipes, itemNames, onStoc
   const outOfStock = totalItems - inStock;
 
   const saveEdit = async (row: RowData, newQty: number) => {
+    if (!canEdit) return;
     setSavingKey(row.key);
     try {
       await patchStockItem(row.key, newQty, row.qty);
@@ -221,10 +156,10 @@ export function StockInventory({ stocks, stockImages, recipes, itemNames, onStoc
       title: 'จำนวนในคลัง',
       dataIndex: 'qty',
       align: 'right',
-      width: unlocked ? 220 : 140,
+      width: canEdit ? 220 : 140,
       sorter: (a, b) => a.qty - b.qty,
       render: (_, row) => {
-        if (!unlocked) return <Text strong>{row.qty.toLocaleString('th-TH')}</Text>;
+        if (!canEdit) return <Text strong>{row.qty.toLocaleString('th-TH')}</Text>;
         if (editingKey === row.key) {
           return (
             <EditCell
@@ -259,7 +194,7 @@ export function StockInventory({ stocks, stockImages, recipes, itemNames, onStoc
 
   const onChange: TableProps<RowData>['onChange'] = () => {};
 
-  if (!unlocked) {
+  if (!canEdit) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         {/* Summary bar */}
@@ -277,9 +212,7 @@ export function StockInventory({ stocks, stockImages, recipes, itemNames, onStoc
         </div>
 
         <div className="inventory-toolbar">
-           <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 16 }}>
-          <PinLock onUnlocked={() => setUnlocked(true)} />
-        </div><Input
+          <Input
             prefix={<SearchOutlined style={{ color: '#94a3b8' }} />}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -337,7 +270,6 @@ export function StockInventory({ stocks, stockImages, recipes, itemNames, onStoc
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Tag color="green" icon={<EditOutlined />}>โหมดแก้ไข</Tag>
-          <Button size="small" onClick={() => { setUnlocked(false); setEditingKey(null); }}>ล็อคอีกครั้ง</Button>
         </div>
       </div>
 

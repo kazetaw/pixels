@@ -90,6 +90,9 @@ export function ProductionCalculator({ recipes }: Props) {
         size="large"
       /></label>
 
+      <div className="prod-calc__presets" aria-label="จำนวนเครื่องที่ใช้บ่อย">
+        {[1, 12, 24, 48].map(n => <button key={n} aria-pressed={machines === n} onClick={() => setMachines(n)}>{n} เครื่อง</button>)}
+      </div>
       {/* Machines */}
       <div className="prod-calc__row">
         <span>จำนวนเครื่อง</span>
@@ -142,7 +145,7 @@ export function ProductionCalculator({ recipes }: Props) {
       {!hasResult && <p className="prod-calc__empty">{!recipe ? 'เลือกสินค้าก่อนเริ่มคำนวณ' : mode === 'qty' ? 'กรอกเวลาที่มี เพื่อดูจำนวนชิ้นและกอง' : 'กรอกจำนวนชิ้น เพื่อดูเวลาที่ต้องใช้'}</p>}
       {/* Result */}
       {hasResult && (
-        <div className="prod-calc__result">
+        <div className="prod-calc__result" role="status" aria-live="polite">
           {mode === 'qty' ? (() => {
             const qty = resultQty ?? 0;
             const cycles = totalInputSeconds > 0 && secPerUnit > 0 ? Math.floor(totalInputSeconds / secPerUnit) : 0;

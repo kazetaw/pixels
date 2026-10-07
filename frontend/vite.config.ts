@@ -7,7 +7,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api/withdrawals': {
-        target: 'http://localhost:3001',
+        target: process.env.LOCAL_API_URL || 'http://localhost:3001',
         changeOrigin: true,
       },
       '/api/data': {
@@ -27,7 +27,7 @@ export default defineConfig({
         changeOrigin: true,
       },
       '/api': {
-        target: 'http://localhost:3001',
+        target: process.env.LOCAL_API_URL || 'http://localhost:3001',
         changeOrigin: true,
       },
     },

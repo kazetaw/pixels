@@ -1834,3 +1834,32 @@ body {
   border-color: #4ade80;
   transform: scale(1.15);
 }
+
+.calculator-launcher { margin: 20px 12px; padding-top: 18px; border-top: 1px solid #e2e8f0; display: grid; gap: 10px; }
+.calculator-launcher__label { font-size: 11px; color: #64748b; margin: 0 4px 2px; }
+.calculator-launcher button { display: flex; align-items: center; gap: 9px; padding: 12px 10px; text-align: left; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; color: #334155; cursor: pointer; font-size: 12px; }
+.calculator-launcher button:hover { background: #eff6ff; border-color: #93c5fd; }
+.calculator-launcher button > span:nth-child(2) { flex: 1; font-weight: 600; }
+.calculator-launcher small { display: block; margin-top: 4px; color: #64748b; font-size: 10px; font-weight: 400; line-height: 1.5; }
+.calculator-switch { display: flex; background: #f1f5f9; padding: 4px; border-radius: 10px; margin-top: 20px; gap: 4px; }
+.calculator-switch button { flex: 1; border: 0; padding: 12px 8px; border-radius: 7px; background: transparent; color: #64748b; cursor: pointer; font-size: 13px; }
+.calculator-switch button[aria-selected="true"] { background: #fff; color: #1d4ed8; font-weight: 600; box-shadow: 0 1px 4px #0f172a12; }
+.calculator-modal .prod-calc { margin: 20px 0 0; padding: 0; border: 0; gap: 16px; }
+.calculator-modal .prod-calc__title { display: none; }
+.calculator-modal .prod-calc__tabs button { padding: 12px; font-size: 13px; }
+.calculator-modal .prod-calc__field, .calculator-modal .prod-calc__row { font-size: 13px; }
+.calculator-modal .prod-calc__result { padding: 22px 16px; }
+.calculator-modal .prod-calc__result-num { font-size: 30px; }
+.prod-calc__presets { display: flex; flex-wrap: wrap; gap: 8px; }
+.prod-calc__presets button { border: 1px solid #e2e8f0; border-radius: 7px; padding: 7px 12px; background: #fff; color: #64748b; cursor: pointer; font-size: 12px; }
+.prod-calc__presets button[aria-pressed="true"] { background: #eff6ff; border-color: #93c5fd; color: #1d4ed8; }
+.calculator-launcher button:focus-visible, .calculator-switch button:focus-visible, .prod-calc__presets button:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+
+.sidebar-calculators { margin: 20px 12px; padding-top: 16px; border-top: 1px solid #e2e8f0; }
+.sidebar-calculators > h3 { margin: 0 0 12px; font-size: 12px; font-weight: 600; color: #64748b; }
+.sidebar-calculators .prod-calc { margin: 0; padding: 12px; gap: 12px; }
+.sidebar-calculators .prod-calc__tabs { flex-wrap: wrap; }
+.sidebar-calculators .prod-calc__tabs button { flex: 1 0 100%; padding: 9px 4px; }
+.sidebar-calculators .prod-calc__presets { gap: 4px; }
+.sidebar-calculators .prod-calc__presets button { flex: 1 0 40%; padding: 6px 4px; font-size: 11px; }
+.sidebar-calculators .prod-calc__time-inputs { grid-template-columns: minmax(0,1fr) auto; }

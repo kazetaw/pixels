@@ -230,8 +230,20 @@ export function FloorTimerDashboard() {
                       <Tag color={meta.color}>{meta.label}</Tag>
                       <Button className="floor-card2__settings" type="text" size="small" aria-label={`ตั้งค่าชั้น ${floor.floor_number}`} icon={<SettingOutlined />} onClick={() => openConfig(floor)} />
                     </div>
-                    {/* Machine */}
-                    <div className="floor-card2__machine">{machine?.machine_name ?? 'ยังไม่ได้เลือกเครื่อง'}</div>
+                    {/* Machine + finish time */}
+                    <div className="floor-card2__machine">
+                      <span>{machine?.machine_name ?? 'ยังไม่ได้เลือกเครื่อง'}</span>
+                      {finishTime && floor.displayStatus === 'running' && (
+                        <span className="floor-card2__finish-time">
+                          เสร็จ {finishTime.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
+                      {finishTime && floor.displayStatus === 'completed' && (
+                        <span className="floor-card2__finish-time floor-card2__finish-time--done">
+                          เสร็จ {finishTime.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
+                    </div>
                     {/* Avatar */}
                     <div className="floor-card2__avatar">
                       {statusImage

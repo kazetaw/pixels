@@ -226,7 +226,13 @@ export function ProductionPlanner({ recipes, stocks, machines = [], mode = 'loca
               {isShared && <span className="planner-field-label">สูตรการผลิต</span>}
             <Select {...itemSelectVisuals} aria-label={`สูตรชั้น ${floor.floor_number}`} value={floor.recipe_id || undefined} disabled={loading}
               placeholder="พิมพ์ค้นหาสูตร" showSearch optionFilterProp="label"
-              labelRender={({ value }) => <ItemLabel id={String(value)} name={recipes.find((recipe) => recipe.id === value)?.name ?? 'เลือกสูตรใหม่'} size={22} />}
+              labelRender={({ value }) => {
+                const r = recipes.find((recipe) => recipe.id === value);
+                return <span style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                  <ItemLabel id={String(value)} name={r?.name ?? 'เลือกสูตรใหม่'} size={22} />
+                  {r?.time_per_unit && <span style={{ fontSize: 11, color: '#94a3b8', whiteSpace: 'nowrap', flexShrink: 0 }}>{r.time_per_unit}</span>}
+                </span>;
+              }}
               onChange={(recipeId) => changeFloor(floor.floor_number, { recipe_id: recipeId ?? '',
                 ...(isShared && recipeId ? { machine_id: recipes.find(recipe => recipe.id === recipeId)?.machine_id ?? '' } : {}),
               })}

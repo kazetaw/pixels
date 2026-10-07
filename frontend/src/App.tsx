@@ -56,6 +56,17 @@ const { Sider, Content } = Layout;
 
 type MainView = 'withdrawals' | 'assignments' | 'planner' | 'shared-planner' | 'production-flow' | 'data' | 'inventory' | 'floors' | 'targets' | 'budget' | 'organization';
 
+const ADMIN_VIEWS: MainView[] = ['withdrawals', 'assignments', 'shared-planner', 'data', 'inventory', 'floors', 'targets', 'budget', 'organization'];
+const PUBLIC_VIEWS: MainView[] = ['withdrawals', 'shared-planner', 'inventory', 'floors', 'targets', 'organization'];
+const isAdminPath = () => window.location.pathname.replace(/\/+$/, '') === '/admin';
+function savedNavigation(admin: boolean): MainView {
+  try {
+    const saved = localStorage.getItem(admin ? 'admin-view' : 'app-view') as MainView | null;
+    if (saved && (admin ? ADMIN_VIEWS : PUBLIC_VIEWS).includes(saved)) return saved;
+  } catch { /* Storage may be unavailable. */ }
+  return 'withdrawals';
+}
+
 const NAV_ITEMS = [
   { key: 'withdrawals', icon: <InboxOutlined />, label: 'เบิกสินค้า' },
   { key: 'assignments', icon: <TeamOutlined />, label: 'มอบหมายงาน' },
@@ -198,7 +209,7 @@ function Divide99Calculator() {
   return (
     <div
       style={{
-        margin: '24px 12px',
+        margin: '20px 0 0',
         padding: 14,
         background: '#f8fafc',
         border: '1px solid #e2e8f0',
@@ -250,7 +261,7 @@ function Divide99Calculator() {
       <Input
         type="number"
         value={number}
-        onChange={(e) => setNumber(e.target.value)}
+        onChange={(e) => setNumber(e.target.value === '' ? '' : String(Math.max(0, Math.floor(Number(e.target.value) || 0))))}
         aria-label={mode === 'divide' ? 'จำนวนชิ้น' : 'จำนวนกอง'}
         min={0}
         placeholder={mode === 'divide' ? 'กรอกจำนวนชิ้น' : 'กรอกจำนวนกอง'}
@@ -359,12 +370,14 @@ function PageHead({
 // ─────────────────────────────────────────────────────────────────────────────
 
 function SidebarContent({
+  isAdmin = false,
   view,
   setView,
   onNavClick,
   pendingWithdrawals = 0,
   recipes = [],
 }: {
+  isAdmin?: boolean;
   view: MainView;
   setView: (v: MainView) => void;
   onNavClick?: () => void;
@@ -372,8 +385,8 @@ function SidebarContent({
   recipes?: import('./types').Recipe[];
 }) {
   // Build nav items with live badge on admin withdrawal view
-  const navItems = NAV_ITEMS.map(item => {
-    if (item.key === 'withdrawals' && pendingWithdrawals > 0) {
+  const navItems = NAV_ITEMS.filter(item => (isAdmin ? ADMIN_VIEWS : PUBLIC_VIEWS).includes(item.key as MainView)).map(item => {
+    if (isAdmin && item.key === 'withdrawals' && pendingWithdrawals > 0) {
       return {
         ...item,
         label: (
@@ -426,7 +439,7 @@ function SidebarContent({
             marginTop: 2,
           }}
         >
-          ระบบวางแผนการผลิต
+          {isAdmin ? 'ผู้ดูแลระบบ · Admin' : 'ระบบวางแผนการผลิต'}
         </div>
       </div>
 
@@ -449,8 +462,11 @@ function SidebarContent({
       />
 
       {/* Calculator */}
-      <Divide99Calculator />
-      <ProductionCalculator recipes={recipes} />
+      <section className="sidebar-calculators" aria-label="เครื่องมือช่วยคำนวณ">
+        <h3>เครื่องมือช่วยคำนวณ</h3>
+        <ProductionCalculator recipes={recipes} />
+        <Divide99Calculator />
+      </section>
     </div>
   );
 }
@@ -683,16 +699,12 @@ function BomWorkspace({
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function App() {
+  const [isAdmin, setIsAdmin] = useState(isAdminPath);
   const isInventoryPath = () => window.location.pathname.replace(/\/+$/, '') === '/inventory';
   const [publicInventory, setPublicInventory] = useState(isInventoryPath);
   const [view, setViewState] = useState<MainView>(() => {
     if (isInventoryPath()) return 'inventory';
-    try {
-      const saved = localStorage.getItem('app-view') as MainView | null;
-      const valid: MainView[] = ['planner','shared-planner','production-flow','data','inventory','floors','targets','budget','organization','assignments'];
-      if (saved && valid.includes(saved)) return saved;
-    } catch { /* localStorage unavailable */ }
-    return 'data';
+    return savedNavigation(isAdminPath());
   });
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [bomOpen, setBomOpen] = useState(false);
@@ -707,6 +719,7 @@ export default function App() {
 
   // Poll pending withdrawal count every 30s — show badge + browser notification on new ones
   useEffect(() => {
+    if (!isAdmin) { setPendingWithdrawals(0); return; }
     let lastCount = -1;
     const check = async () => {
       try {
@@ -731,29 +744,35 @@ export default function App() {
     void check();
     const id = window.setInterval(() => void check(), 30_000);
     return () => window.clearInterval(id);
-  }, []);
+  }, [isAdmin]);
 
   // Request notification permission once when user interacts
   useEffect(() => {
-    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+    if (isAdmin && typeof Notification !== 'undefined' && Notification.permission === 'default') {
       const ask = () => {
         void Notification.requestPermission();
         window.removeEventListener('click', ask);
       };
       window.addEventListener('click', ask, { once: true });
     }
-  }, []);
+  }, [isAdmin]);
 
   const setView = (next: MainView) => {
+    const admin = isAdminPath();
+    if (!(admin ? ADMIN_VIEWS : PUBLIC_VIEWS).includes(next)) return;
     setViewState(next);
-    try { localStorage.setItem('app-view', next); } catch { /* ignore */ }
+    try { localStorage.setItem(admin ? 'admin-view' : 'app-view', next); } catch { /* ignore */ }
   };
 
   useEffect(() => {
     const updateRoute = () => {
       const inventoryOnly = isInventoryPath();
       setPublicInventory(inventoryOnly);
-      if (inventoryOnly) setView('inventory');
+      const admin = isAdminPath();
+      setIsAdmin(admin);
+      setViewState(inventoryOnly ? 'inventory' : savedNavigation(admin));
+      setBomOpen(false);
+      setDrawerOpen(false);
     };
     window.addEventListener('popstate', updateRoute);
     return () => window.removeEventListener('popstate', updateRoute);
@@ -781,6 +800,7 @@ export default function App() {
   } = useAppState();
 
   const sidebarProps = {
+    isAdmin,
     view,
     setView,
     pendingWithdrawals,
@@ -816,9 +836,6 @@ export default function App() {
   // A compact share link for teammates who only need to check the current stock.
   // It intentionally renders the same Inventory component and app data, without
   // exposing the surrounding navigation UI.
-  if (window.location.pathname.replace(/\/+$/, '') === '/admin') {
-    return <ItemVisualProvider recipes={recipes} machines={_machines} stockImages={stockImages} itemNames={itemNames}><main className="page-content"><Withdrawals admin onData={applyData} /></main></ItemVisualProvider>;
-  }
 
   if (publicInventory) {
     return <ItemVisualProvider recipes={recipes} machines={_machines} stockImages={stockImages} itemNames={itemNames}>
@@ -921,7 +938,7 @@ export default function App() {
             overflowY: 'auto',
           }}
         >
-          {view === 'withdrawals' && <div className="page-content"><Withdrawals onData={applyData} /></div>}
+          {view === 'withdrawals' && <div className="page-content"><Withdrawals admin={isAdmin} onData={applyData} /></div>}
           {view === 'data' && (
             <div className="page-content">
               <div className="page-head-with-action">
@@ -988,6 +1005,7 @@ export default function App() {
               />
 
               <StockInventory
+                canEdit={isAdmin}
                 stocks={stocks}
                 stockImages={stockImages}
                 itemNames={itemNames}
