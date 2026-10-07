@@ -82,18 +82,32 @@ export function MachineLayout({ machines }: { machines: Machine[] }) {
       return;
     }
     setLayout(current => {
+      // Deep-copy floors so we never mutate shared state
       const next = { ...current, floors: current.floors.map(f => ({ ...f, slots: [...f.slots] })) };
       const origin = next.floors.find(f => f.id === source.floor);
-      if (source.floor !== undefined && (!origin || source.slot === undefined || origin.slots[source.slot] !== source.machine)) return current;
+
+      // Validate source slot still holds the expected machine
+      if (source.floor !== undefined) {
+        if (!origin || source.slot === undefined) return current;
+        if (origin.slots[source.slot] !== source.machine) return current; // already moved by another update
+      }
+
       if (floor !== undefined) {
         const target = next.floors.find(f => f.id === floor);
-        if (!target || slot === undefined || target.slots[slot]) return current;
+        if (!target || slot === undefined) return current;
+        // Re-check target slot is still empty (concurrent move guard)
+        if (target.slots[slot] !== null) return current;
         if (!origin) {
+          // Moving from pool — check quota
           const count = next.floors.reduce((sum, f) => sum + f.slots.filter(id => id === source.machine).length, 0);
           if (count >= (next.owned[source.machine] ?? 0)) return current;
         }
         target.slots[slot] = source.machine;
-      } else if (!origin) return current;
+      } else if (!origin) {
+        return current; // nothing to return to pool
+      }
+
+      // Clear source slot
       if (origin && source.slot !== undefined) origin.slots[source.slot] = null;
       return next;
     });
