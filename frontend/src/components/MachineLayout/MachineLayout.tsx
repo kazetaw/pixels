@@ -1,9 +1,9 @@
 import { useRef, useState } from 'react';
-import { Button, InputNumber, Select, Alert, Modal, message } from 'antd';
+import { Button, InputNumber, Select, Alert, Modal, Tabs, message } from 'antd';
 import { PlusOutlined, MinusOutlined, CloseOutlined, InboxOutlined } from '@ant-design/icons';
 import type { Machine } from '../../types';
 import { ItemLabel, ItemThumbnail } from '../shared/ItemVisual';
-import { useSharedMachineLayout } from './useSharedMachineLayout';
+import { type MachineLayoutData, useSharedMachineLayout } from './useSharedMachineLayout';
 import './MachineLayout.css';
 import { placeMachines } from './placeMachines';
 
@@ -13,7 +13,19 @@ const emptyFloor = (id: number): Floor => ({ id, slots: Array(12).fill(null) });
 const MIME = 'application/x-pixels-machine';
 
 export function MachineLayout({ machines }: { machines: Machine[] }) {
-  const { layout, setLayout, status, error, ready, reload } = useSharedMachineLayout();
+  const { layout: sharedLayout, setLayout: setSharedLayout, status, error, ready, reload } = useSharedMachineLayout();
+  const [mode, setMode] = useState('craft');
+  const competitionFloors = sharedLayout.competitionFloors ?? sharedLayout.floors.map(f => emptyFloor(f.id));
+  const layout = mode === 'craft' ? sharedLayout : { ...sharedLayout, floors: competitionFloors };
+  function setLayout(update: (current: MachineLayoutData) => MachineLayoutData) {
+    setSharedLayout(current => {
+      const competition = current.competitionFloors ?? current.floors.map(f => emptyFloor(f.id));
+      const next = update(mode === 'craft' ? current : { ...current, floors: competition });
+      return mode === 'craft'
+        ? { ...next, competitionFloors: competition }
+        : { ...current, owned: next.owned, competitionFloors: next.floors };
+    });
+  }
   const [occupation, setOccupation] = useState('ทั้งหมด');
   const occupations = ['ทั้งหมด', ...Array.from(new Set(machines.map(m => m.occupation || 'ไม่ระบุอาชีพ')))];
   const visibleMachines = machines.filter(m => occupation === 'ทั้งหมด' || (m.occupation || 'ไม่ระบุอาชีพ') === occupation);
@@ -36,11 +48,12 @@ export function MachineLayout({ machines }: { machines: Machine[] }) {
   const machineById = new Map(machines.map(m => [m.machine_id, m]));
   const nameOf = (id: string) => machineById.get(id)?.machine_name ?? 'เครื่องที่ไม่มีในรายการปัจจุบัน';
 
-  const availableToRemove = incomingMachine ? (layout.owned[incomingMachine] ?? 0) - (used[incomingMachine] ?? 0) : 0;
+  const maxPlaced = (id: string, data: MachineLayoutData) => Math.max(...[data.floors, data.competitionFloors ?? []].map(floors => floors.reduce((sum, floor) => sum + floor.slots.filter(value => value === id).length, 0)));
+  const availableToRemove = incomingMachine ? (sharedLayout.owned[incomingMachine] ?? 0) - maxPlaced(incomingMachine, sharedLayout) : 0;
   function removeMachines() {
     if (!incomingMachine || !incomingQty || !Number.isSafeInteger(incomingQty) || incomingQty < 1 || incomingQty > availableToRemove) return;
-    setLayout(current => {
-      const placedCount = current.floors.reduce((sum, floor) => sum + floor.slots.filter(id => id === incomingMachine).length, 0);
+    setSharedLayout(current => {
+      const placedCount = maxPlaced(incomingMachine, current);
       const nextCount = (current.owned[incomingMachine] ?? 0) - incomingQty;
       if (nextCount < placedCount) return current;
       return { ...current, owned: { ...current.owned, [incomingMachine]: nextCount } };
@@ -153,6 +166,10 @@ export function MachineLayout({ machines }: { machines: Machine[] }) {
     <header className="machine-layout__header"><div><h2>จัดเครื่องลงชั้น</h2><p>กรอกเครื่องที่มี แล้วลากลงช่องว่าง · ชั้นละ 12 เครื่อง คละชนิดได้</p></div>
       <Button icon={<PlusOutlined />} onClick={() => setLayout(v => ({ ...v, floors: [...v.floors, emptyFloor(Math.max(0, ...v.floors.map(f => f.id)) + 1)] }))}>เพิ่มชั้น</Button>
     </header>
+    <Tabs activeKey={mode} items={[{ key: 'craft', label: 'ตอนคราฟ' }, { key: 'competition', label: 'ตอนแข่งจริง' }]} onChange={value => {
+      setMode(value); setSelected(null); setPlacement(null); setHover(null); pointer.current = null; dragging.current = null;
+    }} />
+    <p>ผัง{mode === 'craft' ? 'ตอนคราฟ' : 'ตอนแข่งจริง'} · จัดวางแยกกัน ใช้จำนวนเครื่องทั้งหมดชุดเดียวกัน</p>
     <div className="machine-layout__totals"><span>มีทั้งหมด <b>{total}</b> เครื่อง</span><span>วางแล้ว <b>{placed}</b></span><span>เหลือในคลัง <b>{total - placed}</b></span><span>ช่องว่าง <b>{layout.floors.length * 12 - placed}</b></span></div>
     <p className="machine-layout__saved">{status} · ใช้ร่วมกันทุกเครื่อง · เป็นผังจัดวาง ไม่เปลี่ยนเวลาผลิตหรือสต็อกสินค้า</p>
     <form className="machine-incoming" onSubmit={e => {
@@ -177,7 +194,7 @@ export function MachineLayout({ machines }: { machines: Machine[] }) {
       <InputNumber aria-label="จำนวนเครื่องที่ต้องการปรับ" min={1} precision={0} value={incomingQty} onChange={setIncomingQty} placeholder="จำนวน" />
       <Button htmlType="submit" type="primary" icon={<PlusOutlined />} disabled={!incomingMachine || !incomingQty || incomingQty < 1}>เพิ่มเข้าคลัง</Button>
       <Button htmlType="button" danger icon={<MinusOutlined />} onClick={removeMachines} disabled={!incomingMachine || !incomingQty || !Number.isSafeInteger(incomingQty) || incomingQty < 1 || incomingQty > availableToRemove}>ลดจากคลัง</Button>
-      <small>{incomingMachine ? `มีทั้งหมด ${layout.owned[incomingMachine] ?? 0} · วางบนชั้น ${used[incomingMachine] ?? 0} · ลดได้ ${availableToRemove} เครื่อง — หากต้องการลดเครื่องที่วางแล้ว ให้นำคืนคลังก่อน` : 'เลือกเครื่อง แล้วกรอกจำนวนที่ต้องการเพิ่มหรือลด ไม่ต้องกรอกยอดรวม'}</small>
+      <small>{incomingMachine ? `มีทั้งหมด ${layout.owned[incomingMachine] ?? 0} · วางบนชั้น ${used[incomingMachine] ?? 0} · ลดได้ ${availableToRemove} เครื่อง — การลดจำนวนต้องไม่ต่ำกว่าเครื่องที่วางในแต่ละแท็บ ให้นำคืนคลังก่อน` : 'เลือกเครื่อง แล้วกรอกจำนวนที่ต้องการเพิ่มหรือลด ไม่ต้องกรอกยอดรวม'}</small>
     </form>
     <div className="machine-layout__workspace">
       <aside className="machine-pool" onDragOver={e => e.preventDefault()} onDrop={e => { const value = readDrop(e); if (value) move(value); }}>

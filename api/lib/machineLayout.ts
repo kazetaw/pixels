@@ -1,4 +1,4 @@
-export function validMachineLayout(value: unknown): boolean {
+function validSingleLayout(value: unknown): boolean {
   if (!value || typeof value !== 'object') return false;
   const v = value as { owned?: Record<string, number>; floors?: { id: number; slots: (string | null)[] }[] };
   if (!v.owned || typeof v.owned !== 'object' || Array.isArray(v.owned) || !Array.isArray(v.floors) || v.floors.length > 500) return false;
@@ -16,4 +16,10 @@ export function validMachineLayout(value: unknown): boolean {
     }
   }
   return true;
+}
+
+export function validMachineLayout(value: unknown): boolean {
+  if (!validSingleLayout(value)) return false;
+  const data = value as { owned: Record<string, number>; competitionFloors?: unknown };
+  return data.competitionFloors === undefined || validSingleLayout({ owned: data.owned, floors: data.competitionFloors });
 }

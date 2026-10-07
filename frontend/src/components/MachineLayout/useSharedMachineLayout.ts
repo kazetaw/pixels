@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
-export type MachineLayoutData = { owned: Record<string, number>; floors: { id: number; slots: (string | null)[] }[] };
+export type MachineLayoutData = { owned: Record<string, number>; competitionFloors?: { id: number; slots: (string | null)[] }[]; floors: { id: number; slots: (string | null)[] }[] };
 export function useSharedMachineLayout() {
   const [layout, setLayout] = useLocalStorage<MachineLayoutData>('machine-layout-v1', { owned: {}, floors: [{ id: 1, slots: Array(12).fill(null) }] });
   const [status, setStatus] = useState('กำลังโหลดผังส่วนกลาง…');
