@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
-import { Button, InputNumber, Select, Alert, Modal, Tabs, message } from 'antd';
-import { PlusOutlined, MinusOutlined, CloseOutlined, InboxOutlined } from '@ant-design/icons';
+import { Button, InputNumber, Popconfirm, Select, Alert, Modal, Tabs, message } from 'antd';
+import { ClearOutlined, PlusOutlined, MinusOutlined, CloseOutlined, InboxOutlined } from '@ant-design/icons';
 import type { Machine } from '../../types';
 import { ItemLabel, ItemThumbnail } from '../shared/ItemVisual';
 import { type MachineLayoutData, useSharedMachineLayout } from './useSharedMachineLayout';
@@ -178,7 +178,13 @@ export function MachineLayout({ machines }: { machines: Machine[] }) {
       </div>}
     </Modal>
     <header className="machine-layout__header"><div><h2>จัดเครื่องลงชั้น</h2><p>กรอกเครื่องที่มี แล้วลากลงช่องว่าง · ชั้นละ 12 เครื่อง คละชนิดได้</p></div>
-      <Button icon={<PlusOutlined />} onClick={() => setLayout(v => ({ ...v, floors: [...v.floors, emptyFloor(Math.max(0, ...v.floors.map(f => f.id)) + 1)] }))}>เพิ่มชั้น</Button>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <Popconfirm title="ล้างเครื่องทุกตัวออกจากทุกชั้น?" description="เครื่องจะกลับคืนคลัง ชั้นยังอยู่" okText="ล้างทั้งหมด" cancelText="ยกเลิก" okButtonProps={{ danger: true }}
+          onConfirm={() => { setLayout(v => ({ ...v, floors: v.floors.map(f => ({ ...f, slots: Array(12).fill(null) })) })); setSelected(null); msg.success('ล้างเครื่องออกจากทุกชั้นแล้ว'); }}>
+          <Button icon={<ClearOutlined />} danger disabled={placed === 0}>ล้างทั้งหมด</Button>
+        </Popconfirm>
+        <Button icon={<PlusOutlined />} onClick={() => setLayout(v => ({ ...v, floors: [...v.floors, emptyFloor(Math.max(0, ...v.floors.map(f => f.id)) + 1)] }))}>เพิ่มชั้น</Button>
+      </div>
     </header>
     <Tabs activeKey={mode} items={[{ key: 'craft', label: 'ตอนคราฟ' }, { key: 'competition', label: 'ตอนแข่งจริง' }]} onChange={value => {
       setMode(value); setSelected(null); setPlacement(null); setHover(null); pointer.current = null; dragging.current = null;
@@ -239,7 +245,14 @@ export function MachineLayout({ machines }: { machines: Machine[] }) {
           const count = floor.slots.filter(Boolean).length;
           const groups = new Map<string, number>(); floor.slots.forEach(id => { if (id) groups.set(id, (groups.get(id) ?? 0) + 1); });
           return <article className="machine-floor" key={floor.id}>
-            <header><h3>ชั้น {floor.id}</h3><span className={count === 12 ? 'is-full' : ''}>{count} / 12 เครื่อง {count === 12 ? '· เต็ม' : ''}</span><Button size="small" type="text" disabled={count > 0} title={count ? 'ย้ายเครื่องคืนคลังก่อนลบชั้น' : 'ลบชั้นว่าง'} aria-label={`ลบชั้น ${floor.id}`} icon={<CloseOutlined />} onClick={() => setLayout(v => ({ ...v, floors: v.floors.filter(f => f.id !== floor.id) }))} /></header>
+            <header><h3>ชั้น {floor.id}</h3><span className={count === 12 ? 'is-full' : ''}>{count} / 12 เครื่อง {count === 12 ? '· เต็ม' : ''}</span>
+              {count > 0 && (
+                <Popconfirm title={`ล้างเครื่องทั้งหมด ${count} ตัวในชั้น ${floor.id}?`} okText="ล้าง" cancelText="ยกเลิก" okButtonProps={{ danger: true }}
+                  onConfirm={() => { setLayout(v => ({ ...v, floors: v.floors.map(f => f.id === floor.id ? { ...f, slots: Array(12).fill(null) } : f) })); setSelected(null); msg.success(`ล้างชั้น ${floor.id} แล้ว`); }}>
+                  <Button size="small" type="text" icon={<ClearOutlined />} title={`ล้างชั้น ${floor.id}`} aria-label={`ล้างชั้น ${floor.id}`} />
+                </Popconfirm>
+              )}
+              <Button size="small" type="text" disabled={count > 0} title={count ? 'ล้างชั้นก่อนลบ' : 'ลบชั้นว่าง'} aria-label={`ลบชั้น ${floor.id}`} icon={<CloseOutlined />} onClick={() => setLayout(v => ({ ...v, floors: v.floors.filter(f => f.id !== floor.id) }))} /></header>
             <div className="machine-floor__slots">
               {floor.slots.map((id, i) => <button key={i} className={`machine-slot${id ? ' is-filled' : ''}${hover === `${floor.id}-${i}` ? ' is-over' : ''}${selected?.floor === floor.id && selected.slot === i ? ' is-selected' : ''}`} data-layout-slot={`${floor.id}-${i}`} draggable={false} onPointerDown={e => id && pointerStart(e, { machine: id, floor: floor.id, slot: i })} onPointerMove={pointerMove} onPointerUp={pointerEnd} onPointerCancel={() => { pointer.current = null; setHover(null); }} title={id ? nameOf(id) : `ช่อง ${i + 1} ว่าง`} aria-label={`ชั้น ${floor.id} ช่อง ${i + 1}: ${id ? nameOf(id) : 'ว่าง'}`} onDragStart={e => id && startDrag(e, { machine: id, floor: floor.id, slot: i })} onDragOver={e => { if (!id) { e.preventDefault(); setHover(`${floor.id}-${i}`); } }} onDragLeave={() => setHover(null)} onDragEnd={() => { dragging.current = null; setHover(null); }} onDrop={e => { const value = readDrop(e); if (value && !id) move(value, floor.id, i); }} onClick={() => { if (suppressClick.current) return; if (id) setSelected({ machine: id, floor: floor.id, slot: i }); else if (selected) move(selected, floor.id, i); else msg.info('เลือกเครื่องจากคลังก่อน แล้วคลิกช่องว่าง'); }}>
                 <small>{i + 1}</small>{id ? <><ItemThumbnail id={id} image={machineById.get(id)?.image} size={38} /><span className="machine-slot__name">{nameOf(id)}</span></> : <><PlusOutlined /><span>วางเครื่อง</span></>}
