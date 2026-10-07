@@ -1,19 +1,18 @@
 import { useRef, useState } from 'react';
 import { Button, InputNumber, Select, Alert, message } from 'antd';
-import { PlusOutlined, CloseOutlined, InboxOutlined } from '@ant-design/icons';
+import { PlusOutlined, MinusOutlined, CloseOutlined, InboxOutlined } from '@ant-design/icons';
 import type { Machine } from '../../types';
 import { ItemLabel, ItemThumbnail } from '../shared/ItemVisual';
-import { useLocalStorage } from '../../hooks/useLocalStorage';
+import { useSharedMachineLayout } from './useSharedMachineLayout';
 import './MachineLayout.css';
 
 type Floor = { id: number; slots: (string | null)[] };
-type Layout = { owned: Record<string, number>; floors: Floor[] };
 type Selection = { machine: string; floor?: number; slot?: number };
 const emptyFloor = (id: number): Floor => ({ id, slots: Array(12).fill(null) });
 const MIME = 'application/x-pixels-machine';
 
 export function MachineLayout({ machines }: { machines: Machine[] }) {
-  const [layout, setLayout] = useLocalStorage<Layout>('machine-layout-v1', { owned: {}, floors: [emptyFloor(1)] });
+  const { layout, setLayout, status, error, ready, reload } = useSharedMachineLayout();
   const [occupation, setOccupation] = useState('ทั้งหมด');
   const occupations = ['ทั้งหมด', ...Array.from(new Set(machines.map(m => m.occupation || 'ไม่ระบุอาชีพ')))];
   const visibleMachines = machines.filter(m => occupation === 'ทั้งหมด' || (m.occupation || 'ไม่ระบุอาชีพ') === occupation);
@@ -33,6 +32,20 @@ export function MachineLayout({ machines }: { machines: Machine[] }) {
   const placed = Object.values(used).reduce((a, b) => a + b, 0);
   const machineById = new Map(machines.map(m => [m.machine_id, m]));
   const nameOf = (id: string) => machineById.get(id)?.machine_name ?? 'เครื่องที่ไม่มีในรายการปัจจุบัน';
+
+  const availableToRemove = incomingMachine ? (layout.owned[incomingMachine] ?? 0) - (used[incomingMachine] ?? 0) : 0;
+  function removeMachines() {
+    if (!incomingMachine || !incomingQty || !Number.isSafeInteger(incomingQty) || incomingQty < 1 || incomingQty > availableToRemove) return;
+    setLayout(current => {
+      const placedCount = current.floors.reduce((sum, floor) => sum + floor.slots.filter(id => id === incomingMachine).length, 0);
+      const nextCount = (current.owned[incomingMachine] ?? 0) - incomingQty;
+      if (nextCount < placedCount) return current;
+      return { ...current, owned: { ...current.owned, [incomingMachine]: nextCount } };
+    });
+    setSelected(null);
+    msg.success(`ลด ${nameOf(incomingMachine)} ${incomingQty} เครื่องแล้ว`);
+    setIncomingQty(1);
+  }
 
   function move(source: Selection, floor?: number, slot?: number) {
     if (floor !== undefined && source.floor === undefined && (layout.owned[source.machine] ?? 0) <= (used[source.machine] ?? 0)) {
@@ -99,13 +112,14 @@ export function MachineLayout({ machines }: { machines: Machine[] }) {
     window.setTimeout(() => { suppressClick.current = false; }, 0);
   }
 
+  if (!ready) return <div className="machine-layout"><Alert type={error ? 'error' : 'info'} message={error || status} description={error ? 'ข้อมูลเดิมยังเก็บอยู่ในเบราว์เซอร์ เมื่อเชื่อมต่อได้ระบบจะโหลดผังส่วนกลางก่อน' : undefined} action={error ? <Button onClick={reload}>โหลดใหม่</Button> : undefined} /></div>;
   return <div className="machine-layout">
     {holder}
     <header className="machine-layout__header"><div><h2>จัดเครื่องลงชั้น</h2><p>กรอกเครื่องที่มี แล้วลากลงช่องว่าง · ชั้นละ 12 เครื่อง คละชนิดได้</p></div>
       <Button icon={<PlusOutlined />} onClick={() => setLayout(v => ({ ...v, floors: [...v.floors, emptyFloor(Math.max(0, ...v.floors.map(f => f.id)) + 1)] }))}>เพิ่มชั้น</Button>
     </header>
     <div className="machine-layout__totals"><span>มีทั้งหมด <b>{total}</b> เครื่อง</span><span>วางแล้ว <b>{placed}</b></span><span>เหลือในคลัง <b>{total - placed}</b></span><span>ช่องว่าง <b>{layout.floors.length * 12 - placed}</b></span></div>
-    <p className="machine-layout__saved">บันทึกอัตโนมัติในเบราว์เซอร์นี้ · เป็นผังจัดวาง ไม่เปลี่ยนเวลาผลิตหรือสต็อกสินค้า</p>
+    <p className="machine-layout__saved">{status} · ใช้ร่วมกันทุกเครื่อง · เป็นผังจัดวาง ไม่เปลี่ยนเวลาผลิตหรือสต็อกสินค้า</p>
     <form className="machine-incoming" onSubmit={e => {
       e.preventDefault();
       if (!incomingMachine || !incomingQty || !Number.isSafeInteger(incomingQty) || incomingQty < 1) return;
@@ -113,21 +127,22 @@ export function MachineLayout({ machines }: { machines: Machine[] }) {
       msg.success(`เพิ่ม ${nameOf(incomingMachine)} ${incomingQty} เครื่องแล้ว`);
       setIncomingQty(1);
     }}>
-      <strong>เพิ่มเครื่องเข้าคลัง</strong>
-      <Select aria-label="อาชีพของเครื่องที่ได้รับเพิ่ม" value={incomingOccupation}
+      <strong>เพิ่ม / ลดเครื่องในคลัง</strong>
+      <Select aria-label="อาชีพของเครื่อง" value={incomingOccupation}
         options={occupations.map(name => ({ value: name, label: name === 'ทั้งหมด' ? 'ทุกหมวดอาชีพ' : name }))}
         onChange={value => {
           setIncomingOccupation(value);
           const current = machines.find(m => m.machine_id === incomingMachine);
           if (value !== 'ทั้งหมด' && current && (current.occupation || 'ไม่ระบุอาชีพ') !== value) setIncomingMachine(undefined);
         }} />
-      <Select aria-label="เครื่องที่ได้รับเพิ่ม" placeholder="เลือกเครื่องที่ได้มา" showSearch optionFilterProp="label" value={incomingMachine} onChange={setIncomingMachine}
+      <Select aria-label="เครื่องที่ต้องการปรับจำนวน" placeholder="เลือกเครื่อง" showSearch optionFilterProp="label" value={incomingMachine} onChange={setIncomingMachine}
         options={incomingMachines.map(m => ({ value: m.machine_id, label: m.machine_name }))}
         optionRender={option => <ItemLabel id={String(option.value)} name={option.label} size={26} reserveImage />}
         labelRender={({ value, label }) => <ItemLabel id={String(value)} name={label} size={22} reserveImage />} />
-      <InputNumber aria-label="จำนวนเครื่องที่ได้รับเพิ่ม" min={1} precision={0} value={incomingQty} onChange={setIncomingQty} placeholder="จำนวนที่เพิ่ม" />
+      <InputNumber aria-label="จำนวนเครื่องที่ต้องการปรับ" min={1} precision={0} value={incomingQty} onChange={setIncomingQty} placeholder="จำนวน" />
       <Button htmlType="submit" type="primary" icon={<PlusOutlined />} disabled={!incomingMachine || !incomingQty || incomingQty < 1}>เพิ่มเข้าคลัง</Button>
-      <small>บวกเพิ่มจากจำนวนเดิม ไม่ต้องกรอกยอดรวม</small>
+      <Button htmlType="button" danger icon={<MinusOutlined />} onClick={removeMachines} disabled={!incomingMachine || !incomingQty || !Number.isSafeInteger(incomingQty) || incomingQty < 1 || incomingQty > availableToRemove}>ลดจากคลัง</Button>
+      <small>{incomingMachine ? `มีทั้งหมด ${layout.owned[incomingMachine] ?? 0} · วางบนชั้น ${used[incomingMachine] ?? 0} · ลดได้ ${availableToRemove} เครื่อง — หากต้องการลดเครื่องที่วางแล้ว ให้นำคืนคลังก่อน` : 'เลือกเครื่อง แล้วกรอกจำนวนที่ต้องการเพิ่มหรือลด ไม่ต้องกรอกยอดรวม'}</small>
     </form>
     <div className="machine-layout__workspace">
       <aside className="machine-pool" onDragOver={e => e.preventDefault()} onDrop={e => { const value = readDrop(e); if (value) move(value); }}>

@@ -1,3 +1,4 @@
+import { validMachineLayout } from './lib/machineLayout.js';
 /**
  * api/index.ts — Single Vercel Function catch-all router
  *
@@ -161,6 +162,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const url = (req.url ?? '').split('?')[0];
   const path = url.replace(/^\/api\/?/, '');   // e.g. "recipes/abc-123"
   const segments = path.split('/').filter(Boolean);
+
+  if (segments[0] === 'machine-layout') {
+    const db = getSupabase();
+    try {
+      if (req.method === 'GET') {
+        const { data, error } = await db.from('machine_layout').select('data,revision,updated_at').eq('id', 'default').maybeSingle();
+        if (error) throw error;
+        return res.json(data);
+      }
+      if (req.method === 'PUT') {
+        const { data: layout, revision } = req.body ?? {};
+        if (!validMachineLayout(layout) || !Number.isSafeInteger(revision) || revision < 0) return res.status(400).json({ error: 'ผังไม่ถูกต้อง: ชั้นละ 12 ช่อง และห้ามใช้เครื่องเกินคลัง' });
+        const row = { data: layout, revision: revision + 1, updated_at: new Date().toISOString() };
+        const result = revision === 0
+          ? await db.from('machine_layout').insert({ id: 'default', ...row }).select('data,revision,updated_at').single()
+          : await db.from('machine_layout').update(row).eq('id', 'default').eq('revision', revision).select('data,revision,updated_at').maybeSingle();
+        if (result.error?.code === '23505' || (!result.error && !result.data)) return res.status(409).json({ error: 'มีคนแก้ผังแล้ว กรุณาโหลดผังล่าสุดก่อนบันทึก' });
+        if (result.error) throw result.error;
+        return res.json(result.data);
+      }
+      return res.status(405).json({ error: 'Method not allowed' });
+    } catch (e) {
+      console.error('machine-layout', e);
+      return res.status(500).json({ error: 'โหลดหรือบันทึกผังไม่ได้ กรุณาตรวจว่าติดตั้งตาราง machine_layout แล้ว' });
+    }
+  }
   const method = req.method?.toUpperCase() ?? 'GET';
 
   // ── GET /api/data ───────────────────────────────────────────────────────────
