@@ -54,9 +54,9 @@ import type { SaveStatus } from './hooks/useAppState';
 
 const { Sider, Content } = Layout;
 
-type MainView = 'withdrawals' | 'assignments' | 'planner' | 'shared-planner' | 'production-flow' | 'data' | 'inventory' | 'floors' | 'targets' | 'budget' | 'organization';
+type MainView = 'withdrawal-admin' | 'withdrawals' | 'assignments' | 'planner' | 'shared-planner' | 'production-flow' | 'data' | 'inventory' | 'floors' | 'targets' | 'budget' | 'organization';
 
-const ADMIN_VIEWS: MainView[] = ['withdrawals', 'assignments', 'shared-planner', 'data', 'inventory', 'floors', 'targets', 'budget', 'organization'];
+const ADMIN_VIEWS: MainView[] = ['withdrawal-admin', 'planner', 'production-flow', 'withdrawals', 'assignments', 'shared-planner', 'data', 'inventory', 'floors', 'targets', 'budget', 'organization'];
 const PUBLIC_VIEWS: MainView[] = ['withdrawals', 'shared-planner', 'inventory', 'floors', 'targets', 'organization'];
 const isAdminPath = () => window.location.pathname.replace(/\/+$/, '') === '/admin';
 function savedNavigation(admin: boolean): MainView {
@@ -69,6 +69,9 @@ function savedNavigation(admin: boolean): MainView {
 
 const NAV_ITEMS = [
   { key: 'withdrawals', icon: <InboxOutlined />, label: 'เบิกสินค้า' },
+  { key: 'withdrawal-admin', icon: <InboxOutlined />, label: 'จัดการการเบิก' },
+  { key: 'planner', icon: <AimOutlined />, label: 'วางแผนการผลิต' },
+  { key: 'production-flow', icon: <_ApartmentOutlined />, label: 'ผังการผลิต' },
   { key: 'assignments', icon: <TeamOutlined />, label: 'มอบหมายงาน' },
   {
     key: 'shared-planner',
@@ -386,7 +389,7 @@ function SidebarContent({
 }) {
   // Build nav items with live badge on admin withdrawal view
   const navItems = NAV_ITEMS.filter(item => (isAdmin ? ADMIN_VIEWS : PUBLIC_VIEWS).includes(item.key as MainView)).map(item => {
-    if (isAdmin && item.key === 'withdrawals' && pendingWithdrawals > 0) {
+    if (isAdmin && item.key === 'withdrawal-admin' && pendingWithdrawals > 0) {
       return {
         ...item,
         label: (
@@ -938,7 +941,8 @@ export default function App() {
             overflowY: 'auto',
           }}
         >
-          {view === 'withdrawals' && <div className="page-content"><Withdrawals admin={isAdmin} onData={applyData} /></div>}
+          {view === 'withdrawals' && <div className="page-content"><Withdrawals key="public-withdrawals" onData={applyData} /></div>}
+          {isAdmin && view === 'withdrawal-admin' && <div className="page-content"><Withdrawals key="admin-withdrawals" admin onData={applyData} /></div>}
           {view === 'data' && (
             <div className="page-content">
               <div className="page-head-with-action">
