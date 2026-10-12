@@ -406,7 +406,17 @@ export function Withdrawals({ admin = false, onData }: { admin?: boolean; onData
   const options = Object.entries(data?.itemNames ?? {})
     .filter(([id]) => catalog.some(c => c.item_id === id && c.enabled))
     .filter(([id]) => !occFilter || itemOccupations.get(id)?.has(occFilter))
-    .map(([id, name]) => ({ value: id, label: name, available: availability[id] ?? 0 }));
+    .map(([id, name]) => ({ value: id, label: name, available: availability[id] ?? 0, disabled: (availability[id] ?? 0) <= 0 }))
+    .sort((a, b) => Number(a.disabled) - Number(b.disabled) || a.label.localeCompare(b.label, 'th'));
+  const stockItemVisual = (id: string, name: React.ReactNode) => {
+    const available = availability[id] ?? 0;
+    return <span className="withdrawal-stock-option">
+      <ItemLabel id={id} name={name} reserveImage />
+      <span className={`withdrawal-stock-option__count${available <= 0 ? ' is-empty' : ''}`}>
+        {available <= 0 ? 'หมดสต็อก' : `เบิกได้ ${available.toLocaleString('th-TH')} ชิ้น`}
+      </span>
+    </span>;
+  };
   const requested = lines.reduce<Record<string,number>>((result,line)=>{ if(line.item_id) result[line.item_id]=(result[line.item_id] ?? 0)+line.quantity; return result; },{});
   const overLimit = Object.entries(requested).some(([id,quantity])=>quantity>(availability[id] ?? 0));
   const patchLine = (index: number, patch: Partial<Line>) => { setLines(prev => prev.map((l,i) => i === index ? {...l,...patch} : l)); setRequestId(crypto.randomUUID()); };
@@ -561,7 +571,7 @@ export function Withdrawals({ admin = false, onData }: { admin?: boolean; onData
             </div>
           )}
           {lines.map((line,index) => <div className="withdrawal-line" key={index}>
-            <Select aria-label="สินค้าเบิก" disabled={busy} placeholder="เลือกสินค้า" showSearch optionFilterProp="label" value={line.item_id || undefined} onChange={id=>patchLine(index,{item_id:id})} options={options} {...withdrawalItemVisuals} />
+            <Select aria-label="สินค้าเบิก" disabled={busy} placeholder="เลือกสินค้า" showSearch optionFilterProp="label" value={line.item_id || undefined} onChange={id=>patchLine(index,{item_id:id})} options={options} optionRender={option => stockItemVisual(String(option.value), option.label)} labelRender={({ value, label }) => stockItemVisual(String(value), label)} />
             <InputNumber aria-label="จำนวนเบิก (กอง)" disabled={busy} min={1} max={21691754} precision={0} value={line.quantity / 99} onChange={quantity=>patchLine(index,{quantity:(quantity ?? 0) * 99})} />
             <Button disabled={busy} onClick={()=>patchLine(index,{quantity:line.quantity+99})}>+1 กอง</Button>
             <Button disabled={busy || lines.length===1} danger onClick={()=>{setLines(lines.filter((_,i)=>i!==index));setRequestId(crypto.randomUUID());}}>ลบ</Button>

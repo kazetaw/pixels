@@ -248,14 +248,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (error) throw error;
         return res.json({ id });
       }
-      if (method === 'PATCH' && segments[1]) {
+      if (method === 'PATCH' && segments.length === 2 && segments[1]) {
         if (!['sent', 'cancelled'].includes(req.body?.status)) return res.status(400).json({ error: 'สถานะไม่ถูกต้อง' });
         const { error } = await db.rpc('finish_withdrawal', { p_id: segments[1], p_status: req.body.status });
         if (error) throw error;
         return res.json({ ok: true });
       }
       // PATCH /api/withdrawals/:id/fulfill — partial fulfillment
-      if (method === 'PATCH' && segments[1] && segments[2] === 'fulfill') {
+      if (method === 'PATCH' && segments.length === 3 && segments[1] && segments[2] === 'fulfill') {
         const { actual_lines, admin_note } = req.body ?? {};
         if (!Array.isArray(actual_lines) || !actual_lines.length
           || actual_lines.some((l: unknown) => !l || typeof (l as { item_id: unknown }).item_id !== 'string'

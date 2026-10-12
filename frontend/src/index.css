@@ -1863,3 +1863,9 @@ body {
 .sidebar-calculators .prod-calc__presets { gap: 4px; }
 .sidebar-calculators .prod-calc__presets button { flex: 1 0 40%; padding: 6px 4px; font-size: 11px; }
 .sidebar-calculators .prod-calc__time-inputs { grid-template-columns: minmax(0,1fr) auto; }
+
+.withdrawal-stock-option { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-width: 0; }
+.withdrawal-stock-option > .item-label { min-width: 0; flex: 1; }
+.withdrawal-stock-option__count { flex-shrink: 0; color: #15803d; font-size: 12px; font-weight: 600; }
+.withdrawal-stock-option__count.is-empty { color: #dc2626; }
+@media (max-width: 480px) { .withdrawal-stock-option { flex-wrap: wrap; gap: 2px 8px; } .withdrawal-stock-option__count { font-size: 11px; } }
