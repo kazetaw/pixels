@@ -49,7 +49,13 @@ export function MachineLayout({ machines }: { machines: Machine[] }) {
   const nameOf = (id: string) => machineById.get(id)?.machine_name ?? 'เครื่องที่ไม่มีในรายการปัจจุบัน';
 
   const maxPlaced = (id: string, data: MachineLayoutData) => Math.max(...[data.floors, data.competitionFloors ?? []].map(floors => floors.reduce((sum, floor) => sum + floor.slots.filter(value => value === id).length, 0)));
-  const availableToRemove = incomingMachine ? (sharedLayout.owned[incomingMachine] ?? 0) - maxPlaced(incomingMachine, sharedLayout) : 0;
+  const craftUsed = incomingMachine ? sharedLayout.floors.reduce((sum, f) => sum + f.slots.filter(id => id === incomingMachine).length, 0) : 0;
+  const competitionUsed = incomingMachine ? (sharedLayout.competitionFloors ?? []).reduce((sum, f) => sum + f.slots.filter(id => id === incomingMachine).length, 0) : 0;
+  const availableToRemove = incomingMachine ? Math.max(0, (sharedLayout.owned[incomingMachine] ?? 0) - Math.max(craftUsed, competitionUsed)) : 0;
+  const removalReason = !incomingMachine ? 'เลือกเครื่องที่ต้องการลดก่อน'
+    : !incomingQty || !Number.isSafeInteger(incomingQty) || incomingQty < 1 ? 'กรอกจำนวนเต็มตั้งแต่ 1 เครื่อง'
+    : incomingQty > availableToRemove ? `ลดได้สูงสุด ${availableToRemove} เครื่อง — ผัง${craftUsed >= competitionUsed ? 'ตอนคราฟ' : 'ตอนแข่งจริง'}ใช้อยู่ ${Math.max(craftUsed, competitionUsed)} เครื่อง ต้องนำเครื่องคืนคลังจากผังนั้นก่อน` : '';
+
   function removeMachines() {
     if (!incomingMachine || !incomingQty || !Number.isSafeInteger(incomingQty) || incomingQty < 1 || incomingQty > availableToRemove) return;
     setSharedLayout(current => {
@@ -213,8 +219,10 @@ export function MachineLayout({ machines }: { machines: Machine[] }) {
         labelRender={({ value, label }) => <ItemLabel id={String(value)} name={label} size={22} reserveImage />} />
       <InputNumber aria-label="จำนวนเครื่องที่ต้องการปรับ" min={1} precision={0} value={incomingQty} onChange={setIncomingQty} placeholder="จำนวน" />
       <Button htmlType="submit" type="primary" icon={<PlusOutlined />} disabled={!incomingMachine || !incomingQty || incomingQty < 1}>เพิ่มเข้าคลัง</Button>
-      <Button htmlType="button" danger icon={<MinusOutlined />} onClick={removeMachines} disabled={!incomingMachine || !incomingQty || !Number.isSafeInteger(incomingQty) || incomingQty < 1 || incomingQty > availableToRemove}>ลดจากคลัง</Button>
-      <small>{incomingMachine ? `มีทั้งหมด ${layout.owned[incomingMachine] ?? 0} · วางบนชั้น ${used[incomingMachine] ?? 0} · ลดได้ ${availableToRemove} เครื่อง — การลดจำนวนต้องไม่ต่ำกว่าเครื่องที่วางในแต่ละแท็บ ให้นำคืนคลังก่อน` : 'เลือกเครื่อง แล้วกรอกจำนวนที่ต้องการเพิ่มหรือลด ไม่ต้องกรอกยอดรวม'}</small>
+      <Button htmlType="button" danger icon={<MinusOutlined />} onClick={removeMachines} title={removalReason || undefined} disabled={!!removalReason}>ลดจากคลัง</Button>
+      <small>{incomingMachine ? `มีทั้งหมด ${layout.owned[incomingMachine] ?? 0} · ผังคราฟใช้ ${craftUsed} · ผังแข่งใช้ ${competitionUsed} · ลดได้ ${availableToRemove} เครื่อง` : 'เลือกเครื่อง แล้วกรอกจำนวนที่ต้องการเพิ่มหรือลด ไม่ต้องกรอกยอดรวม'}</small>
+      {incomingMachine && removalReason && <Alert type="warning" showIcon message={removalReason} style={{ width: '100%' }} />}
+      {incomingMachine && <small>จำนวนใต้รูปในคลังคือเครื่องที่ว่างสำหรับแท็บนี้ ส่วนการลดจำนวนจะตรวจทั้งสองผัง</small>}
     </form>
     <div className="machine-layout__workspace">
       <aside className="machine-pool" onDragOver={e => e.preventDefault()} onDrop={e => { const value = readDrop(e); if (value) move(value); }}>
