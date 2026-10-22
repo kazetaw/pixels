@@ -6,6 +6,7 @@ import { ItemLabel, ItemThumbnail } from '../shared/ItemVisual';
 import { type MachineLayoutData, useSharedMachineLayout } from './useSharedMachineLayout';
 import './MachineLayout.css';
 import { placeMachines } from './placeMachines';
+import { exportFloorPng } from './exportFloorPng';
 
 type Floor = { id: number; slots: (string | null)[] };
 type Selection = { machine: string; floor?: number; slot?: number };
@@ -15,6 +16,7 @@ const MIME = 'application/x-pixels-machine';
 export function MachineLayout({ machines }: { machines: Machine[] }) {
   const { layout: sharedLayout, setLayout: setSharedLayout, status, error, ready, reload } = useSharedMachineLayout();
   const [mode, setMode] = useState('craft');
+  const [exporting, setExporting] = useState(false);
   const competitionFloors = sharedLayout.competitionFloors ?? sharedLayout.floors.map(f => emptyFloor(f.id));
   const layout = mode === 'craft' ? sharedLayout : { ...sharedLayout, floors: competitionFloors };
   function setLayout(update: (current: MachineLayoutData) => MachineLayoutData) {
@@ -185,6 +187,15 @@ export function MachineLayout({ machines }: { machines: Machine[] }) {
     </Modal>
     <header className="machine-layout__header"><div><h2>จัดเครื่องลงชั้น</h2><p>กรอกเครื่องที่มี แล้วลากลงช่องว่าง · ชั้นละ 12 เครื่อง คละชนิดได้</p></div>
       <div style={{ display: 'flex', gap: 8 }}>
+        <Button loading={exporting} disabled={!layout.floors.length} onClick={async () => {
+          setExporting(true);
+          try {
+            const result = await exportFloorPng(layout.floors, machines, mode);
+            if (result.missingImages) msg.warning(`บันทึก PNG แล้ว แต่โหลดรูปเครื่องไม่ได้ ${result.missingImages} ชนิด`);
+            else msg.success('บันทึกผัง A4 เป็น PNG แล้ว');
+          } catch (error) { msg.error(error instanceof Error ? error.message : 'ส่งออกรูปไม่สำเร็จ'); }
+          finally { setExporting(false); }
+        }}>Export PNG · A4</Button>
         <Popconfirm title="ล้างเครื่องทุกตัวออกจากทุกชั้น?" description="เครื่องจะกลับคืนคลัง ชั้นยังอยู่" okText="ล้างทั้งหมด" cancelText="ยกเลิก" okButtonProps={{ danger: true }}
           onConfirm={() => { setLayout(v => ({ ...v, floors: v.floors.map(f => ({ ...f, slots: Array(12).fill(null) })) })); setSelected(null); msg.success('ล้างเครื่องออกจากทุกชั้นแล้ว'); }}>
           <Button icon={<ClearOutlined />} danger disabled={placed === 0}>ล้างทั้งหมด</Button>
