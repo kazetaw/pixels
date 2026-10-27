@@ -45,6 +45,11 @@ export function ItemVisualProvider({ recipes, machines, stockImages, itemNames =
   return <VisualContext.Provider value={catalog}>{children}</VisualContext.Provider>;
 }
 
+export function useItemImages(ids: string[]) {
+  const catalog = useContext(VisualContext);
+  return Object.fromEntries(ids.map(id => [id, findVisual(catalog, id)?.image]));
+}
+
 export function useItemImage(id: string) {
   return findVisual(useContext(VisualContext), id)?.image;
 }
