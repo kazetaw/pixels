@@ -51,7 +51,7 @@ const shopTheme: ThemeConfig = {
     fontFamily: "'Inter', 'IBM Plex Sans Thai', 'Noto Sans Thai', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
   components: {
-    Segmented: { itemSelectedBg: '#FACC15', trackBg: '#E0F2FE', itemColor: '#075985', itemHoverColor: '#0C1E33', itemSelectedColor: '#0C1E33' },
+    Segmented: { itemSelectedBg: '#FFFFFF', trackBg: '#E0F2FE', itemColor: '#3B5470', itemHoverColor: '#0C1E33', itemSelectedColor: SKY },
     Table: { headerBg: '#E0F2FE', headerColor: '#075985', rowHoverBg: '#FEFCE8', borderColor: LINE, cellPaddingBlock: 12 },
     Button: { primaryShadow: 'none', defaultShadow: 'none', dangerShadow: 'none', fontWeight: 600 },
     Modal: { borderRadiusLG: 16 },
@@ -283,7 +283,7 @@ function StoreApp() {
       const res = await fetch('/api/upload-image', { method: 'POST', body: form });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.url) throw new Error(data.error || 'อัปโหลดโลโก้ไม่สำเร็จ');
-      setSession(s => s && { ...s, logo: `${data.url}?v=${Date.now()}` });
+      saveSession({ ...session, logo: `${data.url}?v=${Date.now()}` });
       void msgApi.success('เปลี่ยนรูปร้านแล้ว');
     } catch (e) { void msgApi.error(e instanceof Error ? e.message : 'อัปโหลดโลโก้ไม่สำเร็จ'); }
     finally { setUploadingLogo(false); if (logoInput.current) logoInput.current.value = ''; }
@@ -324,6 +324,8 @@ function StoreApp() {
   // Overview
   const [overviewSearch, setOverviewSearch] = useState('');
   const [stockFilter, setStockFilter] = useState<'all' | 'ready' | 'empty'>('all');
+  const [occFilter, setOccFilter] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<'name' | 'stock' | 'price' | 'ready'>('name');
   const [view, setView] = useState<'grid' | 'list'>(() => {
     try { return localStorage.getItem('shop-view') === 'list' ? 'list' : 'grid'; } catch { return 'grid'; }
   });
@@ -419,18 +421,56 @@ function StoreApp() {
   const pendingCount = Object.values(restockQtys).filter(q => q > 0).length;
   const pendingUnits = Object.values(restockQtys).reduce((s, q) => s + (q > 0 ? q : 0), 0);
 
-  // In-stock items first, so the sellable ones are always at the top.
+  // Occupation tags per item: the occupation of the machine that makes it, plus every occupation whose recipes use it.
+  const occByItem = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    if (!apiData) return map;
+    const machineOcc = new Map(apiData.machines.map(m => [m.machine_id, m.occupation]));
+    const add = (key: string, occ: string) => { const set = map.get(key) ?? new Set<string>(); set.add(occ); map.set(key, set); };
+    for (const r of apiData.recipes) {
+      const occ = machineOcc.get(r.machine_id ?? '');
+      if (!occ) continue;
+      add(r.id, occ); add(r.name, occ);
+      for (const ing of Object.keys(r.ingredients ?? {})) add(ing, occ);
+    }
+    return map;
+  }, [apiData]);
+  const occOf = (p: StoreProduct) => occByItem.get(p.item_id) ?? occByItem.get(p.name);
+  const occupations = useMemo(() => {
+    const order = ['วิศวะกร', 'หมอ', 'เชฟ', 'ไอดอล', 'เกษตร'];
+    const found = new Set<string>();
+    occByItem.forEach(set => set.forEach(o => { if (o !== 'ทุกอาชีพ') found.add(o); }));
+    return [...found].sort((a, b) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99) || a.localeCompare(b, 'th'));
+  }, [occByItem]);
+  const matchOcc = (p: StoreProduct, occ: string) => {
+    if (occ === 'all') return true;
+    const set = occOf(p);
+    if (occ === 'none') return !set || set.size === 0;
+    return !!set && (set.has(occ) || set.has('ทุกอาชีพ'));
+  };
+
+  // Default order: A–Z, then ก–ฮ.
+  const isThai = (name: string) => /^[\u0E00-\u0E7F]/.test(name.trim());
+  const byName = (a: StoreProduct, b: StoreProduct) => Number(isThai(a.name)) - Number(isThai(b.name))
+    || a.name.localeCompare(b.name, ['th', 'en'], { numeric: true, sensitivity: 'base' });
   const filteredOverview = useMemo(() => {
     const q = overviewSearch.toLowerCase().trim();
-    return products
-      .filter(p => (!q || p.name.toLowerCase().includes(q)) && (stockFilter === 'all' || (stockFilter === 'ready' ? p.stock > 0 : p.stock === 0)))
-      .sort((a, b) => Number(b.stock > 0) - Number(a.stock > 0));
-  }, [products, overviewSearch, stockFilter]);
+    const list = products.filter(p => (!q || p.name.toLowerCase().includes(q))
+      && (stockFilter === 'all' || (stockFilter === 'ready' ? p.stock > 0 : p.stock === 0))
+      && matchOcc(p, occFilter));
+    const cmp: Record<typeof sortBy, (a: StoreProduct, b: StoreProduct) => number> = {
+      name: byName,
+      ready: (a, b) => Number(b.stock > 0) - Number(a.stock > 0) || byName(a, b),
+      stock: (a, b) => b.stock - a.stock || byName(a, b),
+      price: (a, b) => a.price - b.price || byName(a, b),
+    };
+    return list.sort(cmp[sortBy]);
+  }, [products, overviewSearch, stockFilter, occFilter, sortBy, occByItem]);
 
   const filteredRestock = useMemo(() => {
     const q = restockSearch.toLowerCase().trim();
     return products.filter(p => (!q || p.name.toLowerCase().includes(q))
-      && (restockFilter === 'all' || (restockFilter === 'empty' ? p.stock === 0 : (restockQtys[p.item_id] ?? 0) > 0)));
+      && (restockFilter === 'all' || (restockFilter === 'empty' ? p.stock === 0 : (restockQtys[p.item_id] ?? 0) > 0))).sort(byName);
   }, [products, restockSearch, restockFilter, restockQtys]);
 
   const goRestock = (p: StoreProduct) => openQuickRestock(p.item_id);
@@ -482,7 +522,7 @@ function StoreApp() {
   if (!session) return <StoreGate onEntered={(id, name, logo) => saveSession({ storeId: id, storeName: name, logo })} />;
 
   const heading: Record<Tab, [string, string]> = {
-    overview: ['หน้าร้าน', 'เลือกสินค้าแล้วกดขาย — สินค้าที่มีของจะแสดงก่อน'],
+    overview: ['หน้าร้าน', 'เลือกสินค้าแล้วกดขาย'],
     restock: ['เติมสต็อก', 'กรอกจำนวนที่ได้รับเพิ่มในช่อง "เพิ่ม (ชิ้น)" ได้หลายรายการ แล้วกดบันทึกครั้งเดียว'],
     sales: ['ประวัติขาย', 'รายการขายทั้งหมดของร้าน'],
   };
@@ -496,7 +536,9 @@ function StoreApp() {
             <Tooltip title="เปลี่ยนรูปร้าน">
               <button type="button" className="shop-logo-btn" aria-label="เปลี่ยนรูปร้าน" disabled={uploadingLogo} onClick={() => logoInput.current?.click()}>
                 <StoreLogo src={session.logo} size={40} />
-                <span className="shop-logo-btn__edit">{uploadingLogo ? <Spin size="small" /> : <CameraOutlined />}</span>
+                {session.logo
+                  ? <span className={`shop-logo-btn__overlay${uploadingLogo ? ' is-busy' : ''}`}>{uploadingLogo ? <Spin size="small" /> : <CameraOutlined />}</span>
+                  : <span className="shop-logo-btn__edit">{uploadingLogo ? <Spin size="small" /> : <CameraOutlined />}</span>}
               </button>
             </Tooltip>
             <input ref={logoInput} type="file" accept="image/*" hidden onChange={e => void uploadLogo(e.target.files?.[0])} />
@@ -516,7 +558,7 @@ function StoreApp() {
         <div className="shop-head">
           <div><h1>{heading[tab][0]}</h1><p>{heading[tab][1]}</p></div>
           {tab === 'overview' && <Button type="primary" icon={<PlusOutlined />} onClick={() => openEditor('new')}>เพิ่มสินค้าในร้าน</Button>}
-          {tab === 'restock' && <Button className="shop-btn-sun" icon={<PlusOutlined />} onClick={() => openQuickRestock()}>เติมสต็อกทีละรายการ</Button>}
+          {tab === 'restock' && <Button type="primary" icon={<PlusOutlined />} onClick={() => openQuickRestock()}>เติมสต็อกทีละรายการ</Button>}
         </div>
         {loadError && <Alert className="shop-alert" type="error" showIcon message={loadError} action={<Button size="small" onClick={() => void fetchAll(session.storeId)}>ลองใหม่</Button>} />}
 
@@ -538,6 +580,12 @@ function StoreApp() {
                 { value: 'empty', label: `หมด ${outOfStock}` },
               ]} />
               <div className="shop-toolbar__end">
+                <Select aria-label="เรียงลำดับ" value={sortBy} onChange={setSortBy} style={{ width: 150 }} options={[
+                  { value: 'name', label: 'ชื่อ A–Z ก–ฮ' },
+                  { value: 'ready', label: 'มีของก่อน' },
+                  { value: 'stock', label: 'คงเหลือมากสุด' },
+                  { value: 'price', label: 'ราคาต่ำ → สูง' },
+                ]} />
                 <Segmented value={view} onChange={setView} options={[
                   { value: 'grid', icon: <AppstoreOutlined />, title: 'มุมมองการ์ด' },
                   { value: 'list', icon: <BarsOutlined />, title: 'มุมมองตาราง' },
@@ -545,6 +593,14 @@ function StoreApp() {
                 <Tooltip title="รีเฟรช"><Button icon={<ReloadOutlined />} loading={loading} aria-label="รีเฟรช" onClick={() => void fetchAll(session.storeId)} /></Tooltip>
               </div>
             </div>
+            {occupations.length > 0 && (
+              <div className="shop-occ" role="group" aria-label="กรองตามอาชีพ">
+                {[['all', 'ทุกอาชีพ'] as const, ...occupations.map(o => [o, o] as const)].map(([key, label]) => {
+                  const count = products.filter(p => matchOcc(p, key)).length;
+                  return <Tag.CheckableTag key={key} checked={occFilter === key} onChange={() => setOccFilter(key)}>{label} <span>{count}</span></Tag.CheckableTag>;
+                })}
+              </div>
+            )}
 
             {loading && !products.length ? <div className="shop-center"><Spin /></div>
               : filteredOverview.length === 0 ? <Empty className="shop-empty" image={Empty.PRESENTED_IMAGE_SIMPLE} description="ไม่พบสินค้า" />
@@ -561,14 +617,14 @@ function StoreApp() {
                         <Dropdown menu={moreMenu(p)} trigger={['click']} placement="bottomRight">
                           <Button className="shop-card__more" size="small" type="text" icon={<MoreOutlined />} aria-label={`ตัวเลือก ${p.name}`} />
                         </Dropdown>
-                        <ItemImg src={getImg(p)} name={p.name} size={48} />
+                        <ItemImg src={getImg(p)} name={p.name} size={52} />
                         <h3 title={p.name}>{p.name}</h3>
                         <div className="shop-card__meta">
                           <span className="shop-card__price">{fmtMoney(p.price)}</span>
                           <span className={empty ? 'shop-danger' : 'shop-muted'}>{empty ? 'หมด' : `${fmt(p.stock)} ชิ้น`}</span>
                         </div>
                         {empty
-                          ? <Button size="small" block onClick={() => goRestock(p)} icon={<PlusOutlined />}>เติมสต็อก</Button>
+                          ? <Button size="small" block color="primary" variant="outlined" onClick={() => goRestock(p)} icon={<PlusOutlined />}>เติมสต็อก</Button>
                           : <Button size="small" block type="primary" icon={<ShoppingCartOutlined />} onClick={() => setSellProduct(p)}>ขาย</Button>}
                       </article>
                     );
