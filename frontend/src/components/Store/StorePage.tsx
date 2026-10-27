@@ -200,9 +200,11 @@ export function StorePage() {
     fetchAllData().then(data => setApiData(data)).catch(() => { /* silent — stock shows 0 */ });
   }, [verified]);
 
-  // Initialise localStock from API data (once)
+  // Initialise localStock from API data — only once; do NOT reset on re-fetch
+  const stockInitialised = useRef(false);
   useEffect(() => {
-    if (apiData) {
+    if (apiData && !stockInitialised.current) {
+      stockInitialised.current = true;
       setLocalStock({ ...apiData.stocks });
     }
   }, [apiData]);
