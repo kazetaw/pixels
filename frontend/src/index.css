@@ -1903,8 +1903,11 @@ body {
 .store-restock-row__note { font-size: 12px; color: #64748b; margin-top: 2px; }
 
 .store-tab-content { padding-top: 8px; }
-.store-revenue-stat { padding: 16px; font-size: 15px; font-weight: 600; color: #0f172a; }
-.store-revenue-stat span { color: #4f46e5; font-size: 20px; margin-left: 8px; }
+.store-revenue-stat { padding: 16px; font-size: 15px; font-weight: 600; color: #0f172a; display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px; }
+.store-revenue-stat > span:first-child { color: #0f172a; }
+
+/* Store product card — full width for action buttons */
+.store-product-card .ant-btn { font-size: 12px !important; height: 28px !important; }
 
 @media (max-width: 480px) {
   .store-summary-row { grid-template-columns: 1fr 1fr; }

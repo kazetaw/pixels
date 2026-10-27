@@ -1,154 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button, InputNumber, Input, Modal, Select, Table } from 'antd';
+import { Button, Input, InputNumber, Modal, Select, Table, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { fetchAllData } from '../../api/client';
 import type { AppData } from '../../types';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-type SaleRecord = {
-  id: string;
-  item_id: string;
-  item_name: string;
-  qty: number;
-  price_per_unit: number;
-  total: number;
-  sold_at: string;
-};
-
-type RestockRecord = {
-  id: string;
-  item_id: string;
-  item_name: string;
-  qty: number;
-  note: string;
-  restocked_at: string;
-};
-
-// ── Constants ────────────────────────────────────────────────────────────────
-
-const STORE_PIN = '3333';
-const PIN_LENGTH = 4;
-const LS_VERIFIED = 'store-pin-verified';
-const LS_PRICES = 'store-prices';
-const LS_SALES = 'store-sales';
-const LS_RESTOCKS = 'store-restocks';
-
-function readLS<T>(key: string, fallback: T): T {
-  try {
-    const raw = localStorage.getItem(key);
-    if (raw === null) return fallback;
-    return JSON.parse(raw) as T;
-  } catch {
-    return fallback;
-  }
-}
-
-function writeLS(key: string, value: unknown) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch { /* ignore */ }
-}
-
-// ── PIN Gate ──────────────────────────────────────────────────────────────────
-
-function PinGate({ onVerified }: { onVerified: () => void }) {
-  const [digits, setDigits] = useState<string[]>(['', '', '', '']);
-  const [error, setError] = useState(false);
-  const refs = useRef<(HTMLInputElement | null)[]>([]);
-
-  const handleDigit = (index: number, value: string) => {
-    const digit = value.replace(/\D/g, '').slice(-1);
-    const next = [...digits];
-    next[index] = digit;
-    setDigits(next);
-    setError(false);
-
-    if (digit && index < PIN_LENGTH - 1) {
-      refs.current[index + 1]?.focus();
-    }
-
-    if (digit && index === PIN_LENGTH - 1) {
-      const entered = next.join('');
-      if (entered === STORE_PIN) {
-        try { localStorage.setItem(LS_VERIFIED, '1'); } catch { /* ignore */ }
-        onVerified();
-      } else {
-        setError(true);
-        setTimeout(() => {
-          setDigits(['', '', '', '']);
-          setError(false);
-          refs.current[0]?.focus();
-        }, 600);
-      }
-    }
-  };
-
-  const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Backspace' && !digits[index] && index > 0) {
-      refs.current[index - 1]?.focus();
-    }
-  };
-
-  useEffect(() => {
-    refs.current[0]?.focus();
-  }, []);
-
-  return (
-    <div className="store-pin-gate">
-      <div style={{ background: '#fff', borderRadius: 16, padding: '40px 32px', boxShadow: '0 4px 24px rgba(0,0,0,.08)', textAlign: 'center', minWidth: 280 }}>
-        <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: 22 }}>🔑</div>
-        <h2 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 700, color: '#0f172a' }}>ร้านค้า</h2>
-        <p style={{ margin: '0 0 24px', fontSize: 13, color: '#64748b' }}>กรอก PIN เพื่อเข้าใช้งาน</p>
-
-        {/* Dot display */}
-        <div className="store-pin-dots" style={{ justifyContent: 'center', marginBottom: 24 }}>
-          {digits.map((d, i) => (
-            <div key={i} style={{ position: 'relative', width: 52, height: 52 }}>
-              {/* Circle background */}
-              <div style={{
-                position: 'absolute', inset: 0, borderRadius: '50%',
-                border: `2px solid ${error ? '#ef4444' : '#e2e8f0'}`,
-                background: '#fff',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                {d && (
-                  <div style={{
-                    width: 12, height: 12, borderRadius: '50%',
-                    background: error ? '#ef4444' : '#4f46e5',
-                  }} />
-                )}
-              </div>
-              {/* Hidden input */}
-              <input
-                ref={el => { refs.current[i] = el; }}
-                type="password"
-                inputMode="numeric"
-                maxLength={1}
-                value={d}
-                onChange={e => handleDigit(i, e.target.value)}
-                onKeyDown={e => handleKeyDown(i, e)}
-                style={{
-                  position: 'absolute', inset: 0, opacity: 0,
-                  width: '100%', height: '100%', cursor: 'text',
-                }}
-                aria-label={`PIN หลักที่ ${i + 1}`}
-              />
-            </div>
-          ))}
-        </div>
-
-        {error && (
-          <p style={{ margin: 0, fontSize: 13, color: '#ef4444' }}>PIN ไม่ถูกต้อง</p>
-        )}
-      </div>
-    </div>
-  );
-}
+type StoreRow = { id: string; name: string };
+type StoreProduct = { item_id: string; name: string; image_url: string | null; price: number; stock: number };
+type RestockRecord = { id: string; item_id: string; item_name: string; image_url: string | null; qty: number; note: string; restocked_at: string };
+type SaleRecord = { id: string; item_id: string; item_name: string; image_url: string | null; qty: number; price_per_unit: number; total: number; note: string; sold_at: string };
 
 // ── Item image helper ──────────────────────────────────────────────────────
 
-function ItemImg({ src, name, size = 40 }: { src?: string; name: string; size?: number }) {
+function ItemImg({ src, name, size = 40 }: { src?: string | null; name: string; size?: number }) {
   if (src) {
     return (
       <img
@@ -171,122 +36,603 @@ function ItemImg({ src, name, size = 40 }: { src?: string; name: string; size?: 
   );
 }
 
-// ── Main StorePage ─────────────────────────────────────────────────────────
+// ── PIN input (4 individual digits, auto-advance, auto-submit) ────────────────
+
+const PIN_LENGTH = 4;
+
+function PinDots({
+  onSubmit,
+  error,
+  onClear,
+}: {
+  onSubmit: (pin: string) => void;
+  error: boolean;
+  onClear: () => void;
+}) {
+  const [digits, setDigits] = useState<string[]>(['', '', '', '']);
+  const refs = useRef<(HTMLInputElement | null)[]>([]);
+
+  // Clear digits when error is signalled
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        setDigits(['', '', '', '']);
+        onClear();
+        refs.current[0]?.focus();
+      }, 600);
+      return () => clearTimeout(timer);
+    }
+  }, [error, onClear]);
+
+  useEffect(() => {
+    refs.current[0]?.focus();
+  }, []);
+
+  const handleDigit = (index: number, value: string) => {
+    const digit = value.replace(/\D/g, '').slice(-1);
+    const next = [...digits];
+    next[index] = digit;
+    setDigits(next);
+
+    if (digit && index < PIN_LENGTH - 1) {
+      refs.current[index + 1]?.focus();
+    }
+
+    if (digit && index === PIN_LENGTH - 1) {
+      onSubmit(next.join(''));
+    }
+  };
+
+  const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace' && !digits[index] && index > 0) {
+      refs.current[index - 1]?.focus();
+    }
+  };
+
+  return (
+    <div className="store-pin-dots" style={{ justifyContent: 'center' }}>
+      {digits.map((d, i) => (
+        <div key={i} style={{ position: 'relative', width: 52, height: 52 }}>
+          <div style={{
+            position: 'absolute', inset: 0, borderRadius: '50%',
+            border: `2px solid ${error ? '#ef4444' : '#e2e8f0'}`,
+            background: '#fff',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            {d && (
+              <div style={{
+                width: 12, height: 12, borderRadius: '50%',
+                background: error ? '#ef4444' : '#4f46e5',
+              }} />
+            )}
+          </div>
+          <input
+            ref={el => { refs.current[i] = el; }}
+            type="password"
+            inputMode="numeric"
+            maxLength={1}
+            value={d}
+            onChange={e => handleDigit(i, e.target.value)}
+            onKeyDown={e => handleKeyDown(i, e)}
+            style={{ position: 'absolute', inset: 0, opacity: 0, width: '100%', height: '100%', cursor: 'text' }}
+            aria-label={`PIN หลักที่ ${i + 1}`}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Store selector / creator ──────────────────────────────────────────────────
+
+function StoreGate({ onEntered }: { onEntered: (storeId: string, storeName: string) => void }) {
+  const [stores, setStores] = useState<StoreRow[] | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Create store form
+  const [newName, setNewName] = useState('');
+  const [newPin, setNewPin] = useState('');
+  const [creating, setCreating] = useState(false);
+
+  // PIN verification
+  const [selectedStoreId, setSelectedStoreId] = useState<string | undefined>();
+  const [pinError, setPinError] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/store/list')
+      .then(r => r.json())
+      .then((data: StoreRow[]) => { setStores(data); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  const handleCreate = async () => {
+    if (!newName.trim() || !/^\d{4}$/.test(newPin)) return;
+    setCreating(true);
+    try {
+      const res = await fetch('/api/store', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newName.trim(), pin: newPin }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        void message.error(err.error ?? 'สร้างร้านไม่สำเร็จ');
+        return;
+      }
+      const store: StoreRow = await res.json();
+      // Auto-enter the newly-created store (no PIN re-entry needed)
+      onEntered(store.id, store.name);
+    } catch {
+      void message.error('สร้างร้านไม่สำเร็จ');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handlePinSubmit = async (pin: string) => {
+    if (!selectedStoreId || verifying) return;
+    setVerifying(true);
+    try {
+      const res = await fetch('/api/store/verify-pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ store_id: selectedStoreId, pin }),
+      });
+      if (!res.ok) {
+        setPinError(true);
+        return;
+      }
+      const storeName = stores?.find(s => s.id === selectedStoreId)?.name ?? '';
+      onEntered(selectedStoreId, storeName);
+    } catch {
+      setPinError(true);
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="store-pin-gate">
+        <div style={{ color: '#64748b', fontSize: 13 }}>กำลังโหลด...</div>
+      </div>
+    );
+  }
+
+  // No stores yet — show create form
+  if (stores && stores.length === 0) {
+    return (
+      <div className="store-pin-gate">
+        <div style={{ background: '#fff', borderRadius: 16, padding: '40px 32px', boxShadow: '0 4px 24px rgba(0,0,0,.08)', textAlign: 'center', minWidth: 300 }}>
+          <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: 22 }}>🏪</div>
+          <h2 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 700, color: '#0f172a' }}>สร้างร้านใหม่</h2>
+          <p style={{ margin: '0 0 24px', fontSize: 13, color: '#64748b' }}>ยังไม่มีร้าน กรุณาสร้างร้านแรก</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, textAlign: 'left' }}>
+            <label>
+              <span style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>ชื่อร้าน</span>
+              <Input
+                value={newName}
+                onChange={e => setNewName(e.target.value)}
+                placeholder="เช่น ร้านค้าหลัก"
+                maxLength={100}
+              />
+            </label>
+            <label>
+              <span style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>PIN (4 หลัก)</span>
+              <Input.Password
+                value={newPin}
+                onChange={e => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                placeholder="0000"
+                inputMode="numeric"
+                maxLength={4}
+              />
+            </label>
+            <Button
+              type="primary"
+              loading={creating}
+              disabled={!newName.trim() || newPin.length !== 4}
+              onClick={() => void handleCreate()}
+              style={{ marginTop: 4 }}
+            >
+              สร้างร้าน
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Stores exist — show selector then PIN entry
+  return (
+    <div className="store-pin-gate">
+      <div style={{ background: '#fff', borderRadius: 16, padding: '40px 32px', boxShadow: '0 4px 24px rgba(0,0,0,.08)', textAlign: 'center', minWidth: 300 }}>
+        <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: 22 }}>🔑</div>
+        <h2 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 700, color: '#0f172a' }}>ร้านค้า</h2>
+        <p style={{ margin: '0 0 24px', fontSize: 13, color: '#64748b' }}>เลือกร้านและกรอก PIN เพื่อเข้าใช้งาน</p>
+
+        <div style={{ marginBottom: 20, textAlign: 'left' }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>ร้านค้า</span>
+          <Select
+            style={{ width: '100%' }}
+            placeholder="เลือกร้าน"
+            value={selectedStoreId}
+            onChange={v => { setSelectedStoreId(v); setPinError(false); }}
+            options={(stores ?? []).map(s => ({ value: s.id, label: s.name }))}
+          />
+        </div>
+
+        {selectedStoreId && (
+          <>
+            <p style={{ margin: '0 0 16px', fontSize: 13, color: '#64748b' }}>กรอก PIN เพื่อเข้าร้าน</p>
+            <PinDots
+              onSubmit={handlePinSubmit}
+              error={pinError}
+              onClear={() => setPinError(false)}
+            />
+            {pinError && (
+              <p style={{ margin: '12px 0 0', fontSize: 13, color: '#ef4444' }}>PIN ไม่ถูกต้อง</p>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Add Product Modal ─────────────────────────────────────────────────────────
+
+function AddProductModal({
+  open,
+  storeId,
+  existingItemIds,
+  apiData,
+  onClose,
+  onAdded,
+}: {
+  open: boolean;
+  storeId: string;
+  existingItemIds: Set<string>;
+  apiData: AppData | null;
+  onClose: () => void;
+  onAdded: () => void;
+}) {
+  const [itemId, setItemId] = useState<string | undefined>();
+  const [price, setPrice] = useState<number | null>(0);
+  const [saving, setSaving] = useState(false);
+
+  const itemOptions = Object.entries(apiData?.itemNames ?? {})
+    .filter(([id]) => !existingItemIds.has(id))
+    .map(([id, name]) => ({ value: id, label: name }));
+
+  const handleOk = async () => {
+    if (!itemId || price === null || price < 0) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/store/${storeId}/products`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item_id: itemId, price }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        void message.error(err.error ?? 'เพิ่มสินค้าไม่สำเร็จ');
+        return;
+      }
+      setItemId(undefined);
+      setPrice(0);
+      onAdded();
+    } catch {
+      void message.error('เพิ่มสินค้าไม่สำเร็จ');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal
+      open={open}
+      title="เพิ่มสินค้าในร้าน"
+      okText="เพิ่มสินค้า"
+      cancelText="ยกเลิก"
+      onOk={() => void handleOk()}
+      onCancel={onClose}
+      confirmLoading={saving}
+      okButtonProps={{ disabled: !itemId || price === null || price < 0 }}
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '8px 0' }}>
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>สินค้า</span>
+          <Select
+            showSearch
+            optionFilterProp="label"
+            placeholder="ค้นหาและเลือกสินค้า"
+            value={itemId}
+            onChange={setItemId}
+            options={itemOptions}
+            style={{ width: '100%' }}
+          />
+        </label>
+        {itemId && apiData?.stockImages[itemId] && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <ItemImg src={apiData.stockImages[itemId]} name={apiData.itemNames[itemId] ?? ''} size={40} />
+            <span style={{ fontSize: 13, color: '#374151' }}>{apiData.itemNames[itemId]}</span>
+          </div>
+        )}
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>ราคา (฿)</span>
+          <InputNumber
+            min={0}
+            precision={2}
+            value={price}
+            onChange={v => setPrice(v)}
+            addonBefore="฿"
+            style={{ width: '100%' }}
+            placeholder="0.00"
+          />
+        </label>
+      </div>
+    </Modal>
+  );
+}
+
+// ── Sell Modal ─────────────────────────────────────────────────────────────────
+
+function SellModal({
+  product,
+  storeId,
+  apiData,
+  onClose,
+  onSold,
+}: {
+  product: StoreProduct | null;
+  storeId: string;
+  apiData: AppData | null;
+  onClose: () => void;
+  onSold: () => void;
+}) {
+  const [qty, setQty] = useState<number | null>(1);
+  const [note, setNote] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (product) { setQty(1); setNote(''); }
+  }, [product?.item_id]);
+
+  const handleSell = async () => {
+    if (!product || !qty || qty < 1) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/store/${storeId}/sales`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item_id: product.item_id, qty, note }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        void message.error(err.error ?? 'บันทึกการขายไม่สำเร็จ');
+        return;
+      }
+      onSold();
+    } catch {
+      void message.error('บันทึกการขายไม่สำเร็จ');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const total = product && qty ? product.price * qty : 0;
+
+  return (
+    <Modal
+      open={!!product}
+      title={product?.name ?? ''}
+      okText="ยืนยันการขาย"
+      cancelText="ยกเลิก"
+      onOk={() => void handleSell()}
+      onCancel={onClose}
+      confirmLoading={saving}
+      okButtonProps={{ disabled: !qty || qty < 1 }}
+    >
+      {product && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '8px 0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <ItemImg src={product.image_url ?? apiData?.stockImages[product.item_id]} name={product.name} size={40} />
+            <div>
+              <div style={{ fontSize: 13, color: '#64748b' }}>
+                สต็อกคงเหลือ: <strong style={{ color: '#0f172a' }}>{product.stock.toLocaleString('th-TH')} ชิ้น</strong>
+              </div>
+              <div style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>
+                ราคา/ชิ้น: <strong style={{ color: '#4f46e5' }}>฿{new Intl.NumberFormat('th-TH').format(product.price)}</strong>
+              </div>
+            </div>
+          </div>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>จำนวนที่ขาย</span>
+            <InputNumber
+              autoFocus
+              min={1}
+              max={product.stock}
+              precision={0}
+              value={qty}
+              onChange={setQty}
+              style={{ width: '100%' }}
+            />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>หมายเหตุ (ไม่บังคับ)</span>
+            <Input
+              value={note}
+              onChange={e => setNote(e.target.value)}
+              placeholder="เช่น ลูกค้า VIP"
+              maxLength={200}
+            />
+          </label>
+          {qty && qty > 0 && (
+            <div style={{ padding: '10px 14px', background: '#eef2ff', borderRadius: 8, fontSize: 14, fontWeight: 600, color: '#4f46e5' }}>
+              รวม ฿{new Intl.NumberFormat('th-TH').format(total)}
+            </div>
+          )}
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+// ── Main StorePage ─────────────────────────────────────────────────────────────
 
 export function StorePage() {
-  const [verified, setVerified] = useState(() => {
-    try { return localStorage.getItem(LS_VERIFIED) === '1'; } catch { return false; }
-  });
+  // Store session (not persisted — PIN required on each load)
+  const [session, setSession] = useState<{ storeId: string; storeName: string } | null>(null);
 
   const [tab, setTab] = useState<'overview' | 'restock' | 'sales'>('overview');
   const [apiData, setApiData] = useState<AppData | null>(null);
-  const [localStock, setLocalStock] = useState<Record<string, number>>({});
-  const [prices, setPrices] = useState<Record<string, number>>(() => readLS(LS_PRICES, {}));
-  const [sales, setSales] = useState<SaleRecord[]>(() => readLS(LS_SALES, []));
-  const [restocks, setRestocks] = useState<RestockRecord[]>(() => readLS(LS_RESTOCKS, []));
 
-  // Sell modal state
-  const [sellItem, setSellItem] = useState<{ id: string; name: string } | null>(null);
-  const [sellQty, setSellQty] = useState<number>(1);
+  // Store data
+  const [products, setProducts] = useState<StoreProduct[]>([]);
+  const [restocks, setRestocks] = useState<RestockRecord[]>([]);
+  const [sales, setSales] = useState<SaleRecord[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
 
-  // Restock form state
+  // Sell modal
+  const [sellProduct, setSellProduct] = useState<StoreProduct | null>(null);
+
+  // Add product modal
+  const [addOpen, setAddOpen] = useState(false);
+
+  // Restock form
   const [restockItemId, setRestockItemId] = useState<string | undefined>();
   const [restockQty, setRestockQty] = useState<number | null>(1);
   const [restockNote, setRestockNote] = useState('');
+  const [restocking, setRestocking] = useState(false);
 
-  // Load API data on mount
+  // Load API data (items catalog) once we have a session
   useEffect(() => {
-    if (!verified) return;
-    fetchAllData().then(data => setApiData(data)).catch(() => { /* silent — stock shows 0 */ });
-  }, [verified]);
+    if (!session) return;
+    fetchAllData().then(data => setApiData(data)).catch(() => { /* silent */ });
+  }, [session?.storeId]);
 
-  // Initialise localStock from API data — only once; do NOT reset on re-fetch
-  const stockInitialised = useRef(false);
-  useEffect(() => {
-    if (apiData && !stockInitialised.current) {
-      stockInitialised.current = true;
-      setLocalStock({ ...apiData.stocks });
+  // Fetch all store data
+  const fetchAll = async (storeId: string) => {
+    setLoadingProducts(true);
+    try {
+      const [pRes, rRes, sRes] = await Promise.all([
+        fetch(`/api/store/${storeId}/products`),
+        fetch(`/api/store/${storeId}/restocks`),
+        fetch(`/api/store/${storeId}/sales`),
+      ]);
+      if (pRes.ok) setProducts(await pRes.json());
+      if (rRes.ok) setRestocks(await rRes.json());
+      if (sRes.ok) setSales(await sRes.json());
+    } catch {
+      void message.error('โหลดข้อมูลร้านไม่สำเร็จ');
+    } finally {
+      setLoadingProducts(false);
     }
-  }, [apiData]);
-
-  // ── Helpers ────────────────────────────────────────────────────────────────
-
-  const savePrice = (itemId: string, price: number) => {
-    const next = { ...prices, [itemId]: price };
-    setPrices(next);
-    writeLS(LS_PRICES, next);
   };
 
-  const addSale = (sale: SaleRecord) => {
-    const next = [sale, ...sales];
-    setSales(next);
-    writeLS(LS_SALES, next);
-    setLocalStock(prev => ({ ...prev, [sale.item_id]: Math.max(0, (prev[sale.item_id] ?? 0) - sale.qty) }));
+  useEffect(() => {
+    if (session) void fetchAll(session.storeId);
+  }, [session?.storeId]);
+
+  // ── Summary stats ────────────────────────────────────────────────────────────
+
+  const totalItems = products.length;
+  const totalStock = products.reduce((s, p) => s + p.stock, 0);
+  const totalRevenue = sales.reduce((s, r) => s + Number(r.total), 0);
+  const totalUnitsSold = sales.reduce((s, r) => s + r.qty, 0);
+
+  // ── Price update (inline) ────────────────────────────────────────────────────
+
+  const handlePriceBlur = async (product: StoreProduct, newPrice: number | null) => {
+    if (newPrice === null || newPrice < 0 || newPrice === product.price) return;
+    if (!session) return;
+    try {
+      const res = await fetch(`/api/store/${session.storeId}/products/${product.item_id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ price: newPrice }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        void message.error(err.error ?? 'อัปเดตราคาไม่สำเร็จ');
+        return;
+      }
+      setProducts(prev => prev.map(p => p.item_id === product.item_id ? { ...p, price: newPrice } : p));
+    } catch {
+      void message.error('อัปเดตราคาไม่สำเร็จ');
+    }
   };
 
-  const addRestock = (record: RestockRecord) => {
-    const next = [record, ...restocks];
-    setRestocks(next);
-    writeLS(LS_RESTOCKS, next);
-    setLocalStock(prev => ({ ...prev, [record.item_id]: (prev[record.item_id] ?? 0) + record.qty }));
+  // ── Restock ──────────────────────────────────────────────────────────────────
+
+  const handleRestock = async () => {
+    if (!session || !restockItemId || !restockQty || restockQty < 1) return;
+    setRestocking(true);
+    try {
+      const res = await fetch(`/api/store/${session.storeId}/restock`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item_id: restockItemId, qty: restockQty, note: restockNote.trim() }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        void message.error(err.error ?? 'เติมสต็อกไม่สำเร็จ');
+        return;
+      }
+      setRestockItemId(undefined);
+      setRestockQty(1);
+      setRestockNote('');
+      void fetchAll(session.storeId);
+    } catch {
+      void message.error('เติมสต็อกไม่สำเร็จ');
+    } finally {
+      setRestocking(false);
+    }
   };
 
-  const deleteSale = (id: string) => {
-    const next = sales.filter(s => s.id !== id);
-    setSales(next);
-    writeLS(LS_SALES, next);
+  // ── Delete sale ───────────────────────────────────────────────────────────────
+
+  const handleDeleteSale = async (saleId: string) => {
+    if (!session) return;
+    try {
+      const res = await fetch(`/api/store/${session.storeId}/sales/${saleId}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const err = await res.json();
+        void message.error(err.error ?? 'ลบรายการขายไม่สำเร็จ');
+        return;
+      }
+      setSales(prev => prev.filter(s => s.id !== saleId));
+    } catch {
+      void message.error('ลบรายการขายไม่สำเร็จ');
+    }
   };
 
-  // ── Summary stats ──────────────────────────────────────────────────────────
+  // ── Remove product ────────────────────────────────────────────────────────────
 
-  const totalItems = Object.values(localStock).filter(v => v > 0).length;
-  const totalStock = Object.values(localStock).reduce((s, v) => s + v, 0);
-  const totalRevenue = sales.reduce((s, r) => s + r.total, 0);
-
-  // ── Sell modal ─────────────────────────────────────────────────────────────
-
-  const handleSellConfirm = () => {
-    if (!sellItem || !sellQty || sellQty < 1) return;
-    const pricePerUnit = prices[sellItem.id] ?? 0;
-    addSale({
-      id: crypto.randomUUID(),
-      item_id: sellItem.id,
-      item_name: sellItem.name,
-      qty: sellQty,
-      price_per_unit: pricePerUnit,
-      total: pricePerUnit * sellQty,
-      sold_at: new Date().toISOString(),
-    });
-    setSellItem(null);
-    setSellQty(1);
+  const handleRemoveProduct = async (itemId: string) => {
+    if (!session) return;
+    try {
+      const res = await fetch(`/api/store/${session.storeId}/products/${itemId}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const err = await res.json();
+        void message.error(err.error ?? 'ลบสินค้าไม่สำเร็จ');
+        return;
+      }
+      setProducts(prev => prev.filter(p => p.item_id !== itemId));
+    } catch {
+      void message.error('ลบสินค้าไม่สำเร็จ');
+    }
   };
 
-  // ── Restock form ───────────────────────────────────────────────────────────
-
-  const handleRestock = () => {
-    if (!restockItemId || !restockQty || restockQty < 1) return;
-    const name = apiData?.itemNames[restockItemId] ?? 'ไม่พบชื่อสินค้า';
-    addRestock({
-      id: crypto.randomUUID(),
-      item_id: restockItemId,
-      item_name: name,
-      qty: restockQty,
-      note: restockNote.trim(),
-      restocked_at: new Date().toISOString(),
-    });
-    setRestockItemId(undefined);
-    setRestockQty(1);
-    setRestockNote('');
-  };
-
-  // ── Sales table columns ────────────────────────────────────────────────────
+  // ── Sales table columns ───────────────────────────────────────────────────────
 
   const salesColumns: ColumnsType<SaleRecord> = [
     {
       title: 'วันที่/เวลา',
       dataIndex: 'sold_at',
       key: 'sold_at',
-      width: 140,
+      width: 150,
       render: (v: string) => new Date(v).toLocaleString('th-TH'),
     },
     {
@@ -294,7 +640,7 @@ export function StorePage() {
       key: 'item',
       render: (_: unknown, r: SaleRecord) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <ItemImg src={apiData?.stockImages[r.item_id]} name={r.item_name} size={28} />
+          <ItemImg src={r.image_url} name={r.item_name} size={28} />
           <span style={{ fontSize: 13 }}>{r.item_name}</span>
         </div>
       ),
@@ -310,49 +656,61 @@ export function StorePage() {
       title: 'ราคา/หน่วย',
       dataIndex: 'price_per_unit',
       key: 'price_per_unit',
-      width: 100,
+      width: 110,
       align: 'right' as const,
-      render: (v: number) => v.toLocaleString('th-TH'),
+      render: (v: number) => `฿${new Intl.NumberFormat('th-TH').format(v)}`,
     },
     {
       title: 'รวม',
       dataIndex: 'total',
       key: 'total',
-      width: 100,
+      width: 110,
       align: 'right' as const,
-      render: (v: number) => v.toLocaleString('th-TH'),
+      render: (v: number) => `฿${new Intl.NumberFormat('th-TH').format(v)}`,
     },
     {
-      title: 'ลบ',
+      title: 'หมายเหตุ',
+      dataIndex: 'note',
+      key: 'note',
+      render: (v: string) => v || '—',
+    },
+    {
+      title: '',
       key: 'delete',
       width: 60,
       align: 'center' as const,
       render: (_: unknown, r: SaleRecord) => (
-        <Button danger size="small" onClick={() => deleteSale(r.id)}>ลบ</Button>
+        <Button danger size="small" onClick={() => void handleDeleteSale(r.id)}>ลบ</Button>
       ),
     },
   ];
 
-  // ── Items list for dropdowns ───────────────────────────────────────────────
+  // ── Guard: show store gate if no session ──────────────────────────────────────
 
-  const itemOptions = Object.entries(apiData?.itemNames ?? {}).map(([id, name]) => ({
-    value: id,
-    label: name,
-  }));
-
-  // ── Guard: PIN ─────────────────────────────────────────────────────────────
-
-  if (!verified) {
-    return <PinGate onVerified={() => setVerified(true)} />;
+  if (!session) {
+    return (
+      <StoreGate
+        onEntered={(storeId, storeName) => setSession({ storeId, storeName })}
+      />
+    );
   }
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // ── Items for restock dropdown (only products already in the store) ───────────
+
+  const productItemOptions = products.map(p => ({
+    value: p.item_id,
+    label: p.name || p.item_id,
+  }));
+
+  const existingItemIds = new Set(products.map(p => p.item_id));
+
+  // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
     <div className="store-page">
       {/* Top navbar */}
       <nav className="store-navbar" aria-label="ร้านค้า">
-        <span className="store-navbar__title">ร้านค้า</span>
+        <span className="store-navbar__title">{session.storeName}</span>
         <div className="store-navbar__tabs">
           {([
             ['overview', 'ภาพรวม'],
@@ -368,6 +726,12 @@ export function StorePage() {
             </button>
           ))}
         </div>
+        <button
+          onClick={() => setSession(null)}
+          style={{ marginLeft: 'auto', background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 6, color: '#fff', padding: '5px 10px', cursor: 'pointer', fontSize: 12 }}
+        >
+          ออกจากร้าน
+        </button>
       </nav>
 
       {/* ── Tab 1: ภาพรวม ── */}
@@ -377,98 +741,94 @@ export function StorePage() {
           <div className="store-summary-row">
             <div className="store-summary-card">
               <div className="store-summary-card__value">{totalItems.toLocaleString('th-TH')}</div>
-              <div className="store-summary-card__label">สินค้าทั้งหมด</div>
+              <div className="store-summary-card__label">สินค้า (รายการ)</div>
             </div>
             <div className="store-summary-card">
               <div className="store-summary-card__value">{totalStock.toLocaleString('th-TH')}</div>
-              <div className="store-summary-card__label">สต็อกรวม</div>
+              <div className="store-summary-card__label">สต็อกรวม (ชิ้น)</div>
             </div>
             <div className="store-summary-card">
-              <div className="store-summary-card__value">{totalRevenue.toLocaleString('th-TH')}</div>
+              <div className="store-summary-card__value">฿{new Intl.NumberFormat('th-TH').format(totalRevenue)}</div>
               <div className="store-summary-card__label">ยอดขายรวม</div>
             </div>
           </div>
 
-          {/* Product grid */}
-          <div className="store-product-grid">
-            {Object.entries(apiData?.itemNames ?? {}).map(([id, name]) => {
-              const qty = localStock[id] ?? 0;
-              const price = prices[id] ?? 0;
-              return (
-                <div className="store-product-card" key={id}>
-                  <ItemImg src={apiData?.stockImages[id]} name={name} size={56} />
-                  <div className="store-product-card__name">{name}</div>
-                  <div className={`store-product-card__qty${qty <= 0 ? ' is-empty' : ''}`}>
-                    {qty <= 0 ? 'หมด' : `${qty.toLocaleString('th-TH')} ชิ้น`}
-                  </div>
-                  <InputNumber
-                    min={0}
-                    precision={0}
-                    value={price}
-                    onChange={v => savePrice(id, v ?? 0)}
-                    placeholder="ราคา"
-                    addonBefore="฿"
-                    size="small"
-                    style={{ width: '100%' }}
-                    aria-label={`ราคา ${name}`}
-                  />
-                  <Button
-                    type="primary"
-                    size="small"
-                    disabled={qty <= 0}
-                    onClick={() => { setSellItem({ id, name }); setSellQty(1); }}
-                    style={{ width: '100%' }}
-                  >
-                    ขายไป
-                  </Button>
-                </div>
-              );
-            })}
+          {/* Add product button */}
+          <div style={{ padding: '0 16px 12px', display: 'flex', justifyContent: 'flex-end' }}>
+            <Button type="primary" onClick={() => setAddOpen(true)}>
+              เพิ่มสินค้า
+            </Button>
           </div>
 
+          {/* Product grid */}
+          {loadingProducts ? (
+            <div style={{ textAlign: 'center', padding: '40px 0', color: '#94a3b8' }}>กำลังโหลด...</div>
+          ) : products.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px 16px', color: '#94a3b8', fontSize: 13 }}>
+              ยังไม่มีสินค้าในร้าน — กดปุ่ม "เพิ่มสินค้า" เพื่อเริ่ม
+            </div>
+          ) : (
+            <div className="store-product-grid">
+              {products.map(p => {
+                const imgSrc = p.image_url ?? apiData?.stockImages[p.item_id];
+                return (
+                  <div className="store-product-card" key={p.item_id}>
+                    <ItemImg src={imgSrc} name={p.name} size={56} />
+                    <div className="store-product-card__name">{p.name}</div>
+                    <div className={`store-product-card__qty${p.stock <= 0 ? ' is-empty' : ''}`}>
+                      {p.stock <= 0 ? 'หมด' : `${p.stock.toLocaleString('th-TH')} ชิ้น`}
+                    </div>
+                    <InlinePriceInput
+                      product={p}
+                      onBlur={handlePriceBlur}
+                    />
+                    <Button
+                      type="primary"
+                      size="small"
+                      disabled={p.stock <= 0}
+                      onClick={() => setSellProduct(p)}
+                      style={{ width: '100%' }}
+                    >
+                      ขายไป
+                    </Button>
+                    <Button
+                      danger
+                      size="small"
+                      onClick={() => void handleRemoveProduct(p.item_id)}
+                      style={{ width: '100%' }}
+                    >
+                      ลบออกจากร้าน
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           {/* Sell modal */}
-          <Modal
-            open={!!sellItem}
-            title={sellItem?.name ?? ''}
-            okText="ยืนยันการขาย"
-            cancelText="ยกเลิก"
-            onOk={handleSellConfirm}
-            onCancel={() => setSellItem(null)}
-            okButtonProps={{ disabled: !sellQty || sellQty < 1 }}
-          >
-            {sellItem && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '8px 0' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <ItemImg src={apiData?.stockImages[sellItem.id]} name={sellItem.name} size={40} />
-                  <div>
-                    <div style={{ fontSize: 13, color: '#64748b' }}>
-                      สต็อกคงเหลือ: <strong style={{ color: '#0f172a' }}>{(localStock[sellItem.id] ?? 0).toLocaleString('th-TH')} ชิ้น</strong>
-                    </div>
-                    <div style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>
-                      ราคา/ชิ้น: <strong style={{ color: '#4f46e5' }}>฿{(prices[sellItem.id] ?? 0).toLocaleString('th-TH')}</strong>
-                    </div>
-                  </div>
-                </div>
-                <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>จำนวนที่ขาย</span>
-                  <InputNumber
-                    autoFocus
-                    min={1}
-                    max={localStock[sellItem.id] ?? 1}
-                    precision={0}
-                    value={sellQty}
-                    onChange={v => setSellQty(v ?? 1)}
-                    style={{ width: '100%' }}
-                  />
-                </label>
-                {sellQty > 0 && (
-                  <div style={{ padding: '10px 14px', background: '#eef2ff', borderRadius: 8, fontSize: 14, fontWeight: 600, color: '#4f46e5' }}>
-                    รวม ฿{((prices[sellItem.id] ?? 0) * sellQty).toLocaleString('th-TH')}
-                  </div>
-                )}
-              </div>
-            )}
-          </Modal>
+          <SellModal
+            product={sellProduct}
+            storeId={session.storeId}
+            apiData={apiData}
+            onClose={() => setSellProduct(null)}
+            onSold={() => {
+              setSellProduct(null);
+              void fetchAll(session.storeId);
+            }}
+          />
+
+          {/* Add product modal */}
+          <AddProductModal
+            open={addOpen}
+            storeId={session.storeId}
+            existingItemIds={existingItemIds}
+            apiData={apiData}
+            onClose={() => setAddOpen(false)}
+            onAdded={() => {
+              setAddOpen(false);
+              void fetchAll(session.storeId);
+            }}
+          />
         </div>
       )}
 
@@ -484,7 +844,7 @@ export function StorePage() {
                 placeholder="เลือกสินค้า"
                 value={restockItemId}
                 onChange={setRestockItemId}
-                options={itemOptions}
+                options={productItemOptions}
                 style={{ width: '100%' }}
                 aria-label="เลือกสินค้าเติมสต็อก"
               />
@@ -511,8 +871,9 @@ export function StorePage() {
             </div>
             <Button
               type="primary"
+              loading={restocking}
               disabled={!restockItemId || !restockQty || restockQty < 1}
-              onClick={handleRestock}
+              onClick={() => void handleRestock()}
               style={{ alignSelf: 'flex-end' }}
             >
               เพิ่มสต็อก
@@ -521,14 +882,13 @@ export function StorePage() {
 
           {/* Restock history */}
           <div className="store-restock-list">
-            {restocks.length === 0 && (
+            {restocks.length === 0 ? (
               <p style={{ padding: '24px 0', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
                 ยังไม่มีประวัติการเติมสต็อก
               </p>
-            )}
-            {restocks.map(r => (
+            ) : restocks.map(r => (
               <div className="store-restock-row" key={r.id}>
-                <ItemImg src={apiData?.stockImages[r.item_id]} name={r.item_name} size={32} />
+                <ItemImg src={r.image_url} name={r.item_name} size={32} />
                 <div className="store-restock-row__meta">
                   <div style={{ fontWeight: 600 }}>{r.item_name}</div>
                   <div className="store-restock-row__time">
@@ -549,8 +909,13 @@ export function StorePage() {
       {tab === 'sales' && (
         <div className="store-tab-content" style={{ padding: '0 16px 24px' }}>
           <div className="store-revenue-stat">
-            ยอดขายรวม
-            <span>{totalRevenue.toLocaleString('th-TH')} บาท</span>
+            <span>ยอดขายรวม</span>
+            <span style={{ color: '#4f46e5', fontSize: 20, marginLeft: 8 }}>
+              ฿{new Intl.NumberFormat('th-TH').format(totalRevenue)} บาท
+            </span>
+            <span style={{ color: '#64748b', fontSize: 13, marginLeft: 12 }}>
+              ({totalUnitsSold.toLocaleString('th-TH')} ชิ้น)
+            </span>
           </div>
           <Table<SaleRecord>
             dataSource={sales}
@@ -558,10 +923,42 @@ export function StorePage() {
             rowKey="id"
             pagination={{ pageSize: 20 }}
             size="small"
-            scroll={{ x: 600 }}
+            scroll={{ x: 700 }}
           />
         </div>
       )}
     </div>
+  );
+}
+
+// ── Inline price input (isolated state to avoid re-render churn) ───────────────
+
+function InlinePriceInput({
+  product,
+  onBlur,
+}: {
+  product: StoreProduct;
+  onBlur: (product: StoreProduct, newPrice: number | null) => Promise<void>;
+}) {
+  const [value, setValue] = useState<number | null>(product.price);
+
+  // Sync when product price changes from outside
+  useEffect(() => {
+    setValue(product.price);
+  }, [product.price]);
+
+  return (
+    <InputNumber
+      min={0}
+      precision={2}
+      value={value}
+      onChange={setValue}
+      onBlur={() => void onBlur(product, value)}
+      placeholder="ราคา"
+      addonBefore="฿"
+      size="small"
+      style={{ width: '100%' }}
+      aria-label={`ราคา ${product.name}`}
+    />
   );
 }

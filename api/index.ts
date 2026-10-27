@@ -959,6 +959,171 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
+  // ── STORE ROUTES (/api/store/...) ─────────────────────────────────────────
+  if (segments[0] === 'store') {
+    const db = getSupabase();
+    try {
+      // GET /api/store/list
+      if (method === 'GET' && segments[1] === 'list') {
+        const { data, error } = await db.from('stores').select('id, name').order('created_at', { ascending: true });
+        if (error) throw error;
+        return res.json(data ?? []);
+      }
+
+      // POST /api/store  — create store
+      if (method === 'POST' && !segments[1]) {
+        const { name, pin } = req.body ?? {};
+        if (typeof name !== 'string' || !name.trim()) return res.status(400).json({ error: 'ชื่อร้านไม่ถูกต้อง' });
+        if (typeof pin !== 'string' || !/^\d{4}$/.test(pin)) return res.status(400).json({ error: 'PIN ต้องเป็นตัวเลข 4 หลัก' });
+        const { data, error } = await db.from('stores').insert({ name: name.trim(), pin_hash: pin }).select('id, name, created_at').single();
+        if (error) throw error;
+        return res.status(201).json(data);
+      }
+
+      // POST /api/store/verify-pin
+      if (method === 'POST' && segments[1] === 'verify-pin') {
+        const { store_id, pin } = req.body ?? {};
+        if (typeof store_id !== 'string' || !store_id || typeof pin !== 'string') return res.status(400).json({ error: 'ข้อมูลไม่ถูกต้อง' });
+        const { data, error } = await db.from('stores').select('pin_hash').eq('id', store_id).single();
+        if (error || !data) return res.status(401).json({ error: 'ไม่พบร้านนี้' });
+        if (data.pin_hash !== pin) return res.status(401).json({ error: 'PIN ไม่ถูกต้อง' });
+        return res.json({ ok: true });
+      }
+
+      const store_id = segments[1];
+      if (!store_id || store_id === 'list' || store_id === 'verify-pin') {
+        return res.status(400).json({ error: 'store_id ไม่ถูกต้อง' });
+      }
+
+      // GET /api/store/:store_id/products
+      if (method === 'GET' && segments[2] === 'products' && !segments[3]) {
+        const { data, error } = await db
+          .from('store_products')
+          .select('item_id, price, stock, created_at, items(name, image_url)')
+          .eq('store_id', store_id)
+          .order('created_at', { ascending: true });
+        if (error) throw error;
+        const rows = (data ?? []).map((r: Record<string, unknown>) => {
+          const item = r.items as { name: string; image_url: string | null } | null;
+          return { item_id: r.item_id, price: r.price, stock: r.stock, name: item?.name ?? '', image_url: item?.image_url ?? null };
+        });
+        return res.json(rows);
+      }
+
+      // POST /api/store/:store_id/products
+      if (method === 'POST' && segments[2] === 'products' && !segments[3]) {
+        const { item_id, price } = req.body ?? {};
+        if (typeof item_id !== 'string' || !item_id) return res.status(400).json({ error: 'item_id ไม่ถูกต้อง' });
+        const priceNum = Number(price);
+        if (isNaN(priceNum) || priceNum < 0) return res.status(400).json({ error: 'ราคาต้องไม่ต่ำกว่า 0' });
+        const { data, error } = await db.from('store_products').insert({ store_id, item_id, price: priceNum, stock: 0 }).select('item_id, price, stock').single();
+        if (error?.code === '23505') return res.status(409).json({ error: 'สินค้านี้มีในร้านแล้ว' });
+        if (error) throw error;
+        return res.status(201).json(data);
+      }
+
+      // PATCH /api/store/:store_id/products/:item_id
+      if (method === 'PATCH' && segments[2] === 'products' && segments[3]) {
+        const item_id = segments[3];
+        const updates: Record<string, number> = {};
+        if (req.body?.price !== undefined) {
+          const p = Number(req.body.price);
+          if (isNaN(p) || p < 0) return res.status(400).json({ error: 'ราคาไม่ถูกต้อง' });
+          updates.price = p;
+        }
+        if (req.body?.stock !== undefined) {
+          const s = Number(req.body.stock);
+          if (!Number.isInteger(s) || s < 0) return res.status(400).json({ error: 'สต็อกไม่ถูกต้อง' });
+          updates.stock = s;
+        }
+        if (!Object.keys(updates).length) return res.status(400).json({ error: 'ไม่มีข้อมูลให้อัพเดท' });
+        const { data, error } = await db.from('store_products').update(updates).eq('store_id', store_id).eq('item_id', item_id).select('item_id, price, stock').single();
+        if (error) throw error;
+        return res.json(data);
+      }
+
+      // DELETE /api/store/:store_id/products/:item_id
+      if (method === 'DELETE' && segments[2] === 'products' && segments[3] && segments[4] === undefined) {
+        const item_id = segments[3];
+        const { error } = await db.from('store_products').delete().eq('store_id', store_id).eq('item_id', item_id);
+        if (error) throw error;
+        return res.json({ ok: true });
+      }
+
+      // POST /api/store/:store_id/restock
+      if (method === 'POST' && segments[2] === 'restock') {
+        const { item_id, qty, note } = req.body ?? {};
+        if (typeof item_id !== 'string' || !item_id) return res.status(400).json({ error: 'item_id ไม่ถูกต้อง' });
+        if (!Number.isInteger(qty) || qty <= 0) return res.status(400).json({ error: 'จำนวนต้องเป็นจำนวนเต็มมากกว่า 0' });
+        const { error: restockErr } = await db.from('store_restocks').insert({ store_id, item_id, qty, note: typeof note === 'string' ? note : '' });
+        if (restockErr) throw restockErr;
+        const { data: prod, error: fetchErr } = await db.from('store_products').select('stock').eq('store_id', store_id).eq('item_id', item_id).single();
+        if (fetchErr) throw fetchErr;
+        const { error: updateErr } = await db.from('store_products').update({ stock: (prod?.stock ?? 0) + qty }).eq('store_id', store_id).eq('item_id', item_id);
+        if (updateErr) throw updateErr;
+        return res.json({ ok: true });
+      }
+
+      // GET /api/store/:store_id/restocks
+      if (method === 'GET' && segments[2] === 'restocks') {
+        const { data, error } = await db
+          .from('store_restocks')
+          .select('id, item_id, qty, note, restocked_at, items(name, image_url)')
+          .eq('store_id', store_id)
+          .order('restocked_at', { ascending: false });
+        if (error) throw error;
+        const rows = (data ?? []).map((r: Record<string, unknown>) => {
+          const item = r.items as { name: string; image_url: string | null } | null;
+          return { id: r.id, item_id: r.item_id, qty: r.qty, note: r.note, restocked_at: r.restocked_at, item_name: item?.name ?? '', image_url: item?.image_url ?? null };
+        });
+        return res.json(rows);
+      }
+
+      // POST /api/store/:store_id/sales
+      if (method === 'POST' && segments[2] === 'sales') {
+        const { item_id, qty, note } = req.body ?? {};
+        if (typeof item_id !== 'string' || !item_id) return res.status(400).json({ error: 'item_id ไม่ถูกต้อง' });
+        if (!Number.isInteger(qty) || qty <= 0) return res.status(400).json({ error: 'จำนวนต้องเป็นจำนวนเต็มมากกว่า 0' });
+        const { data: prod, error: fetchErr } = await db.from('store_products').select('stock, price').eq('store_id', store_id).eq('item_id', item_id).single();
+        if (fetchErr || !prod) return res.status(404).json({ error: 'ไม่พบสินค้าในร้าน' });
+        if ((prod.stock ?? 0) < qty) return res.status(400).json({ error: 'สต็อกไม่เพียงพอ' });
+        const { error: saleErr } = await db.from('store_sales').insert({ store_id, item_id, qty, price_per_unit: prod.price, note: typeof note === 'string' ? note : '' });
+        if (saleErr) throw saleErr;
+        const { error: updateErr } = await db.from('store_products').update({ stock: prod.stock - qty }).eq('store_id', store_id).eq('item_id', item_id);
+        if (updateErr) throw updateErr;
+        return res.json({ ok: true });
+      }
+
+      // GET /api/store/:store_id/sales
+      if (method === 'GET' && segments[2] === 'sales' && !segments[3]) {
+        const { data, error } = await db
+          .from('store_sales')
+          .select('id, item_id, qty, price_per_unit, total, note, sold_at, items(name, image_url)')
+          .eq('store_id', store_id)
+          .order('sold_at', { ascending: false });
+        if (error) throw error;
+        const rows = (data ?? []).map((r: Record<string, unknown>) => {
+          const item = r.items as { name: string; image_url: string | null } | null;
+          return { id: r.id, item_id: r.item_id, qty: r.qty, price_per_unit: r.price_per_unit, total: r.total, note: r.note, sold_at: r.sold_at, item_name: item?.name ?? '', image_url: item?.image_url ?? null };
+        });
+        return res.json(rows);
+      }
+
+      // DELETE /api/store/:store_id/sales/:sale_id
+      if (method === 'DELETE' && segments[2] === 'sales' && segments[3]) {
+        const sale_id = segments[3];
+        const { error } = await db.from('store_sales').delete().eq('id', sale_id).eq('store_id', store_id);
+        if (error) throw error;
+        return res.json({ ok: true });
+      }
+
+      return res.status(404).json({ error: 'Store route not found' });
+    } catch (e) {
+      console.error('store', e);
+      return res.status(500).json({ error: (e as Error).message });
+    }
+  }
+
   // ── 404 ──────────────────────────────────────────────────────────────────────
   return res.status(404).json({ error: `Route not found: ${method} /api/${path}` });
 }
