@@ -255,7 +255,21 @@ export function StorePage() {
 }
 
 function StoreApp() {
-  const [session, setSession] = useState<Session | null>(null);
+  const [session, setSession] = useState<Session | null>(() => {
+    try {
+      const stored = sessionStorage.getItem('store-session');
+      if (stored) return JSON.parse(stored) as Session;
+    } catch { /* ignore */ }
+    return null;
+  });
+
+  const saveSession = (s: Session | null) => {
+    setSession(s);
+    try {
+      if (s) sessionStorage.setItem('store-session', JSON.stringify(s));
+      else sessionStorage.removeItem('store-session');
+    } catch { /* ignore */ }
+  };
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const logoInput = useRef<HTMLInputElement>(null);
   const uploadLogo = async (file: File | undefined) => {
@@ -465,7 +479,7 @@ function StoreApp() {
     }}><Button aria-label={`ลบประวัติขาย ${r.item_name}`} loading={deletingSale === r.id} disabled={!!deletingSale} size="small" type="text" icon={<DeleteOutlined />} /></Popconfirm> },
   ];
 
-  if (!session) return <StoreGate onEntered={(id, name, logo) => setSession({ storeId: id, storeName: name, logo })} />;
+  if (!session) return <StoreGate onEntered={(id, name, logo) => saveSession({ storeId: id, storeName: name, logo })} />;
 
   const heading: Record<Tab, [string, string]> = {
     overview: ['หน้าร้าน', 'เลือกสินค้าแล้วกดขาย — สินค้าที่มีของจะแสดงก่อน'],
@@ -494,7 +508,7 @@ function StoreApp() {
             { value: 'sales', label: 'ประวัติขาย' },
           ]} />
           <div className="shop-bar__end"><Tooltip title="ออกจากร้าน"><Button type="text" icon={<LogoutOutlined />} aria-label="ออกจากร้าน"
-            onClick={() => { setSession(null); setProducts([]); setSales([]); setApiData(null); setRestockQtys({}); setTab('overview'); }} /></Tooltip></div>
+            onClick={() => { saveSession(null); setProducts([]); setSales([]); setApiData(null); setRestockQtys({}); setTab('overview'); }} /></Tooltip></div>
         </div>
       </header>
 
