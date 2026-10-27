@@ -1,16 +1,18 @@
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo, type ReactNode } from 'react';
 import {
   Alert, Badge, Button, ConfigProvider, Dropdown, Empty, Input, InputNumber,
-  Modal, Popconfirm, Segmented, Select, Spin, Table, Tag, Tooltip, message,
+  Modal, Popconfirm, Segmented, Select, Spin, Table, Tag, Tooltip, message, theme,
 } from 'antd';
 import type { ThemeConfig } from 'antd';
 import {
   AppstoreOutlined, BarsOutlined, DeleteOutlined, EditOutlined, LogoutOutlined, MoreOutlined,
   PlusOutlined, ReloadOutlined, SearchOutlined, ShopOutlined, ShoppingCartOutlined, InboxOutlined,
+  ThunderboltOutlined, DatabaseOutlined, RiseOutlined, WarningOutlined, CheckCircleOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { fetchAllData } from '../../api/client';
 import type { AppData } from '../../types';
+import { SalesChart } from './SalesChart';
 import './StorePage.css';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -19,34 +21,40 @@ type StoreProduct = { item_id: string; name: string; image_url: string | null; p
 type SaleRecord = { id: string; item_id: string; item_name: string; image_url: string | null; qty: number; price_per_unit: number; total: number; note: string; sold_at: string };
 type Tab = 'overview' | 'restock' | 'sales';
 
-// ── Minimal theme (scoped to /store) ──────────────────────────────────────────
-const INK = '#18181b';
+// ── WattVision dark theme (scoped to /store) ──────────────────────────────────
+const CYAN = '#00E5FF';
+const LINE = '#2C2C2E';
+
 const shopTheme: ThemeConfig = {
+  algorithm: theme.darkAlgorithm,
   token: {
-    colorPrimary: INK,
-    colorInfo: INK,
-    colorText: INK,
-    colorTextSecondary: '#71717a',
-    colorTextTertiary: '#a1a1aa',
-    colorBorder: '#e4e4e7',
-    colorBorderSecondary: '#f0f0f1',
-    colorBgLayout: '#fafafa',
-    colorError: '#dc2626',
+    colorPrimary: CYAN,
+    colorInfo: CYAN,
+    colorSuccess: '#32D74B',
+    colorError: '#FF453A',
+    colorBgBase: '#121212',
+    colorBgLayout: '#121212',
+    colorBgContainer: '#1E1E1E',
+    colorBgElevated: '#1E1E1E',
+    colorText: '#FFFFFF',
+    colorTextSecondary: '#98989D',
+    colorBorder: LINE,
+    colorBorderSecondary: LINE,
     borderRadius: 8,
-    borderRadiusLG: 12,
+    borderRadiusLG: 16,
     borderRadiusSM: 6,
     controlHeight: 34,
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: "'Inter', 'IBM Plex Sans Thai', 'Noto Sans Thai', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
   components: {
-    Segmented: { itemSelectedBg: '#ffffff', trackBg: '#f4f4f5', itemColor: '#71717a', itemHoverColor: INK },
-    Table: { headerBg: '#fafafa', headerColor: '#71717a', rowHoverBg: '#fafafa', cellPaddingBlock: 10 },
-    Button: { primaryShadow: 'none', defaultShadow: 'none', dangerShadow: 'none', fontWeight: 500 },
-    Input: { activeShadow: '0 0 0 3px #18181b14' },
-    InputNumber: { activeShadow: '0 0 0 3px #18181b14' },
-    Select: { activeOutlineColor: '#18181b14' },
-    Modal: { borderRadiusLG: 14 },
+    Segmented: { itemSelectedBg: LINE, trackBg: '#121212', itemColor: '#98989D', itemHoverColor: '#FFFFFF', itemSelectedColor: CYAN },
+    Table: { headerBg: '#1E1E1E', headerColor: '#98989D', rowHoverBg: '#252525', borderColor: LINE, cellPaddingBlock: 10 },
+    Button: { primaryColor: '#121212', primaryShadow: 'none', defaultShadow: 'none', dangerShadow: 'none', fontWeight: 500 },
+    Input: { activeShadow: '0 0 0 3px #00E5FF26' },
+    InputNumber: { activeShadow: '0 0 0 3px #00E5FF26' },
+    Select: { activeOutlineColor: '#00E5FF26' },
+    Modal: { borderRadiusLG: 16, contentBg: '#1E1E1E', headerBg: '#1E1E1E' },
   },
 };
 
@@ -59,6 +67,18 @@ function ItemImg({ src, name, size = 40 }: { src?: string | null; name: string; 
     <span className="shop-thumb" style={{ width: size, height: size }}>
       {src ? <img src={src} alt={name} loading="lazy" /> : <InboxOutlined style={{ fontSize: size * 0.42 }} />}
     </span>
+  );
+}
+
+const LOW_STOCK = 5;
+
+function Kpi({ icon, label, value, unit, tone }: { icon: ReactNode; label: string; value: string; unit?: string; tone?: 'danger' | 'ok' }) {
+  return (
+    <div className={`shop-kpi${tone ? ` is-${tone}` : ''}`}>
+      <span className="shop-kpi__icon" aria-hidden>{icon}</span>
+      <dt>{label}</dt>
+      <dd>{value}{unit && <small>{unit}</small>}</dd>
+    </div>
   );
 }
 
@@ -295,6 +315,7 @@ function StoreApp() {
   const totalRevenue = sales.reduce((s, r) => s + Number(r.total), 0);
   const totalSold = sales.reduce((s, r) => s + Number(r.qty), 0);
   const outOfStock = products.filter(p => p.stock === 0).length;
+  const lowStock = useMemo(() => products.filter(p => p.stock <= LOW_STOCK).sort((a, b) => a.stock - b.stock), [products]);
 
   // Bulk restock submit
   const handleBulkRestock = async () => {
@@ -413,10 +434,10 @@ function StoreApp() {
         {tab === 'overview' && (
           <>
             <dl className="shop-stats">
-              <div><dt>สินค้า</dt><dd>{fmt(products.length)}<small>รายการ</small></dd></div>
-              <div><dt>สต็อกรวม</dt><dd>{fmt(totalStock)}<small>ชิ้น</small></dd></div>
-              <div><dt>ยอดขายรวม</dt><dd>{fmtMoney(totalRevenue)}</dd></div>
-              <div><dt>หมดสต็อก</dt><dd className={outOfStock ? 'shop-danger' : ''}>{fmt(outOfStock)}<small>รายการ</small></dd></div>
+              <Kpi icon={<AppstoreOutlined />} label="สินค้า" value={fmt(products.length)} unit="รายการ" />
+              <Kpi icon={<DatabaseOutlined />} label="สต็อกรวม" value={fmt(totalStock)} unit="ชิ้น" />
+              <Kpi icon={<ThunderboltOutlined />} label="ยอดขายรวม" value={fmtMoney(totalRevenue)} tone="ok" />
+              <Kpi icon={<WarningOutlined />} label="หมดสต็อก" value={fmt(outOfStock)} unit="รายการ" tone={outOfStock ? 'danger' : undefined} />
             </dl>
 
             <div className="shop-toolbar">
@@ -495,10 +516,28 @@ function StoreApp() {
         {tab === 'sales' && (
           <>
             <dl className="shop-stats shop-stats--3">
-              <div><dt>ยอดขายรวม</dt><dd>{fmtMoney(totalRevenue)}</dd></div>
-              <div><dt>รายการขาย</dt><dd>{fmt(sales.length)}<small>ครั้ง</small></dd></div>
-              <div><dt>ขายไปแล้ว</dt><dd>{fmt(totalSold)}<small>ชิ้น</small></dd></div>
+              <Kpi icon={<ThunderboltOutlined />} label="ยอดขายรวม" value={fmtMoney(totalRevenue)} tone="ok" />
+              <Kpi icon={<RiseOutlined />} label="รายการขาย" value={fmt(sales.length)} unit="ครั้ง" />
+              <Kpi icon={<ShoppingCartOutlined />} label="ขายไปแล้ว" value={fmt(totalSold)} unit="ชิ้น" />
             </dl>
+            <div className="shop-dash">
+              <section className="shop-panel shop-dash__chart">
+                <header><h2>ยอดขายรายวัน</h2><span className="shop-muted">14 วันล่าสุด</span></header>
+                <SalesChart sales={sales} fmtMoney={fmtMoney} />
+              </section>
+              <section className="shop-panel shop-dash__alerts">
+                <header><h2>แจ้งเตือนสต็อก</h2><span className="shop-muted">{fmt(lowStock.length)} รายการ</span></header>
+                {lowStock.length === 0
+                  ? <div className="shop-ok"><CheckCircleOutlined /> สต็อกปกติทุกรายการ</div>
+                  : <ul className="shop-alerts">{lowStock.slice(0, 6).map(p => (
+                    <li key={p.item_id} className={p.stock === 0 ? 'is-out' : ''}>
+                      <ItemImg src={getImg(p)} name={p.name} size={28} />
+                      <span>{p.name}<small>{p.stock === 0 ? 'หมดสต็อก' : `เหลือ ${fmt(p.stock)} ชิ้น`}</small></span>
+                      <Button size="small" type="text" icon={<PlusOutlined />} aria-label={`เติมสต็อก ${p.name}`} onClick={() => goRestock(p)} />
+                    </li>))}
+                  </ul>}
+              </section>
+            </div>
             <Table<SaleRecord> className="shop-table" columns={salesColumns} dataSource={sales} rowKey="id" size="middle" scroll={{ x: 680 }}
               pagination={{ pageSize: 20, showSizeChanger: false, size: 'small', hideOnSinglePage: true }}
               locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="ยังไม่มีประวัติการขาย" /> }} />
