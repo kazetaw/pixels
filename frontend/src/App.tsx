@@ -1,8 +1,6 @@
-import { CraftingGuide } from './components/CraftingGuide/CraftingGuide';
 import { MachineLayout } from './components/MachineLayout/MachineLayout';
 import { Withdrawals } from './components/Withdrawals/Withdrawals';
 import { ItemVisualProvider } from './components/shared/ItemVisual';
-import { StorePage } from './components/Store/StorePage';
 import { useEffect, useState } from 'react';
 import {
   Layout,
@@ -846,11 +844,6 @@ export default function App() {
 
   if (isStore) return <StorePage />;
 
-  // /store — standalone store page
-  if (isStore) {
-    return <StorePage />;
-  }
-
   // A compact share link for teammates who only need to check the current stock.
   // It intentionally renders the same Inventory component and app data, without
   // exposing the surrounding navigation UI.
@@ -1006,8 +999,6 @@ export default function App() {
               <ProductionPlanner recipes={recipes} stocks={stocks} machines={_machines} mode="shared" />
             </div>
           )}
-
-          {view === 'crafting-guide' && <CraftingGuide recipes={recipes} machines={_machines} stocks={stocks} />}
 
           {view === 'production-flow' && (
             <div className="page-content planner-page-content">
