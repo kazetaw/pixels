@@ -1,6 +1,8 @@
+import { CraftingGuide } from './components/CraftingGuide/CraftingGuide';
 import { MachineLayout } from './components/MachineLayout/MachineLayout';
 import { Withdrawals } from './components/Withdrawals/Withdrawals';
 import { ItemVisualProvider } from './components/shared/ItemVisual';
+import { StorePage } from './components/Store/StorePage';
 import { useEffect, useState } from 'react';
 import {
   Layout,
@@ -55,10 +57,10 @@ import type { SaveStatus } from './hooks/useAppState';
 
 const { Sider, Content } = Layout;
 
-type MainView = 'machine-layout' | 'withdrawal-admin' | 'withdrawals' | 'assignments' | 'planner' | 'shared-planner' | 'production-flow' | 'data' | 'inventory' | 'floors' | 'targets' | 'budget' | 'organization';
+type MainView = 'crafting-guide' | 'machine-layout' | 'withdrawal-admin' | 'withdrawals' | 'assignments' | 'planner' | 'shared-planner' | 'production-flow' | 'data' | 'inventory' | 'floors' | 'targets' | 'budget' | 'organization';
 
-const ADMIN_VIEWS: MainView[] = ['machine-layout', 'withdrawal-admin', 'planner', 'production-flow', 'withdrawals', 'assignments', 'shared-planner', 'data', 'inventory', 'floors', 'targets', 'budget', 'organization'];
-const PUBLIC_VIEWS: MainView[] = ['withdrawals', 'shared-planner', 'inventory', 'floors', 'targets', 'organization'];
+const ADMIN_VIEWS: MainView[] = ['crafting-guide', 'machine-layout', 'withdrawal-admin', 'planner', 'production-flow', 'withdrawals', 'assignments', 'shared-planner', 'data', 'inventory', 'floors', 'targets', 'budget', 'organization'];
+const PUBLIC_VIEWS: MainView[] = ['crafting-guide', 'withdrawals', 'shared-planner', 'inventory', 'floors', 'targets', 'organization'];
 const isAdminPath = () => window.location.pathname.replace(/\/+$/, '') === '/admin';
 function savedNavigation(admin: boolean): MainView {
   try {
@@ -69,6 +71,7 @@ function savedNavigation(admin: boolean): MainView {
 }
 
 const NAV_ITEMS = [
+  { key: 'crafting-guide', icon: <_ApartmentOutlined />, label: 'ไกด์การคราฟ' },
   { key: 'machine-layout', icon: <_ApartmentOutlined />, label: 'จัดเครื่องลงชั้น' },
   { key: 'withdrawals', icon: <InboxOutlined />, label: 'เบิกสินค้า' },
   { key: 'withdrawal-admin', icon: <InboxOutlined />, label: 'จัดการการเบิก' },
@@ -706,6 +709,8 @@ function BomWorkspace({
 export default function App() {
   const [isAdmin, setIsAdmin] = useState(isAdminPath);
   const isInventoryPath = () => window.location.pathname.replace(/\/+$/, '') === '/inventory';
+  const isStorePath = () => window.location.pathname.replace(/\/+$/, '') === '/store';
+  const [isStore] = useState(isStorePath);
   const [publicInventory, setPublicInventory] = useState(isInventoryPath);
   const [view, setViewState] = useState<MainView>(() => {
     if (isInventoryPath()) return 'inventory';
@@ -837,6 +842,8 @@ export default function App() {
       /></ItemVisualProvider>
     );
   }
+
+  if (isStore) return <StorePage />;
 
   // A compact share link for teammates who only need to check the current stock.
   // It intentionally renders the same Inventory component and app data, without
@@ -993,6 +1000,8 @@ export default function App() {
               <ProductionPlanner recipes={recipes} stocks={stocks} machines={_machines} mode="shared" />
             </div>
           )}
+
+          {view === 'crafting-guide' && <CraftingGuide recipes={recipes} machines={_machines} stocks={stocks} />}
 
           {view === 'production-flow' && (
             <div className="page-content planner-page-content">

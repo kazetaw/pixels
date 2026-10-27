@@ -413,7 +413,7 @@ export function Withdrawals({ admin = false, onData }: { admin?: boolean; onData
     return <span className="withdrawal-stock-option">
       <ItemLabel id={id} name={name} reserveImage />
       <span className={`withdrawal-stock-option__count${available <= 0 ? ' is-empty' : ''}`}>
-        {available <= 0 ? 'หมดสต็อก' : `เบิกได้ ${available.toLocaleString('th-TH')} ชิ้น`}
+        {available <= 0 ? 'หมด' : `เบิกได้ ${available.toLocaleString('th-TH')} ชิ้น`}
       </span>
     </span>;
   };
