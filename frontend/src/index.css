@@ -1947,7 +1947,7 @@ body {
 .store-product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
 .store-product-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 12px; display: flex; flex-direction: column; align-items: center; gap: 8px; transition: box-shadow .15s; }
 .store-product-card:hover { box-shadow: 0 4px 16px rgba(15,23,42,.08); }
-.store-product-card.is-empty { opacity: .6; }
+.store-product-card.is-empty { border-color: #fca5a5; background: #fff8f8; }
 .store-product-card__name { font-size: 12px; font-weight: 600; color: #0f172a; text-align: center; line-height: 1.3; word-break: break-word; }
 .store-product-card__stock { font-size: 12px; font-weight: 600; color: #16a34a; }
 .store-product-card__stock.is-out { color: #dc2626; }
