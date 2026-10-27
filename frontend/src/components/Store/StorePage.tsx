@@ -5,11 +5,12 @@ import {
 } from 'antd';
 import {
   DeleteOutlined, LogoutOutlined, MinusCircleOutlined,
-  PlusOutlined, SearchOutlined, ShopOutlined, ShoppingCartOutlined,
+  PlusOutlined, SearchOutlined, ShopOutlined, ShoppingCartOutlined, ReloadOutlined, SettingOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { fetchAllData } from '../../api/client';
 import type { AppData } from '../../types';
+import './StorePage.css';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type StoreRow = { id: string; name: string };
@@ -132,7 +133,7 @@ function SellModal({ product, storeId, imgSrc, onClose, onSold }: { product: Sto
   useEffect(() => { if (product) { setQty(1); setNote(''); } }, [product?.item_id]);
 
   const handleSell = async () => {
-    if (!product || !qty || qty < 1) return;
+    if (!product || !qty || !Number.isSafeInteger(qty) || qty < 1 || qty > product.stock || saving) return;
     setSaving(true);
     try {
       const res = await fetch(`/api/store/${storeId}/sales`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ item_id: product.item_id, qty, note }) });
@@ -144,7 +145,7 @@ function SellModal({ product, storeId, imgSrc, onClose, onSold }: { product: Sto
   };
 
   return (
-    <Modal open={!!product} title="บันทึกการขาย" okText="ยืนยันขาย" cancelText="ยกเลิก" onOk={() => void handleSell()} onCancel={onClose} confirmLoading={saving} okButtonProps={{ disabled: !qty || qty < 1, type: 'primary' }}>
+    <Modal open={!!product} title="บันทึกการขาย" okText="ยืนยันขาย" cancelText="ยกเลิก" onOk={() => void handleSell()} onCancel={() => { if (!saving) onClose(); }} closable={!saving} maskClosable={!saving} confirmLoading={saving} okButtonProps={{ disabled: !qty || !Number.isSafeInteger(qty) || qty < 1 || qty > (product?.stock ?? 0), type: 'primary' }}>
       {product && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '8px 0' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -154,7 +155,7 @@ function SellModal({ product, storeId, imgSrc, onClose, onSold }: { product: Sto
               <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>สต็อก {fmt(product.stock)} ชิ้น · ราคา {fmtMoney(product.price)}/ชิ้น</div>
             </div>
           </div>
-          <div><div className="store-field-label">จำนวน</div><InputNumber autoFocus min={1} max={product.stock} precision={0} value={qty} onChange={setQty} style={{ width: '100%' }} size="large" /></div>
+          <div className="store-sale-stock">หลังขายจะเหลือ <b>{fmt(Math.max(0, product.stock - (qty ?? 0)))}</b> ชิ้น</div><div><div className="store-field-label">จำนวนที่ขาย</div><Input autoFocus aria-label="จำนวนที่ขาย" type="number" min={1} max={product.stock} step={1} value={qty ?? ''} onChange={e => setQty(e.target.value === '' ? null : Number(e.target.value))} size="large" /></div>
           <div><div className="store-field-label">หมายเหตุ (ไม่บังคับ)</div><Input value={note} onChange={e => setNote(e.target.value)} placeholder="เช่น ลูกค้า VIP" maxLength={200} /></div>
           {qty && qty > 0 && <div style={{ padding: '10px 14px', background: '#eff6ff', borderRadius: 8, fontSize: 15, fontWeight: 700, color: '#2563eb', textAlign: 'center' }}>รวม {fmtMoney(product.price * qty)}</div>}
         </div>
@@ -181,6 +182,43 @@ export function StorePage() {
 
   // Overview search
   const [overviewSearch, setOverviewSearch] = useState('');
+  const [stockFilter, setStockFilter] = useState('all');
+  const [editing, setEditing] = useState<StoreProduct | 'new' | null>(null);
+  const [editId, setEditId] = useState<string>();
+  const [editPrice, setEditPrice] = useState<number | null>(0);
+  const [editStock, setEditStock] = useState<number | null>(0);
+  const [savingProduct, setSavingProduct] = useState(false);
+  const [deletingSale, setDeletingSale] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState('');
+  const openEditor = (product: StoreProduct | 'new') => {
+    setEditing(product); setEditId(product === 'new' ? undefined : product.item_id);
+    setEditPrice(product === 'new' ? 0 : product.price); setEditStock(product === 'new' ? 0 : product.stock);
+  };
+  const validEdit = !!editId && editPrice !== null && Number.isFinite(editPrice) && editPrice >= 0 && editStock !== null && Number.isSafeInteger(editStock) && editStock >= 0;
+  const saveProduct = async () => {
+    if (!session || !editing || !validEdit || savingProduct) return;
+    setSavingProduct(true);
+    try {
+      const res = await fetch(`/api/store/${session.storeId}/products${editing === 'new' ? '' : '/' + encodeURIComponent(editId!)}`, {
+        method: editing === 'new' ? 'POST' : 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editing === 'new' ? { item_id: editId, price: editPrice } : { price: editPrice, stock: editStock }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || 'บันทึกสินค้าไม่สำเร็จ');
+      setEditing(null); void msgApi.success('บันทึกสินค้าแล้ว'); await fetchAll(session.storeId);
+    } catch (e) { void msgApi.error(e instanceof Error ? e.message : 'เชื่อมต่อไม่สำเร็จ ลองอีกครั้ง'); }
+    finally { setSavingProduct(false); }
+  };
+  const deleteProduct = async () => {
+    if (!session || !editing || editing === 'new' || savingProduct) return;
+    setSavingProduct(true);
+    try {
+      const res = await fetch(`/api/store/${session.storeId}/products/${encodeURIComponent(editing.item_id)}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('ลบสินค้าไม่สำเร็จ');
+      setRestockQtys(prev => { const next = { ...prev }; delete next[editing.item_id]; return next; });
+      setEditing(null); void msgApi.success('นำสินค้าออกจากร้านแล้ว'); await fetchAll(session.storeId);
+    } catch { void msgApi.error('ลบสินค้าไม่สำเร็จ กรุณาลองอีกครั้ง'); }
+    finally { setSavingProduct(false); }
+  };
 
   useEffect(() => {
     if (!session) return;
@@ -188,12 +226,12 @@ export function StorePage() {
   }, [session?.storeId]);
 
   const fetchAll = async (storeId: string) => {
-    setLoading(true);
+    setLoading(true); setLoadError('');
     try {
       const [pRes, sRes] = await Promise.all([fetch(`/api/store/${storeId}/products`), fetch(`/api/store/${storeId}/sales`)]);
-      if (pRes.ok) setProducts(await pRes.json());
-      if (sRes.ok) setSales(await sRes.json());
-    } catch { void msgApi.error('โหลดข้อมูลไม่สำเร็จ'); }
+      if (!pRes.ok || !sRes.ok) throw new Error('โหลดไม่สำเร็จ');
+      setProducts(await pRes.json()); setSales(await sRes.json());
+    } catch { setLoadError('โหลดข้อมูลร้านไม่สำเร็จ กรุณากดรีเฟรช'); }
     finally { setLoading(false); }
   };
 
@@ -206,32 +244,23 @@ export function StorePage() {
   const totalRevenue = sales.reduce((s, r) => s + Number(r.total), 0);
   const outOfStock = products.filter(p => p.stock === 0).length;
 
-  // Price update
-  const updatePrice = async (p: StoreProduct, price: number | null) => {
-    if (price === null || price < 0 || price === p.price || !session) return;
-    try {
-      const res = await fetch(`/api/store/${session.storeId}/products/${p.item_id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ price }) });
-      if (!res.ok) { const e = await res.json(); void msgApi.error(e.error ?? 'อัปเดตราคาไม่สำเร็จ'); return; }
-      setProducts(prev => prev.map(x => x.item_id === p.item_id ? { ...x, price } : x));
-    } catch { void msgApi.error('อัปเดตราคาไม่สำเร็จ'); }
-  };
-
   // Bulk restock submit
   const handleBulkRestock = async () => {
-    if (!session) return;
-    const entries = Object.entries(restockQtys).filter(([, q]) => q > 0);
+    if (!session || submitting) return;
+    const entries = Object.entries(restockQtys).filter(([, q]) => Number.isSafeInteger(q) && q > 0);
     if (!entries.length) return;
     setSubmitting(true);
     let success = 0;
     for (const [item_id, qty] of entries) {
       try {
         const res = await fetch(`/api/store/${session.storeId}/restock`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ item_id, qty }) });
-        if (res.ok) { success++; setProducts(prev => prev.map(p => p.item_id === item_id ? { ...p, stock: p.stock + qty } : p)); }
+        if (res.ok) { success++; setRestockQtys(prev => { const next = { ...prev }; delete next[item_id]; return next; }); }
       } catch { /* continue */ }
     }
-    setRestockQtys({});
     setSubmitting(false);
-    void msgApi.success(`เติมสต็อก ${success} รายการเรียบร้อย`);
+    await fetchAll(session.storeId);
+    if (success) void msgApi.success(`เติมสต็อก ${success} รายการแล้ว`);
+    if (success < entries.length) void msgApi.error(`ยังไม่สำเร็จ ${entries.length - success} รายการ เก็บจำนวนไว้ให้กดลองอีกครั้ง`);
   };
 
   const pendingCount = Object.values(restockQtys).filter(q => q > 0).length;
@@ -239,8 +268,8 @@ export function StorePage() {
   // Filtered products
   const filteredOverview = useMemo(() => {
     const q = overviewSearch.toLowerCase().trim();
-    return q ? products.filter(p => p.name.toLowerCase().includes(q)) : products;
-  }, [products, overviewSearch]);
+    return products.filter(p => (!q || p.name.toLowerCase().includes(q)) && (stockFilter === 'all' || (stockFilter === 'ready' ? p.stock > 0 : p.stock === 0)));
+  }, [products, overviewSearch, stockFilter]);
 
   const filteredRestock = useMemo(() => {
     const q = restockSearch.toLowerCase().trim();
@@ -254,7 +283,13 @@ export function StorePage() {
     { title: 'จำนวน', dataIndex: 'qty', align: 'right', width: 72, render: (v: number) => fmt(v) },
     { title: 'ราคา/ชิ้น', dataIndex: 'price_per_unit', align: 'right', width: 100, render: (v: number) => fmtMoney(v) },
     { title: 'รวม', dataIndex: 'total', align: 'right', width: 110, render: (v: number) => <span style={{ fontWeight: 700, color: '#2563eb' }}>{fmtMoney(Number(v))}</span> },
-    { title: '', key: 'del', width: 50, render: (_: unknown, r) => <Popconfirm title="ลบรายการนี้?" okText="ลบ" cancelText="ยกเลิก" onConfirm={async () => { const res = await fetch(`/api/store/${session!.storeId}/sales/${r.id}`, { method: 'DELETE' }); if (res.ok) setSales(prev => prev.filter(s => s.id !== r.id)); }}><Button size="small" danger icon={<DeleteOutlined />} /></Popconfirm> },
+    { title: 'หมายเหตุ', dataIndex: 'note', render: (v: string) => v || '—' },
+    { title: '', key: 'del', width: 80, render: (_: unknown, r) => <Popconfirm title="ลบประวัติการขายนี้?" description="ยอดขายรวมจะลดลง แต่จำนวนสินค้าในสต็อกจะไม่ถูกคืน" okText="ลบประวัติ" cancelText="เก็บไว้" onConfirm={async () => {
+      if (deletingSale) return; setDeletingSale(r.id);
+      try { const res = await fetch(`/api/store/${session!.storeId}/sales/${r.id}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error(); setSales(prev => prev.filter(s => s.id !== r.id)); void msgApi.success('ลบประวัติแล้ว');
+      } catch { void msgApi.error('ลบประวัติไม่สำเร็จ กรุณาลองอีกครั้ง'); } finally { setDeletingSale(null); }
+    }}><Button aria-label={`ลบประวัติขาย ${r.item_name}`} loading={deletingSale === r.id} disabled={!!deletingSale} size="small" danger type="text" icon={<DeleteOutlined />} /></Popconfirm> },
   ];
 
   if (!session) return <StoreGate onEntered={(id, name) => setSession({ storeId: id, storeName: name })} />;
@@ -269,16 +304,21 @@ export function StorePage() {
           <span className="store-navbar__title">{session.storeName}</span>
         </div>
         <div className="store-navbar__tabs">
-          {([['overview', 'ภาพรวม'], ['restock', 'เติมสต็อก'], ['sales', 'ประวัติขาย']] as const).map(([key, label]) => (
+          {([['overview', 'หน้าร้าน'], ['restock', 'เติมสต็อก'], ['sales', 'ประวัติขาย']] as const).map(([key, label]) => (
             <button key={key} className={`store-navbar__tab${tab === key ? ' is-active' : ''}`} onClick={() => setTab(key)}>
               {key === 'restock' && pendingCount > 0 ? <Badge count={pendingCount} offset={[4, -2]}><span>{label}</span></Badge> : label}
             </button>
           ))}
         </div>
-        <Button size="small" icon={<LogoutOutlined />} onClick={() => setSession(null)} style={{ background: 'rgba(255,255,255,.15)', border: 'none', color: '#fff' }}>ออก</Button>
+        <Button size="small" icon={<LogoutOutlined />} onClick={() => { setSession(null); setProducts([]); setSales([]); setApiData(null); setRestockQtys({}); setTab('overview'); }} style={{ background: 'rgba(255,255,255,.15)', border: 'none', color: '#fff' }}>ออก</Button>
       </nav>
 
       <div className="store-body">
+        <header className="store-intro"><div><h1>{tab === 'overview' ? 'พร้อมขายอะไรดี?' : tab === 'restock' ? 'เติมของเข้าร้าน' : 'รายการขายของร้าน'}</h1><p>{tab === 'overview' ? 'เลือกสินค้า เช็กจำนวน แล้วบันทึกการขายได้เลย' : tab === 'restock' ? 'กรอกหลายรายการ แล้วบันทึกพร้อมกัน' : 'ดูยอดขาย จำนวน และหมายเหตุของแต่ละรายการ'}</p></div>
+          <Button size="large" type="primary" icon={<PlusOutlined />} onClick={() => openEditor('new')}>เพิ่มสินค้าในร้าน</Button>
+        </header>
+        {loadError && <Alert type="error" showIcon message={loadError} action={<Button onClick={() => void fetchAll(session.storeId)}>ลองใหม่</Button>} />}
+
         {/* ── Overview ── */}
         {tab === 'overview' && (
           <>
@@ -290,10 +330,11 @@ export function StorePage() {
               {outOfStock > 0 && <Card size="small" className="store-stat-card store-stat-card--warn"><Statistic title="สินค้าหมด" value={outOfStock} suffix="รายการ" valueStyle={{ color: '#dc2626' }} /></Card>}
             </div>
 
-            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            <div className="store-toolbar">
               <Input prefix={<SearchOutlined />} placeholder="ค้นหาสินค้า…" value={overviewSearch} onChange={e => setOverviewSearch(e.target.value)} allowClear style={{ flex: 1 }} />
+              <Select aria-label="กรองตามสต็อก" value={stockFilter} onChange={setStockFilter} options={[{value:'all',label:`ทั้งหมด (${products.length})`},{value:'ready',label:`พร้อมขาย (${products.length-outOfStock})`},{value:'empty',label:`หมดสต็อก (${outOfStock})`}]} />
+              <Button icon={<ReloadOutlined />} loading={loading} onClick={() => void fetchAll(session.storeId)}>รีเฟรช</Button>
             </div>
-
             {loading ? <div style={{ textAlign: 'center', padding: 40 }}><Spin /></div> : filteredOverview.length === 0 ? <Empty description="ไม่พบสินค้า" /> : (
               <div className="store-product-grid">
                 {filteredOverview.map(p => {
@@ -301,24 +342,15 @@ export function StorePage() {
                   const empty = p.stock === 0;
                   return (
                     <div key={p.item_id} className={`store-product-card${empty ? ' is-empty' : ''}`}>
-                      <ItemImg src={img} name={p.name} size={52} />
+                      <ItemImg src={img} name={p.name} size={76} />
                       <div className="store-product-card__name">{p.name}</div>
                       <div className={`store-product-card__stock${empty ? ' is-out' : ''}`}>
                         {empty ? <Tag color="error">หมด</Tag> : <span>{fmt(p.stock)} ชิ้น</span>}
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, width: '100%' }}>
-                        <span style={{ fontSize: 11, color: '#64748b', flexShrink: 0 }}>฿</span>
-                        <InputNumber
-                          min={0} precision={2} size="small"
-                          defaultValue={p.price}
-                          onBlur={e => void updatePrice(p, parseFloat(e.target.value.replace(/,/g, '')) || 0)}
-                          style={{ width: '100%', fontSize: 13 }}
-                          controls={false}
-                          formatter={v => v ? Number(v).toLocaleString('th-TH') : ''}
-                          parser={v => Number(v?.replace(/[^0-9.]/g, '')) as unknown as 0}
-                        />
-                      </div>
-                      <Button type="primary" size="small" disabled={empty} icon={<ShoppingCartOutlined />} style={{ width: '100%' }} onClick={() => setSellProduct(p)}>ขายไป</Button>
+                      <div className="store-product-price">{fmtMoney(p.price)} <small>/ ชิ้น</small></div>
+                      <div className="store-product-actions"><Button type="primary" disabled={empty} icon={<ShoppingCartOutlined />} onClick={() => setSellProduct(p)}>ขายสินค้า</Button>
+                      <Button icon={<SettingOutlined />} aria-label={`จัดการ ${p.name}`} onClick={() => openEditor(p)} /></div>
+                      <button className="store-restock-link" onClick={() => { setRestockSearch(p.name); setTab('restock'); }}>เติมสต็อก</button>
                     </div>
                   );
                 })}
@@ -335,12 +367,12 @@ export function StorePage() {
               <Button type="primary" icon={<PlusOutlined />} disabled={pendingCount === 0} loading={submitting} onClick={() => void handleBulkRestock()}>
                 เติมสต็อก {pendingCount > 0 ? `(${pendingCount} รายการ)` : ''}
               </Button>
-              {pendingCount > 0 && <Button icon={<MinusCircleOutlined />} onClick={() => setRestockQtys({})}>ล้าง</Button>}
+              {pendingCount > 0 && <Button disabled={submitting} icon={<MinusCircleOutlined />} onClick={() => setRestockQtys({})}>ล้างที่กรอก</Button>}
             </div>
 
             <div className="store-restock-list">
               <div className="store-restock-list__head">
-                <span>สินค้า</span><span>สต็อกปัจจุบัน</span><span>จะเพิ่ม</span>
+                <span>สินค้า</span><span>สต็อกปัจจุบัน</span><span>เพิ่ม (ชิ้น)</span>
               </div>
               {filteredRestock.length === 0 ? <Empty description="ไม่พบสินค้า" style={{ padding: 24 }} /> : filteredRestock.map(p => (
                 <div key={p.item_id} className={`store-restock-row${(restockQtys[p.item_id] ?? 0) > 0 ? ' is-pending' : ''}`}>
@@ -352,7 +384,7 @@ export function StorePage() {
                     {p.stock === 0 ? <Tag color="error" style={{ margin: 0 }}>หมด</Tag> : fmt(p.stock)}
                   </span>
                   <InputNumber
-                    min={0} precision={0} size="small"
+                    disabled={submitting} aria-label={`เพิ่มจำนวน ${p.name}`} min={0} precision={0} size="large"
                     value={restockQtys[p.item_id] ?? null}
                     placeholder="0"
                     onChange={v => setRestockQtys(prev => { const next = { ...prev }; if (!v || v <= 0) delete next[p.item_id]; else next[p.item_id] = v; return next; })}
@@ -383,6 +415,18 @@ export function StorePage() {
         )}
       </div>
 
+      <Modal title={editing === 'new' ? 'เพิ่มสินค้าในร้าน' : 'จัดการสินค้า'} open={editing !== null} onCancel={() => { if (!savingProduct) setEditing(null); }} maskClosable={!savingProduct} closable={!savingProduct} confirmLoading={savingProduct} onOk={() => void saveProduct()} okText="บันทึกสินค้า" cancelText="ยกเลิก" okButtonProps={{disabled: !validEdit}}>
+        <div className="store-editor">
+          {editing === 'new' ? <><label>สินค้าจากแคตตาล็อก</label><Select aria-label="สินค้าใหม่" showSearch optionFilterProp="label" placeholder="ค้นหาชื่อสินค้า" value={editId} onChange={setEditId} loading={!apiData}
+            options={Object.entries(apiData?.itemNames ?? {}).filter(([id]) => !products.some(p => p.item_id === id)).map(([value,label]) => ({value,label}))}
+            optionRender={option => <div className="store-option"><ItemImg src={apiData?.stockImages[String(option.value)]} name={String(option.label)} size={32} />{option.label}</div>} />
+            <p>เพิ่มสินค้าโดยเริ่มที่ 0 ชิ้น แล้วเติมจำนวนได้ในแท็บเติมสต็อก</p></> : editing && <div className="store-option"><ItemImg src={getImg(editing)} name={editing.name} size={64} /><h3>{editing.name}</h3></div>}
+          <label htmlFor="store-edit-price">ราคาขายต่อชิ้น</label><InputNumber id="store-edit-price" size="large" min={0} precision={2} value={editPrice} onChange={setEditPrice} prefix="฿" />
+          {editing && editing !== 'new' && <><label htmlFor="store-edit-stock">ยอดสต็อกที่ถูกต้อง (ชิ้น)</label><InputNumber id="store-edit-stock" size="large" min={0} precision={0} value={editStock} onChange={setEditStock} />
+            <p>ปัจจุบัน {fmt(editing.stock)} → หลังบันทึก {fmt(editStock ?? 0)} ชิ้น</p>
+            <Popconfirm title={`นำ ${editing.name} ออกจากร้าน?`} description={`ลบรายการสินค้าและสต็อก ${fmt(editing.stock)} ชิ้น ประวัติขายยังอยู่`} okText="นำออกจากร้าน" cancelText="เก็บไว้" onConfirm={() => void deleteProduct()}><Button danger disabled={savingProduct} icon={<DeleteOutlined />}>นำสินค้าออกจากร้าน</Button></Popconfirm></>}
+        </div>
+      </Modal>
       <SellModal product={sellProduct} storeId={session.storeId} imgSrc={sellProduct ? getImg(sellProduct) : undefined} onClose={() => setSellProduct(null)} onSold={() => { setSellProduct(null); void fetchAll(session.storeId); }} />
     </div>
   );
