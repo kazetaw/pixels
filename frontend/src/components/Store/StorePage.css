@@ -107,7 +107,7 @@
 .shop-card__price { font-size:16px; font-weight:700; color:var(--sky-deep); font-variant-numeric:tabular-nums; }
 .shop-card__more { position:absolute !important; top:6px; right:6px; color:var(--muted) !important; }
 /* Out of stock: keep the full-colour picture, flag it with text only. */
-.shop-card.is-out { background:var(--sun-soft); border-color:#FDE68A; }
+.shop-card.is-out { background:var(--surface); border-color:var(--line); }
 .shop-card.is-out .shop-card__meta > span:last-child { font-weight:600; }
 
 /* Thumbnails — always full colour */
