@@ -975,9 +975,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const { name, pin } = req.body ?? {};
         if (typeof name !== 'string' || !name.trim()) return res.status(400).json({ error: 'ชื่อร้านไม่ถูกต้อง' });
         if (typeof pin !== 'string' || !/^\d{4}$/.test(pin)) return res.status(400).json({ error: 'PIN ต้องเป็นตัวเลข 4 หลัก' });
-        const { data, error } = await db.from('stores').insert({ name: name.trim(), pin_hash: pin }).select('id, name, created_at').single();
-        if (error) throw error;
-        return res.status(201).json(data);
+        const { data: storeRow, error: storeErr } = await db.from('stores').insert({ name: name.trim(), pin_hash: pin }).select('id, name, created_at').single();
+        if (storeErr) throw storeErr;
+        // Auto-import all items as store products with stock=0, price=0
+        const { data: allItems } = await db.from('items').select('item_id');
+        if (allItems?.length) {
+          const products = allItems.map((item: { item_id: string }) => ({ store_id: storeRow.id, item_id: item.item_id, price: 0, stock: 0 }));
+          await db.from('store_products').insert(products);
+        }
+        return res.status(201).json(storeRow);
       }
 
       // POST /api/store/verify-pin
