@@ -41,8 +41,8 @@ export function SalesChart({ sales, fmtMoney }: { sales: Sale[]; fmtMoney: (n: n
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
         <defs>
           <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#2563EB" stopOpacity=".18" />
-            <stop offset="100%" stopColor="#2563EB" stopOpacity="0" />
+            <stop offset="0%" stopColor="#FACC15" stopOpacity=".45" />
+            <stop offset="100%" stopColor="#0EA5E9" stopOpacity="0" />
           </linearGradient>
         </defs>
         {[0, .25, .5, .75, 1].map(t => <line key={t} className="shop-chart__grid" x1="0" x2={W} y1={y(max * t)} y2={y(max * t)} />)}

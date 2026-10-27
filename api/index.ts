@@ -967,7 +967,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (method === 'GET' && segments[1] === 'list') {
         const { data, error } = await db.from('stores').select('id, name').order('created_at', { ascending: true });
         if (error) throw error;
-        return res.json(data ?? []);
+        // Store logos live in Storage at images/stores/<sha256(store_id)[:32]>.png (see upload-image.ts).
+        const logos = new Map<string, string>();
+        try {
+          const { data: files } = await db.storage.from('images').list('stores', { limit: 1000 });
+          for (const f of files ?? []) logos.set(f.name, f.updated_at ?? '');
+        } catch { /* logos are optional */ }
+        return res.json((data ?? []).map((s: { id: string; name: string }) => {
+          const file = `${createHash('sha256').update(s.id).digest('hex').slice(0, 32)}.png`;
+          if (!logos.has(file)) return { ...s, logo_url: null };
+          const { data: url } = db.storage.from('images').getPublicUrl(`stores/${file}`);
+          return { ...s, logo_url: `${url.publicUrl}?v=${encodeURIComponent(logos.get(file) || '1')}` };
+        }));
       }
 
       // POST /api/store  — create store

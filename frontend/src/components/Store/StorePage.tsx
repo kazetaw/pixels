@@ -7,7 +7,7 @@ import type { ThemeConfig } from 'antd';
 import {
   AppstoreOutlined, BarsOutlined, DeleteOutlined, EditOutlined, LogoutOutlined, MoreOutlined,
   PlusOutlined, ReloadOutlined, SearchOutlined, ShopOutlined, ShoppingCartOutlined, InboxOutlined,
-  ThunderboltOutlined, DatabaseOutlined, RiseOutlined, WarningOutlined, CheckCircleOutlined,
+  ThunderboltOutlined, DatabaseOutlined, RiseOutlined, WarningOutlined, CheckCircleOutlined, CameraOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { fetchAllData } from '../../api/client';
@@ -16,44 +16,70 @@ import { SalesChart } from './SalesChart';
 import './StorePage.css';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type StoreRow = { id: string; name: string };
+type StoreRow = { id: string; name: string; logo_url?: string | null };
+type Session = { storeId: string; storeName: string; logo: string | null };
 type StoreProduct = { item_id: string; name: string; image_url: string | null; price: number; stock: number };
 type SaleRecord = { id: string; item_id: string; item_name: string; image_url: string | null; qty: number; price_per_unit: number; total: number; note: string; sold_at: string };
 type Tab = 'overview' | 'restock' | 'sales';
 
-// ── Light theme (scoped to /store) ────────────────────────────────────────────
-const BLUE = '#2563EB';
-const LINE = '#E5E7EB';
+// ── Sky · Sun · White theme (scoped to /store) ────────────────────────────────
+const SKY = '#0284C7';
+const LINE = '#E0F2FE';
 
 const shopTheme: ThemeConfig = {
   token: {
-    colorPrimary: BLUE,
-    colorInfo: BLUE,
+    colorPrimary: SKY,
+    colorInfo: SKY,
+    colorWarning: '#EAB308',
     colorSuccess: '#16A34A',
-    colorError: '#DC2626',
-    colorBgLayout: '#F6F7F9',
+    colorError: '#E11D48',
+    colorLink: SKY,
+    colorBgLayout: '#F0F9FF',
     colorBgContainer: '#FFFFFF',
     colorBgElevated: '#FFFFFF',
-    colorText: '#111827',
-    colorTextSecondary: '#4B5563',
-    colorTextTertiary: '#6B7280',
-    colorTextPlaceholder: '#9CA3AF',
-    colorBorder: '#D1D5DB',
+    colorText: '#0C1E33',
+    colorTextSecondary: '#3B5470',
+    colorTextTertiary: '#64748B',
+    colorTextPlaceholder: '#94A3B8',
+    colorBorder: '#BAE6FD',
     colorBorderSecondary: LINE,
-    borderRadius: 8,
-    borderRadiusLG: 12,
+    borderRadius: 10,
+    borderRadiusLG: 16,
     borderRadiusSM: 6,
-    controlHeight: 36,
+    controlHeight: 38,
     fontSize: 14,
     fontFamily: "'Inter', 'IBM Plex Sans Thai', 'Noto Sans Thai', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
   components: {
-    Segmented: { itemSelectedBg: '#FFFFFF', trackBg: '#EEF0F3', itemColor: '#4B5563', itemHoverColor: '#111827', itemSelectedColor: '#111827' },
-    Table: { headerBg: '#F9FAFB', headerColor: '#4B5563', rowHoverBg: '#F9FAFB', borderColor: LINE, cellPaddingBlock: 12 },
-    Button: { primaryShadow: 'none', defaultShadow: 'none', dangerShadow: 'none', fontWeight: 500 },
-    Modal: { borderRadiusLG: 12 },
+    Segmented: { itemSelectedBg: '#FACC15', trackBg: '#E0F2FE', itemColor: '#075985', itemHoverColor: '#0C1E33', itemSelectedColor: '#0C1E33' },
+    Table: { headerBg: '#E0F2FE', headerColor: '#075985', rowHoverBg: '#FEFCE8', borderColor: LINE, cellPaddingBlock: 12 },
+    Button: { primaryShadow: 'none', defaultShadow: 'none', dangerShadow: 'none', fontWeight: 600 },
+    Modal: { borderRadiusLG: 16 },
   },
 };
+
+// Logos are stored as a 256px PNG (fixed path per store, so a new upload replaces the old one).
+async function toPngBlob(file: File, size = 256): Promise<Blob> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => { const i = new Image(); i.onload = () => resolve(i); i.onerror = reject; i.src = url; });
+    const scale = Math.min(1, size / Math.max(img.width, img.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(img.width * scale)); canvas.height = Math.max(1, Math.round(img.height * scale));
+    canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
+    return await new Promise<Blob>((resolve, reject) => canvas.toBlob(b => b ? resolve(b) : reject(new Error('แปลงรูปไม่สำเร็จ')), 'image/png'));
+  } finally { URL.revokeObjectURL(url); }
+}
+
+function StoreLogo({ src, size = 36 }: { src?: string | null; size?: number }) {
+  const [broken, setBroken] = useState(false);
+  useEffect(() => setBroken(false), [src]);
+  return (
+    <span className="shop-mark" style={{ width: size, height: size, fontSize: size * 0.48 }}>
+      {src && !broken ? <img src={src} alt="โลโก้ร้าน" onError={() => setBroken(true)} /> : <ShopOutlined />}
+    </span>
+  );
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fmt(n: number) { return n.toLocaleString('th-TH'); }
@@ -69,7 +95,7 @@ function ItemImg({ src, name, size = 40 }: { src?: string | null; name: string; 
 
 const LOW_STOCK = 5;
 
-function Kpi({ icon, label, value, unit, tone }: { icon: ReactNode; label: string; value: string; unit?: string; tone?: 'danger' | 'ok' }) {
+function Kpi({ icon, label, value, unit, tone }: { icon: ReactNode; label: string; value: string; unit?: string; tone?: 'danger' | 'ok' | 'sky' | 'sun' }) {
   return (
     <div className={`shop-kpi${tone ? ` is-${tone}` : ''}`}>
       <span className="shop-kpi__icon" aria-hidden>{icon}</span>
@@ -105,7 +131,7 @@ function PinDots({ onSubmit, error, onClear }: { onSubmit: (pin: string) => void
   );
 }
 
-function StoreGate({ onEntered }: { onEntered: (id: string, name: string) => void }) {
+function StoreGate({ onEntered }: { onEntered: (id: string, name: string, logo: string | null) => void }) {
   const [stores, setStores] = useState<StoreRow[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [newName, setNewName] = useState('');
@@ -126,7 +152,7 @@ function StoreGate({ onEntered }: { onEntered: (id: string, name: string) => voi
       const res = await fetch('/api/store', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newName.trim(), pin: newPin }) });
       const data = await res.json();
       if (!res.ok) { void message.error(data.error ?? 'สร้างร้านไม่สำเร็จ'); return; }
-      onEntered(data.id, data.name);
+      onEntered(data.id, data.name, null);
     } catch { void message.error('สร้างร้านไม่สำเร็จ'); }
     finally { setCreating(false); }
   };
@@ -137,7 +163,8 @@ function StoreGate({ onEntered }: { onEntered: (id: string, name: string) => voi
     try {
       const res = await fetch('/api/store/verify-pin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ store_id: selectedId, pin }) });
       if (!res.ok) { setPinError(true); return; }
-      onEntered(selectedId, stores?.find(s => s.id === selectedId)?.name ?? '');
+      const store = stores?.find(s => s.id === selectedId);
+      onEntered(selectedId, store?.name ?? '', store?.logo_url ?? null);
     } catch { setPinError(true); }
     finally { setVerifying(false); }
   };
@@ -147,7 +174,7 @@ function StoreGate({ onEntered }: { onEntered: (id: string, name: string) => voi
     <div className="shop-gate">
       {loading ? <Spin /> : (
         <div className="shop-gate__card">
-          <span className="shop-mark shop-mark--lg"><ShopOutlined /></span>
+          <StoreLogo src={stores?.find(s => s.id === selectedId)?.logo_url} size={64} />
           <h1>{creatingNew ? 'สร้างร้านใหม่' : 'เข้าร้านค้า'}</h1>
           <p className="shop-muted">{creatingNew ? 'ตั้งชื่อร้านและ PIN 4 หลัก' : 'เลือกร้าน แล้วกรอก PIN 4 หลัก'}</p>
           {creatingNew ? (
@@ -228,7 +255,44 @@ export function StorePage() {
 }
 
 function StoreApp() {
-  const [session, setSession] = useState<{ storeId: string; storeName: string } | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const logoInput = useRef<HTMLInputElement>(null);
+  const uploadLogo = async (file: File | undefined) => {
+    if (!file || !session || uploadingLogo) return;
+    if (!file.type.startsWith('image/')) { void msgApi.error('เลือกไฟล์รูปภาพเท่านั้น'); return; }
+    setUploadingLogo(true);
+    try {
+      const form = new FormData();
+      form.append('bucket', 'images'); form.append('folder', 'stores'); form.append('itemId', session.storeId);
+      form.append('file', await toPngBlob(file), 'logo.png');
+      const res = await fetch('/api/upload-image', { method: 'POST', body: form });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.url) throw new Error(data.error || 'อัปโหลดโลโก้ไม่สำเร็จ');
+      setSession(s => s && { ...s, logo: `${data.url}?v=${Date.now()}` });
+      void msgApi.success('เปลี่ยนรูปร้านแล้ว');
+    } catch (e) { void msgApi.error(e instanceof Error ? e.message : 'อัปโหลดโลโก้ไม่สำเร็จ'); }
+    finally { setUploadingLogo(false); if (logoInput.current) logoInput.current.value = ''; }
+  };
+
+  // Quick restock (one item, from the header button on the restock tab)
+  const [quickOpen, setQuickOpen] = useState(false);
+  const [quickId, setQuickId] = useState<string>();
+  const [quickQty, setQuickQty] = useState<number | null>(null);
+  const [quickSaving, setQuickSaving] = useState(false);
+  const quickValid = !!quickId && quickQty !== null && Number.isSafeInteger(quickQty) && quickQty > 0;
+  const saveQuickRestock = async () => {
+    if (!session || !quickValid || quickSaving) return;
+    setQuickSaving(true);
+    try {
+      const res = await fetch(`/api/store/${session.storeId}/restock`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ item_id: quickId, qty: quickQty }) });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'เติมสต็อกไม่สำเร็จ');
+      void msgApi.success(`เติม ${products.find(p => p.item_id === quickId)?.name ?? ''} +${fmt(quickQty!)} ชิ้นแล้ว`);
+      setQuickOpen(false); await fetchAll(session.storeId);
+    } catch (e) { void msgApi.error(e instanceof Error ? e.message : 'เติมสต็อกไม่สำเร็จ'); }
+    finally { setQuickSaving(false); }
+  };
+  const openQuickRestock = (id?: string) => { setQuickId(id); setQuickQty(null); setQuickOpen(true); };
   const [tab, setTab] = useState<Tab>('overview');
   const [apiData, setApiData] = useState<AppData | null>(null);
   const [products, setProducts] = useState<StoreProduct[]>([]);
@@ -272,6 +336,11 @@ function StoreApp() {
         body: JSON.stringify(editing === 'new' ? { item_id: editId, price: editPrice } : { price: editPrice, stock: editStock }),
       });
       if (!res.ok) throw new Error((await res.json()).error || 'บันทึกสินค้าไม่สำเร็จ');
+      // New products start at 0 — apply the initial quantity as a normal restock so it is logged.
+      if (editing === 'new' && editStock && editStock > 0) {
+        const r = await fetch(`/api/store/${session.storeId}/restock`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ item_id: editId, qty: editStock }) });
+        if (!r.ok) void msgApi.warning('เพิ่มสินค้าแล้ว แต่เติมจำนวนเริ่มต้นไม่สำเร็จ กรุณาเติมสต็อกอีกครั้ง');
+      }
       setEditing(null); void msgApi.success('บันทึกสินค้าแล้ว'); await fetchAll(session.storeId);
     } catch (e) { void msgApi.error(e instanceof Error ? e.message : 'เชื่อมต่อไม่สำเร็จ ลองอีกครั้ง'); }
     finally { setSavingProduct(false); }
@@ -350,7 +419,7 @@ function StoreApp() {
       && (restockFilter === 'all' || (restockFilter === 'empty' ? p.stock === 0 : (restockQtys[p.item_id] ?? 0) > 0)));
   }, [products, restockSearch, restockFilter, restockQtys]);
 
-  const goRestock = (p: StoreProduct) => { setRestockSearch(p.name); setRestockFilter('all'); setTab('restock'); };
+  const goRestock = (p: StoreProduct) => openQuickRestock(p.item_id);
 
   const moreMenu = (p: StoreProduct) => ({
     items: [
@@ -374,7 +443,7 @@ function StoreApp() {
   const restockColumns: ColumnsType<StoreProduct> = [
     { title: 'สินค้า', key: 'name', render: (_, p) => <div className="shop-cell"><ItemImg src={getImg(p)} name={p.name} size={28} /><span>{p.name}</span></div> },
     { title: 'คงเหลือ', dataIndex: 'stock', align: 'right', width: 100, render: (v: number) => v === 0 ? <Tag color="error" variant="filled">หมด</Tag> : <span className="shop-num">{fmt(v)}</span> },
-    { title: 'เพิ่ม', key: 'qty', align: 'right', width: 120, render: (_, p) => (
+    { title: 'เพิ่ม (ชิ้น)', key: 'qty', align: 'right', width: 130, render: (_, p) => (
       <InputNumber disabled={submitting} aria-label={`เพิ่มจำนวน ${p.name}`} min={0} precision={0} controls={false} placeholder="0" style={{ width: 96 }}
         value={restockQtys[p.item_id] ?? null}
         onChange={v => setRestockQtys(prev => { const next = { ...prev }; if (!v || v <= 0) delete next[p.item_id]; else next[p.item_id] = v; return next; })} />
@@ -396,11 +465,11 @@ function StoreApp() {
     }}><Button aria-label={`ลบประวัติขาย ${r.item_name}`} loading={deletingSale === r.id} disabled={!!deletingSale} size="small" type="text" icon={<DeleteOutlined />} /></Popconfirm> },
   ];
 
-  if (!session) return <StoreGate onEntered={(id, name) => setSession({ storeId: id, storeName: name })} />;
+  if (!session) return <StoreGate onEntered={(id, name, logo) => setSession({ storeId: id, storeName: name, logo })} />;
 
   const heading: Record<Tab, [string, string]> = {
     overview: ['หน้าร้าน', 'เลือกสินค้าแล้วกดขาย — สินค้าที่มีของจะแสดงก่อน'],
-    restock: ['เติมสต็อก', 'กรอกจำนวนหลายรายการ แล้วบันทึกครั้งเดียว'],
+    restock: ['เติมสต็อก', 'กรอกจำนวนที่ได้รับเพิ่มในช่อง "เพิ่ม (ชิ้น)" ได้หลายรายการ แล้วกดบันทึกครั้งเดียว'],
     sales: ['ประวัติขาย', 'รายการขายทั้งหมดของร้าน'],
   };
 
@@ -409,7 +478,16 @@ function StoreApp() {
       {ctx}
       <header className="shop-bar">
         <div className="shop-bar__inner">
-          <div className="shop-brand"><span className="shop-mark"><ShopOutlined /></span><span className="shop-brand__name">{session.storeName}</span></div>
+          <div className="shop-brand">
+            <Tooltip title="เปลี่ยนรูปร้าน">
+              <button type="button" className="shop-logo-btn" aria-label="เปลี่ยนรูปร้าน" disabled={uploadingLogo} onClick={() => logoInput.current?.click()}>
+                <StoreLogo src={session.logo} size={40} />
+                <span className="shop-logo-btn__edit">{uploadingLogo ? <Spin size="small" /> : <CameraOutlined />}</span>
+              </button>
+            </Tooltip>
+            <input ref={logoInput} type="file" accept="image/*" hidden onChange={e => void uploadLogo(e.target.files?.[0])} />
+            <span className="shop-brand__name">{session.storeName}</span>
+          </div>
           <Segmented<Tab> className="shop-tabs" value={tab} onChange={setTab} options={[
             { value: 'overview', label: 'หน้าร้าน' },
             { value: 'restock', label: <Badge count={pendingCount} size="small" offset={[8, -2]}>เติมสต็อก</Badge> },
@@ -423,7 +501,8 @@ function StoreApp() {
       <main className="shop-main">
         <div className="shop-head">
           <div><h1>{heading[tab][0]}</h1><p>{heading[tab][1]}</p></div>
-          {tab !== 'sales' && <Button type="primary" icon={<PlusOutlined />} onClick={() => openEditor('new')}>เพิ่มสินค้า</Button>}
+          {tab === 'overview' && <Button type="primary" icon={<PlusOutlined />} onClick={() => openEditor('new')}>เพิ่มสินค้าในร้าน</Button>}
+          {tab === 'restock' && <Button className="shop-btn-sun" icon={<PlusOutlined />} onClick={() => openQuickRestock()}>เติมสต็อกทีละรายการ</Button>}
         </div>
         {loadError && <Alert className="shop-alert" type="error" showIcon message={loadError} action={<Button size="small" onClick={() => void fetchAll(session.storeId)}>ลองใหม่</Button>} />}
 
@@ -432,8 +511,8 @@ function StoreApp() {
           <>
             <dl className="shop-stats">
               <Kpi icon={<AppstoreOutlined />} label="สินค้า" value={fmt(products.length)} unit="รายการ" />
-              <Kpi icon={<DatabaseOutlined />} label="สต็อกรวม" value={fmt(totalStock)} unit="ชิ้น" />
-              <Kpi icon={<ThunderboltOutlined />} label="ยอดขายรวม" value={fmtMoney(totalRevenue)} tone="ok" />
+              <Kpi icon={<DatabaseOutlined />} label="สต็อกรวม" value={fmt(totalStock)} unit="ชิ้น" tone="sky" />
+              <Kpi icon={<ThunderboltOutlined />} label="ยอดขายรวม" value={fmtMoney(totalRevenue)} tone="sun" />
               <Kpi icon={<WarningOutlined />} label="หมดสต็อก" value={fmt(outOfStock)} unit="รายการ" tone={outOfStock ? 'danger' : undefined} />
             </dl>
 
@@ -513,8 +592,8 @@ function StoreApp() {
         {tab === 'sales' && (
           <>
             <dl className="shop-stats shop-stats--3">
-              <Kpi icon={<ThunderboltOutlined />} label="ยอดขายรวม" value={fmtMoney(totalRevenue)} tone="ok" />
-              <Kpi icon={<RiseOutlined />} label="รายการขาย" value={fmt(sales.length)} unit="ครั้ง" />
+              <Kpi icon={<ThunderboltOutlined />} label="ยอดขายรวม" value={fmtMoney(totalRevenue)} tone="sun" />
+              <Kpi icon={<RiseOutlined />} label="รายการขาย" value={fmt(sales.length)} unit="ครั้ง" tone="sky" />
               <Kpi icon={<ShoppingCartOutlined />} label="ขายไปแล้ว" value={fmt(totalSold)} unit="ชิ้น" />
             </dl>
             <div className="shop-dash">
@@ -549,9 +628,12 @@ function StoreApp() {
             <Select aria-label="สินค้าใหม่" showSearch optionFilterProp="label" placeholder="ค้นหาชื่อสินค้า" value={editId} onChange={setEditId} loading={!apiData}
               options={Object.entries(apiData?.itemNames ?? {}).filter(([id]) => !products.some(p => p.item_id === id)).map(([value, label]) => ({ value, label }))}
               optionRender={option => <div className="shop-cell"><ItemImg src={apiData?.stockImages[String(option.value)]} name={String(option.label)} size={24} />{option.label}</div>} />
-            <span className="shop-muted">เริ่มที่ 0 ชิ้น แล้วเติมจำนวนได้ในแท็บเติมสต็อก</span>
           </label> : editing && <div className="shop-modal__item"><ItemImg src={getImg(editing)} name={editing.name} size={44} /><div><strong>{editing.name}</strong><span className="shop-muted">คงเหลือ {fmt(editing.stock)} ชิ้น</span></div></div>}
           <label className="shop-field">ราคาขายต่อชิ้น<InputNumber id="store-edit-price" min={0} precision={2} value={editPrice} onChange={setEditPrice} prefix="฿" style={{ width: '100%' }} /></label>
+          {editing === 'new' && <label className="shop-field">จำนวนเริ่มต้น
+            <InputNumber min={0} precision={0} value={editStock} onChange={setEditStock} suffix="ชิ้น" style={{ width: '100%' }} />
+            <span className="shop-muted">ใส่ 0 ได้ แล้วค่อยเติมทีหลัง</span>
+          </label>}
           {editing && editing !== 'new' && <>
             <label className="shop-field">ยอดสต็อกที่ถูกต้อง
               <InputNumber id="store-edit-stock" min={0} precision={0} value={editStock} onChange={setEditStock} suffix="ชิ้น" style={{ width: '100%' }} />
@@ -561,6 +643,21 @@ function StoreApp() {
               <Button className="shop-modal__danger" type="text" danger size="small" disabled={savingProduct} icon={<DeleteOutlined />}>นำสินค้าออกจากร้าน</Button>
             </Popconfirm>
           </>}
+        </div>
+      </Modal>
+      <Modal title="เติมสต็อก" width={420} open={quickOpen} onCancel={() => { if (!quickSaving) setQuickOpen(false); }} mask={{ closable: !quickSaving }} closable={!quickSaving}
+        confirmLoading={quickSaving} onOk={() => void saveQuickRestock()} okText={quickValid ? `เติม +${fmt(quickQty!)} ชิ้น` : 'เติมสต็อก'} cancelText="ยกเลิก" okButtonProps={{ disabled: !quickValid }}>
+        <div className="shop-modal">
+          <label className="shop-field">สินค้า
+            <Select aria-label="สินค้าที่จะเติม" showSearch optionFilterProp="label" placeholder="ค้นหาชื่อสินค้า" value={quickId} onChange={setQuickId}
+              options={products.map(p => ({ value: p.item_id, label: p.name }))}
+              optionRender={option => { const p = products.find(x => x.item_id === option.value); return <div className="shop-cell"><ItemImg src={p && getImg(p)} name={String(option.label)} size={24} /><span>{option.label}</span><span className="shop-muted" style={{ marginLeft: 'auto' }}>{p ? fmt(p.stock) : ''}</span></div>; }} />
+          </label>
+          <label className="shop-field">จำนวนที่ได้รับเพิ่ม
+            <InputNumber autoFocus min={1} precision={0} value={quickQty} onChange={setQuickQty} suffix="ชิ้น" placeholder="0" style={{ width: '100%' }} onPressEnter={() => void saveQuickRestock()} />
+          </label>
+          <div className="shop-chips">{[10, 50, 100, 500].map(n => <Button key={n} size="small" type={quickQty === n ? 'primary' : 'default'} onClick={() => setQuickQty(n)}>+{n}</Button>)}</div>
+          {quickId && (() => { const p = products.find(x => x.item_id === quickId); return p && <div className="shop-modal__sum">คงเหลือ {fmt(p.stock)} → <b>{fmt(p.stock + (quickQty ?? 0))}</b> ชิ้น</div>; })()}
         </div>
       </Modal>
       <SellModal product={sellProduct} storeId={session.storeId} imgSrc={sellProduct ? getImg(sellProduct) : undefined} onClose={() => setSellProduct(null)} onSold={() => { setSellProduct(null); void fetchAll(session.storeId); }} />
