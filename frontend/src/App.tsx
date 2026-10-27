@@ -52,6 +52,7 @@ import { AssignmentEditor } from './components/Organization/AssignmentEditor';
 import { AssignmentSummary } from './components/Organization/AssignmentSummary';
 import { OrganizationChart } from './components/Organization/OrganizationChart';
 import { ProductionFlowBoard } from './components/Planner/ProductionFlowBoard';
+import { StorePage } from './components/Store/StorePage';
 import { ProductionCalculator } from './components/shared/ProductionCalculator';
 import type { SaveStatus } from './hooks/useAppState';
 
@@ -844,6 +845,11 @@ export default function App() {
   }
 
   if (isStore) return <StorePage />;
+
+  // /store — standalone store page
+  if (isStore) {
+    return <StorePage />;
+  }
 
   // A compact share link for teammates who only need to check the current stock.
   // It intentionally renders the same Inventory component and app data, without
