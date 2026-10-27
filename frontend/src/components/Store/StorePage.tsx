@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useMemo, type ReactNode } from 'react';
 import {
   Alert, Badge, Button, ConfigProvider, Dropdown, Empty, Input, InputNumber,
-  Modal, Popconfirm, Segmented, Select, Spin, Table, Tag, Tooltip, message, theme,
+  Modal, Popconfirm, Segmented, Select, Spin, Table, Tag, Tooltip, message,
 } from 'antd';
 import type { ThemeConfig } from 'antd';
 import {
@@ -21,40 +21,37 @@ type StoreProduct = { item_id: string; name: string; image_url: string | null; p
 type SaleRecord = { id: string; item_id: string; item_name: string; image_url: string | null; qty: number; price_per_unit: number; total: number; note: string; sold_at: string };
 type Tab = 'overview' | 'restock' | 'sales';
 
-// ── WattVision dark theme (scoped to /store) ──────────────────────────────────
-const CYAN = '#00E5FF';
-const LINE = '#2C2C2E';
+// ── Light theme (scoped to /store) ────────────────────────────────────────────
+const BLUE = '#2563EB';
+const LINE = '#E5E7EB';
 
 const shopTheme: ThemeConfig = {
-  algorithm: theme.darkAlgorithm,
   token: {
-    colorPrimary: CYAN,
-    colorInfo: CYAN,
-    colorSuccess: '#32D74B',
-    colorError: '#FF453A',
-    colorBgBase: '#121212',
-    colorBgLayout: '#121212',
-    colorBgContainer: '#1E1E1E',
-    colorBgElevated: '#1E1E1E',
-    colorText: '#FFFFFF',
-    colorTextSecondary: '#98989D',
-    colorBorder: LINE,
+    colorPrimary: BLUE,
+    colorInfo: BLUE,
+    colorSuccess: '#16A34A',
+    colorError: '#DC2626',
+    colorBgLayout: '#F6F7F9',
+    colorBgContainer: '#FFFFFF',
+    colorBgElevated: '#FFFFFF',
+    colorText: '#111827',
+    colorTextSecondary: '#4B5563',
+    colorTextTertiary: '#6B7280',
+    colorTextPlaceholder: '#9CA3AF',
+    colorBorder: '#D1D5DB',
     colorBorderSecondary: LINE,
     borderRadius: 8,
-    borderRadiusLG: 16,
+    borderRadiusLG: 12,
     borderRadiusSM: 6,
-    controlHeight: 34,
+    controlHeight: 36,
     fontSize: 14,
     fontFamily: "'Inter', 'IBM Plex Sans Thai', 'Noto Sans Thai', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
   components: {
-    Segmented: { itemSelectedBg: LINE, trackBg: '#121212', itemColor: '#98989D', itemHoverColor: '#FFFFFF', itemSelectedColor: CYAN },
-    Table: { headerBg: '#1E1E1E', headerColor: '#98989D', rowHoverBg: '#252525', borderColor: LINE, cellPaddingBlock: 10 },
-    Button: { primaryColor: '#121212', primaryShadow: 'none', defaultShadow: 'none', dangerShadow: 'none', fontWeight: 500 },
-    Input: { activeShadow: '0 0 0 3px #00E5FF26' },
-    InputNumber: { activeShadow: '0 0 0 3px #00E5FF26' },
-    Select: { activeOutlineColor: '#00E5FF26' },
-    Modal: { borderRadiusLG: 16, contentBg: '#1E1E1E', headerBg: '#1E1E1E' },
+    Segmented: { itemSelectedBg: '#FFFFFF', trackBg: '#EEF0F3', itemColor: '#4B5563', itemHoverColor: '#111827', itemSelectedColor: '#111827' },
+    Table: { headerBg: '#F9FAFB', headerColor: '#4B5563', rowHoverBg: '#F9FAFB', borderColor: LINE, cellPaddingBlock: 12 },
+    Button: { primaryShadow: 'none', defaultShadow: 'none', dangerShadow: 'none', fontWeight: 500 },
+    Modal: { borderRadiusLG: 12 },
   },
 };
 
