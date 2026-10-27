@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import {
-  Alert, Badge, Button, Card, Empty, Input, InputNumber,
-  Modal, Popconfirm, Select, Spin, Statistic, Table, Tag, message,
+  Alert, Badge, Button, ConfigProvider, Dropdown, Empty, Input, InputNumber,
+  Modal, Popconfirm, Segmented, Select, Spin, Table, Tag, Tooltip, message,
 } from 'antd';
+import type { ThemeConfig } from 'antd';
 import {
-  DeleteOutlined, LogoutOutlined, MinusCircleOutlined,
-  PlusOutlined, SearchOutlined, ShopOutlined, ShoppingCartOutlined, ReloadOutlined, SettingOutlined,
+  AppstoreOutlined, BarsOutlined, DeleteOutlined, EditOutlined, LogoutOutlined, MoreOutlined,
+  PlusOutlined, ReloadOutlined, SearchOutlined, ShopOutlined, ShoppingCartOutlined, InboxOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { fetchAllData } from '../../api/client';
@@ -16,15 +17,49 @@ import './StorePage.css';
 type StoreRow = { id: string; name: string };
 type StoreProduct = { item_id: string; name: string; image_url: string | null; price: number; stock: number };
 type SaleRecord = { id: string; item_id: string; item_name: string; image_url: string | null; qty: number; price_per_unit: number; total: number; note: string; sold_at: string };
+type Tab = 'overview' | 'restock' | 'sales';
+
+// ── Minimal theme (scoped to /store) ──────────────────────────────────────────
+const INK = '#18181b';
+const shopTheme: ThemeConfig = {
+  token: {
+    colorPrimary: INK,
+    colorInfo: INK,
+    colorText: INK,
+    colorTextSecondary: '#71717a',
+    colorTextTertiary: '#a1a1aa',
+    colorBorder: '#e4e4e7',
+    colorBorderSecondary: '#f0f0f1',
+    colorBgLayout: '#fafafa',
+    colorError: '#dc2626',
+    borderRadius: 8,
+    borderRadiusLG: 12,
+    borderRadiusSM: 6,
+    controlHeight: 34,
+    fontSize: 13,
+    fontFamily: "'Inter', 'IBM Plex Sans Thai', 'Noto Sans Thai', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+  },
+  components: {
+    Segmented: { itemSelectedBg: '#ffffff', trackBg: '#f4f4f5', itemColor: '#71717a', itemHoverColor: INK },
+    Table: { headerBg: '#fafafa', headerColor: '#71717a', rowHoverBg: '#fafafa', cellPaddingBlock: 10 },
+    Button: { primaryShadow: 'none', defaultShadow: 'none', dangerShadow: 'none', fontWeight: 500 },
+    Input: { activeShadow: '0 0 0 3px #18181b14' },
+    InputNumber: { activeShadow: '0 0 0 3px #18181b14' },
+    Select: { activeOutlineColor: '#18181b14' },
+    Modal: { borderRadiusLG: 14 },
+  },
+};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fmt(n: number) { return n.toLocaleString('th-TH'); }
 function fmtMoney(n: number) { return `฿${new Intl.NumberFormat('th-TH', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(n)}`; }
 
 function ItemImg({ src, name, size = 40 }: { src?: string | null; name: string; size?: number }) {
-  return src
-    ? <img src={src} alt={name} style={{ width: size, height: size, objectFit: 'contain', borderRadius: 6, background: '#f1f5f9', flexShrink: 0 }} />
-    : <div style={{ width: size, height: size, borderRadius: 6, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: size * 0.4, color: '#cbd5e1', flexShrink: 0 }}>📦</div>;
+  return (
+    <span className="shop-thumb" style={{ width: size, height: size }}>
+      {src ? <img src={src} alt={name} loading="lazy" /> : <InboxOutlined style={{ fontSize: size * 0.42 }} />}
+    </span>
+  );
 }
 
 // ── PIN Gate ──────────────────────────────────────────────────────────────────
@@ -40,13 +75,13 @@ function PinDots({ onSubmit, error, onClear }: { onSubmit: (pin: string) => void
     if (d && i === 3) onSubmit(next.join(''));
   };
   return (
-    <div style={{ display: 'flex', gap: 12, justifyContent: 'center', margin: '8px 0' }}>
+    <div className="shop-pin">
       {digits.map((d, i) => (
-        <div key={i} style={{ position: 'relative', width: 48, height: 48 }}>
-          <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: `2px solid ${error ? '#ef4444' : d ? '#2563eb' : '#e2e8f0'}`, background: error ? '#fef2f2' : d ? '#eff6ff' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'border-color .15s' }}>
-            {d && <div style={{ width: 12, height: 12, borderRadius: '50%', background: error ? '#ef4444' : '#2563eb' }} />}
-          </div>
-          <input ref={el => { refs.current[i] = el; }} type="password" inputMode="numeric" maxLength={1} value={d} onChange={e => handleDigit(i, e.target.value)} onKeyDown={e => { if (e.key === 'Backspace' && !d && i > 0) refs.current[i - 1]?.focus(); }} style={{ position: 'absolute', inset: 0, opacity: 0, width: '100%', height: '100%', cursor: 'text' }} />
+        <div key={i} className={`shop-pin__dot${d ? ' is-filled' : ''}${error ? ' is-error' : ''}`}>
+          {d && <span />}
+          <input ref={el => { refs.current[i] = el; }} aria-label={`PIN หลักที่ ${i + 1}`} type="password" inputMode="numeric" maxLength={1} value={d}
+            onChange={e => handleDigit(i, e.target.value)}
+            onKeyDown={e => { if (e.key === 'Backspace' && !d && i > 0) refs.current[i - 1]?.focus(); }} />
         </div>
       ))}
     </div>
@@ -90,37 +125,31 @@ function StoreGate({ onEntered }: { onEntered: (id: string, name: string) => voi
     finally { setVerifying(false); }
   };
 
-  if (loading) return <div className="store-gate"><Spin /></div>;
-
+  const creatingNew = stores?.length === 0;
   return (
-    <div className="store-gate">
-      <div className="store-gate-card">
-        <div className="store-gate-icon"><ShopOutlined style={{ fontSize: 28, color: '#2563eb' }} /></div>
-        <h2 className="store-gate-title">{stores?.length === 0 ? 'สร้างร้านใหม่' : 'เข้าร้านค้า'}</h2>
-
-        {stores?.length === 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%' }}>
-            <div><div className="store-field-label">ชื่อร้าน</div><Input value={newName} onChange={e => setNewName(e.target.value)} placeholder="เช่น ร้านค้าหลัก" maxLength={100} /></div>
-            <div><div className="store-field-label">PIN (4 หลัก)</div><Input.Password value={newPin} onChange={e => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="0000" inputMode="numeric" maxLength={4} /></div>
-            <Button type="primary" block loading={creating} disabled={!newName.trim() || newPin.length !== 4} onClick={() => void handleCreate()}>สร้างร้าน</Button>
-          </div>
-        ) : (
-          <>
-            <div style={{ width: '100%', marginBottom: 20 }}>
-              <div className="store-field-label">เลือกร้าน</div>
-              <Select style={{ width: '100%' }} placeholder="เลือกร้าน" value={selectedId} onChange={v => { setSelectedId(v); setPinError(false); }} options={(stores ?? []).map(s => ({ value: s.id, label: s.name }))} />
+    <div className="shop-gate">
+      {loading ? <Spin /> : (
+        <div className="shop-gate__card">
+          <span className="shop-mark shop-mark--lg"><ShopOutlined /></span>
+          <h1>{creatingNew ? 'สร้างร้านใหม่' : 'เข้าร้านค้า'}</h1>
+          <p className="shop-muted">{creatingNew ? 'ตั้งชื่อร้านและ PIN 4 หลัก' : 'เลือกร้าน แล้วกรอก PIN 4 หลัก'}</p>
+          {creatingNew ? (
+            <div className="shop-form">
+              <label>ชื่อร้าน<Input value={newName} onChange={e => setNewName(e.target.value)} placeholder="เช่น ร้านค้าหลัก" maxLength={100} /></label>
+              <label>PIN<Input.Password value={newPin} onChange={e => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="0000" inputMode="numeric" maxLength={4} /></label>
+              <Button type="primary" block loading={creating} disabled={!newName.trim() || newPin.length !== 4} onClick={() => void handleCreate()}>สร้างร้าน</Button>
             </div>
-            {selectedId && (
-              <>
-                <div className="store-field-label" style={{ marginBottom: 8 }}>กรอก PIN</div>
+          ) : (
+            <div className="shop-form">
+              <Select style={{ width: '100%' }} placeholder="เลือกร้าน" value={selectedId} onChange={v => { setSelectedId(v); setPinError(false); }} options={(stores ?? []).map(s => ({ value: s.id, label: s.name }))} />
+              {selectedId && <>
                 <PinDots onSubmit={handlePin} error={pinError} onClear={() => setPinError(false)} />
-                {pinError && <Alert type="error" message="PIN ไม่ถูกต้อง" style={{ marginTop: 8 }} />}
-                {verifying && <div style={{ marginTop: 8, color: '#64748b', fontSize: 12 }}>กำลังตรวจสอบ…</div>}
-              </>
-            )}
-          </>
-        )}
-      </div>
+                <div className="shop-gate__status">{pinError ? <span className="shop-danger">PIN ไม่ถูกต้อง</span> : verifying ? 'กำลังตรวจสอบ…' : ' '}</div>
+              </>}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -131,9 +160,10 @@ function SellModal({ product, storeId, imgSrc, onClose, onSold }: { product: Sto
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
   useEffect(() => { if (product) { setQty(1); setNote(''); } }, [product?.item_id]);
+  const valid = !!product && !!qty && Number.isSafeInteger(qty) && qty >= 1 && qty <= product.stock;
 
   const handleSell = async () => {
-    if (!product || !qty || !Number.isSafeInteger(qty) || qty < 1 || qty > product.stock || saving) return;
+    if (!product || !valid || saving) return;
     setSaving(true);
     try {
       const res = await fetch(`/api/store/${storeId}/sales`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ item_id: product.item_id, qty, note }) });
@@ -145,19 +175,30 @@ function SellModal({ product, storeId, imgSrc, onClose, onSold }: { product: Sto
   };
 
   return (
-    <Modal open={!!product} title="บันทึกการขาย" okText="ยืนยันขาย" cancelText="ยกเลิก" onOk={() => void handleSell()} onCancel={() => { if (!saving) onClose(); }} closable={!saving} maskClosable={!saving} confirmLoading={saving} okButtonProps={{ disabled: !qty || !Number.isSafeInteger(qty) || qty < 1 || qty > (product?.stock ?? 0), type: 'primary' }}>
+    <Modal open={!!product} title="บันทึกการขาย" width={400} okText={valid ? `ขาย · ${fmtMoney((product?.price ?? 0) * (qty ?? 0))}` : 'ยืนยันขาย'} cancelText="ยกเลิก"
+      onOk={() => void handleSell()} onCancel={() => { if (!saving) onClose(); }} closable={!saving} mask={{ closable: !saving }} confirmLoading={saving}
+      okButtonProps={{ disabled: !valid }}>
       {product && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '8px 0' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <ItemImg src={imgSrc} name={product.name} size={48} />
+        <div className="shop-modal">
+          <div className="shop-modal__item">
+            <ItemImg src={imgSrc} name={product.name} size={44} />
             <div>
-              <div style={{ fontWeight: 700, fontSize: 15, color: '#0f172a' }}>{product.name}</div>
-              <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>สต็อก {fmt(product.stock)} ชิ้น · ราคา {fmtMoney(product.price)}/ชิ้น</div>
+              <strong>{product.name}</strong>
+              <span className="shop-muted">{fmtMoney(product.price)} / ชิ้น · คงเหลือ {fmt(product.stock)}</span>
             </div>
           </div>
-          <div className="store-sale-stock">หลังขายจะเหลือ <b>{fmt(Math.max(0, product.stock - (qty ?? 0)))}</b> ชิ้น</div><div><div className="store-field-label">จำนวนที่ขาย</div><Input autoFocus aria-label="จำนวนที่ขาย" type="number" min={1} max={product.stock} step={1} value={qty ?? ''} onChange={e => setQty(e.target.value === '' ? null : Number(e.target.value))} size="large" /></div>
-          <div><div className="store-field-label">หมายเหตุ (ไม่บังคับ)</div><Input value={note} onChange={e => setNote(e.target.value)} placeholder="เช่น ลูกค้า VIP" maxLength={200} /></div>
-          {qty && qty > 0 && <div style={{ padding: '10px 14px', background: '#eff6ff', borderRadius: 8, fontSize: 15, fontWeight: 700, color: '#2563eb', textAlign: 'center' }}>รวม {fmtMoney(product.price * qty)}</div>}
+          <label className="shop-field">จำนวน
+            <InputNumber autoFocus aria-label="จำนวนที่ขาย" min={1} max={product.stock} precision={0} value={qty} onChange={setQty} style={{ width: '100%' }}
+              onPressEnter={() => void handleSell()} />
+          </label>
+          <div className="shop-chips">
+            {[1, 5, 10].filter(n => n <= product.stock).map(n => <Button key={n} size="small" type={qty === n ? 'primary' : 'default'} onClick={() => setQty(n)}>{n}</Button>)}
+            <Button size="small" type={qty === product.stock ? 'primary' : 'default'} onClick={() => setQty(product.stock)}>ทั้งหมด ({fmt(product.stock)})</Button>
+          </div>
+          <label className="shop-field"><span>หมายเหตุ <span className="shop-muted">· ไม่บังคับ</span></span>
+            <Input value={note} onChange={e => setNote(e.target.value)} placeholder="เช่น ลูกค้า VIP" maxLength={200} />
+          </label>
+          <div className="shop-modal__sum"><span>หลังขายเหลือ {fmt(Math.max(0, product.stock - (qty ?? 0)))} ชิ้น</span></div>
         </div>
       )}
     </Modal>
@@ -166,8 +207,12 @@ function SellModal({ product, storeId, imgSrc, onClose, onSold }: { product: Sto
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export function StorePage() {
+  return <ConfigProvider theme={shopTheme}><StoreApp /></ConfigProvider>;
+}
+
+function StoreApp() {
   const [session, setSession] = useState<{ storeId: string; storeName: string } | null>(null);
-  const [tab, setTab] = useState<'overview' | 'restock' | 'sales'>('overview');
+  const [tab, setTab] = useState<Tab>('overview');
   const [apiData, setApiData] = useState<AppData | null>(null);
   const [products, setProducts] = useState<StoreProduct[]>([]);
   const [sales, setSales] = useState<SaleRecord[]>([]);
@@ -177,12 +222,18 @@ export function StorePage() {
 
   // Bulk restock state
   const [restockSearch, setRestockSearch] = useState('');
+  const [restockFilter, setRestockFilter] = useState<'all' | 'empty' | 'pending'>('all');
   const [restockQtys, setRestockQtys] = useState<Record<string, number>>({});
   const [submitting, setSubmitting] = useState(false);
 
-  // Overview search
+  // Overview
   const [overviewSearch, setOverviewSearch] = useState('');
-  const [stockFilter, setStockFilter] = useState('all');
+  const [stockFilter, setStockFilter] = useState<'all' | 'ready' | 'empty'>('all');
+  const [view, setView] = useState<'grid' | 'list'>(() => {
+    try { return localStorage.getItem('shop-view') === 'list' ? 'list' : 'grid'; } catch { return 'grid'; }
+  });
+  useEffect(() => { try { localStorage.setItem('shop-view', view); } catch { /* ignore */ } }, [view]);
+
   const [editing, setEditing] = useState<StoreProduct | 'new' | null>(null);
   const [editId, setEditId] = useState<string>();
   const [editPrice, setEditPrice] = useState<number | null>(0);
@@ -242,6 +293,7 @@ export function StorePage() {
   // Stats
   const totalStock = products.reduce((s, p) => s + p.stock, 0);
   const totalRevenue = sales.reduce((s, r) => s + Number(r.total), 0);
+  const totalSold = sales.reduce((s, r) => s + Number(r.qty), 0);
   const outOfStock = products.filter(p => p.stock === 0).length;
 
   // Bulk restock submit
@@ -264,135 +316,177 @@ export function StorePage() {
   };
 
   const pendingCount = Object.values(restockQtys).filter(q => q > 0).length;
+  const pendingUnits = Object.values(restockQtys).reduce((s, q) => s + (q > 0 ? q : 0), 0);
 
-  // Filtered products
+  // In-stock items first, so the sellable ones are always at the top.
   const filteredOverview = useMemo(() => {
     const q = overviewSearch.toLowerCase().trim();
-    return products.filter(p => (!q || p.name.toLowerCase().includes(q)) && (stockFilter === 'all' || (stockFilter === 'ready' ? p.stock > 0 : p.stock === 0)));
+    return products
+      .filter(p => (!q || p.name.toLowerCase().includes(q)) && (stockFilter === 'all' || (stockFilter === 'ready' ? p.stock > 0 : p.stock === 0)))
+      .sort((a, b) => Number(b.stock > 0) - Number(a.stock > 0));
   }, [products, overviewSearch, stockFilter]);
 
   const filteredRestock = useMemo(() => {
     const q = restockSearch.toLowerCase().trim();
-    return q ? products.filter(p => p.name.toLowerCase().includes(q)) : products;
-  }, [products, restockSearch]);
+    return products.filter(p => (!q || p.name.toLowerCase().includes(q))
+      && (restockFilter === 'all' || (restockFilter === 'empty' ? p.stock === 0 : (restockQtys[p.item_id] ?? 0) > 0)));
+  }, [products, restockSearch, restockFilter, restockQtys]);
 
-  // Sales columns
+  const goRestock = (p: StoreProduct) => { setRestockSearch(p.name); setRestockFilter('all'); setTab('restock'); };
+
+  const moreMenu = (p: StoreProduct) => ({
+    items: [
+      { key: 'edit', icon: <EditOutlined />, label: 'แก้ไขราคา / สต็อก' },
+      { key: 'restock', icon: <PlusOutlined />, label: 'เติมสต็อก' },
+    ],
+    onClick: ({ key }: { key: string }) => { if (key === 'edit') openEditor(p); else goRestock(p); },
+  });
+
+  const productColumns: ColumnsType<StoreProduct> = [
+    { title: 'สินค้า', key: 'name', render: (_, p) => <div className="shop-cell"><ItemImg src={getImg(p)} name={p.name} size={28} /><span>{p.name}</span></div> },
+    { title: 'คงเหลือ', dataIndex: 'stock', align: 'right', width: 110, sorter: (a, b) => a.stock - b.stock,
+      render: (v: number) => v === 0 ? <Tag color="error" variant="filled">หมด</Tag> : <span className="shop-num">{fmt(v)}</span> },
+    { title: 'ราคา', dataIndex: 'price', align: 'right', width: 110, sorter: (a, b) => a.price - b.price, render: (v: number) => <span className="shop-num">{fmtMoney(v)}</span> },
+    { title: '', key: 'act', align: 'right', width: 120, render: (_, p) => <div className="shop-row-actions">
+      <Button size="small" type="primary" disabled={p.stock === 0} onClick={() => setSellProduct(p)}>ขาย</Button>
+      <Dropdown menu={moreMenu(p)} trigger={['click']} placement="bottomRight"><Button size="small" type="text" icon={<MoreOutlined />} aria-label={`ตัวเลือก ${p.name}`} /></Dropdown>
+    </div> },
+  ];
+
+  const restockColumns: ColumnsType<StoreProduct> = [
+    { title: 'สินค้า', key: 'name', render: (_, p) => <div className="shop-cell"><ItemImg src={getImg(p)} name={p.name} size={28} /><span>{p.name}</span></div> },
+    { title: 'คงเหลือ', dataIndex: 'stock', align: 'right', width: 100, render: (v: number) => v === 0 ? <Tag color="error" variant="filled">หมด</Tag> : <span className="shop-num">{fmt(v)}</span> },
+    { title: 'เพิ่ม', key: 'qty', align: 'right', width: 120, render: (_, p) => (
+      <InputNumber disabled={submitting} aria-label={`เพิ่มจำนวน ${p.name}`} min={0} precision={0} controls={false} placeholder="0" style={{ width: 96 }}
+        value={restockQtys[p.item_id] ?? null}
+        onChange={v => setRestockQtys(prev => { const next = { ...prev }; if (!v || v <= 0) delete next[p.item_id]; else next[p.item_id] = v; return next; })} />
+    ) },
+  ];
+
   const salesColumns: ColumnsType<SaleRecord> = [
-    { title: 'วันที่', dataIndex: 'sold_at', width: 140, render: (v: string) => new Date(v).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' }) },
-    { title: 'สินค้า', key: 'item', render: (_: unknown, r) => <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><ItemImg src={r.image_url} name={r.item_name} size={28} /><span>{r.item_name}</span></div> },
-    { title: 'จำนวน', dataIndex: 'qty', align: 'right', width: 72, render: (v: number) => fmt(v) },
-    { title: 'ราคา/ชิ้น', dataIndex: 'price_per_unit', align: 'right', width: 100, render: (v: number) => fmtMoney(v) },
-    { title: 'รวม', dataIndex: 'total', align: 'right', width: 110, render: (v: number) => <span style={{ fontWeight: 700, color: '#2563eb' }}>{fmtMoney(Number(v))}</span> },
-    { title: 'หมายเหตุ', dataIndex: 'note', render: (v: string) => v || '—' },
-    { title: '', key: 'del', width: 80, render: (_: unknown, r) => <Popconfirm title="ลบประวัติการขายนี้?" description="ยอดขายรวมจะลดลง แต่จำนวนสินค้าในสต็อกจะไม่ถูกคืน" okText="ลบประวัติ" cancelText="เก็บไว้" onConfirm={async () => {
+    { title: 'วันที่', dataIndex: 'sold_at', width: 150, render: (v: string) => <span className="shop-muted">{new Date(v).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</span> },
+    { title: 'สินค้า', key: 'item', render: (_: unknown, r) => <div className="shop-cell"><ItemImg src={r.image_url} name={r.item_name} size={26} /><span>{r.item_name}</span></div> },
+    { title: 'จำนวน', dataIndex: 'qty', align: 'right', width: 80, render: (v: number) => <span className="shop-num">{fmt(v)}</span> },
+    { title: 'ราคา/ชิ้น', dataIndex: 'price_per_unit', align: 'right', width: 100, render: (v: number) => <span className="shop-num">{fmtMoney(v)}</span> },
+    { title: 'รวม', dataIndex: 'total', align: 'right', width: 110, render: (v: number) => <strong className="shop-num">{fmtMoney(Number(v))}</strong> },
+    { title: 'หมายเหตุ', dataIndex: 'note', ellipsis: true, render: (v: string) => v || <span className="shop-muted">—</span> },
+    { title: '', key: 'del', width: 48, render: (_: unknown, r) => <Popconfirm title="ลบประวัติการขายนี้?" description="ยอดขายรวมจะลดลง แต่สต็อกจะไม่ถูกคืน" okText="ลบ" cancelText="เก็บไว้" okButtonProps={{ danger: true }} onConfirm={async () => {
       if (deletingSale) return; setDeletingSale(r.id);
       try { const res = await fetch(`/api/store/${session!.storeId}/sales/${r.id}`, { method: 'DELETE' });
         if (!res.ok) throw new Error(); setSales(prev => prev.filter(s => s.id !== r.id)); void msgApi.success('ลบประวัติแล้ว');
       } catch { void msgApi.error('ลบประวัติไม่สำเร็จ กรุณาลองอีกครั้ง'); } finally { setDeletingSale(null); }
-    }}><Button aria-label={`ลบประวัติขาย ${r.item_name}`} loading={deletingSale === r.id} disabled={!!deletingSale} size="small" danger type="text" icon={<DeleteOutlined />} /></Popconfirm> },
+    }}><Button aria-label={`ลบประวัติขาย ${r.item_name}`} loading={deletingSale === r.id} disabled={!!deletingSale} size="small" type="text" icon={<DeleteOutlined />} /></Popconfirm> },
   ];
 
   if (!session) return <StoreGate onEntered={(id, name) => setSession({ storeId: id, storeName: name })} />;
 
-  return (
-    <div className="store-page">
-      {ctx}
-      {/* Navbar */}
-      <nav className="store-navbar">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <ShopOutlined style={{ fontSize: 18, color: '#fff' }} />
-          <span className="store-navbar__title">{session.storeName}</span>
-        </div>
-        <div className="store-navbar__tabs">
-          {([['overview', 'หน้าร้าน'], ['restock', 'เติมสต็อก'], ['sales', 'ประวัติขาย']] as const).map(([key, label]) => (
-            <button key={key} className={`store-navbar__tab${tab === key ? ' is-active' : ''}`} onClick={() => setTab(key)}>
-              {key === 'restock' && pendingCount > 0 ? <Badge count={pendingCount} offset={[4, -2]}><span>{label}</span></Badge> : label}
-            </button>
-          ))}
-        </div>
-        <Button size="small" icon={<LogoutOutlined />} onClick={() => { setSession(null); setProducts([]); setSales([]); setApiData(null); setRestockQtys({}); setTab('overview'); }} style={{ background: 'rgba(255,255,255,.15)', border: 'none', color: '#fff' }}>ออก</Button>
-      </nav>
+  const heading: Record<Tab, [string, string]> = {
+    overview: ['หน้าร้าน', 'เลือกสินค้าแล้วกดขาย — สินค้าที่มีของจะแสดงก่อน'],
+    restock: ['เติมสต็อก', 'กรอกจำนวนหลายรายการ แล้วบันทึกครั้งเดียว'],
+    sales: ['ประวัติขาย', 'รายการขายทั้งหมดของร้าน'],
+  };
 
-      <div className="store-body">
-        <header className="store-intro"><div><h1>{tab === 'overview' ? 'พร้อมขายอะไรดี?' : tab === 'restock' ? 'เติมของเข้าร้าน' : 'รายการขายของร้าน'}</h1><p>{tab === 'overview' ? 'เลือกสินค้า เช็กจำนวน แล้วบันทึกการขายได้เลย' : tab === 'restock' ? 'กรอกหลายรายการ แล้วบันทึกพร้อมกัน' : 'ดูยอดขาย จำนวน และหมายเหตุของแต่ละรายการ'}</p></div>
-          <Button size="large" type="primary" icon={<PlusOutlined />} onClick={() => openEditor('new')}>เพิ่มสินค้าในร้าน</Button>
-        </header>
-        {loadError && <Alert type="error" showIcon message={loadError} action={<Button onClick={() => void fetchAll(session.storeId)}>ลองใหม่</Button>} />}
+  return (
+    <div className="shop">
+      {ctx}
+      <header className="shop-bar">
+        <div className="shop-bar__inner">
+          <div className="shop-brand"><span className="shop-mark"><ShopOutlined /></span><span className="shop-brand__name">{session.storeName}</span></div>
+          <Segmented<Tab> className="shop-tabs" value={tab} onChange={setTab} options={[
+            { value: 'overview', label: 'หน้าร้าน' },
+            { value: 'restock', label: <Badge count={pendingCount} size="small" offset={[8, -2]}>เติมสต็อก</Badge> },
+            { value: 'sales', label: 'ประวัติขาย' },
+          ]} />
+          <div className="shop-bar__end"><Tooltip title="ออกจากร้าน"><Button type="text" icon={<LogoutOutlined />} aria-label="ออกจากร้าน"
+            onClick={() => { setSession(null); setProducts([]); setSales([]); setApiData(null); setRestockQtys({}); setTab('overview'); }} /></Tooltip></div>
+        </div>
+      </header>
+
+      <main className="shop-main">
+        <div className="shop-head">
+          <div><h1>{heading[tab][0]}</h1><p>{heading[tab][1]}</p></div>
+          {tab !== 'sales' && <Button type="primary" icon={<PlusOutlined />} onClick={() => openEditor('new')}>เพิ่มสินค้า</Button>}
+        </div>
+        {loadError && <Alert className="shop-alert" type="error" showIcon message={loadError} action={<Button size="small" onClick={() => void fetchAll(session.storeId)}>ลองใหม่</Button>} />}
 
         {/* ── Overview ── */}
         {tab === 'overview' && (
           <>
-            {/* Stats */}
-            <div className="store-stats-row">
-              <Card size="small" className="store-stat-card"><Statistic title="สินค้าทั้งหมด" value={products.length} suffix="รายการ" /></Card>
-              <Card size="small" className="store-stat-card"><Statistic title="สต็อกรวม" value={totalStock} suffix="ชิ้น" /></Card>
-              <Card size="small" className="store-stat-card"><Statistic title="ยอดขายรวม" value={totalRevenue} precision={0} prefix="฿" formatter={v => Number(v).toLocaleString('th-TH')} /></Card>
-              {outOfStock > 0 && <Card size="small" className="store-stat-card store-stat-card--warn"><Statistic title="สินค้าหมด" value={outOfStock} suffix="รายการ" valueStyle={{ color: '#dc2626' }} /></Card>}
+            <dl className="shop-stats">
+              <div><dt>สินค้า</dt><dd>{fmt(products.length)}<small>รายการ</small></dd></div>
+              <div><dt>สต็อกรวม</dt><dd>{fmt(totalStock)}<small>ชิ้น</small></dd></div>
+              <div><dt>ยอดขายรวม</dt><dd>{fmtMoney(totalRevenue)}</dd></div>
+              <div><dt>หมดสต็อก</dt><dd className={outOfStock ? 'shop-danger' : ''}>{fmt(outOfStock)}<small>รายการ</small></dd></div>
+            </dl>
+
+            <div className="shop-toolbar">
+              <Input className="shop-search" prefix={<SearchOutlined className="shop-muted" />} placeholder="ค้นหาสินค้า" value={overviewSearch} onChange={e => setOverviewSearch(e.target.value)} allowClear />
+              <Segmented size="middle" value={stockFilter} onChange={setStockFilter} options={[
+                { value: 'all', label: `ทั้งหมด ${products.length}` },
+                { value: 'ready', label: `พร้อมขาย ${products.length - outOfStock}` },
+                { value: 'empty', label: `หมด ${outOfStock}` },
+              ]} />
+              <div className="shop-toolbar__end">
+                <Segmented value={view} onChange={setView} options={[
+                  { value: 'grid', icon: <AppstoreOutlined />, title: 'มุมมองการ์ด' },
+                  { value: 'list', icon: <BarsOutlined />, title: 'มุมมองตาราง' },
+                ]} />
+                <Tooltip title="รีเฟรช"><Button icon={<ReloadOutlined />} loading={loading} aria-label="รีเฟรช" onClick={() => void fetchAll(session.storeId)} /></Tooltip>
+              </div>
             </div>
 
-            <div className="store-toolbar">
-              <Input prefix={<SearchOutlined />} placeholder="ค้นหาสินค้า…" value={overviewSearch} onChange={e => setOverviewSearch(e.target.value)} allowClear style={{ flex: 1 }} />
-              <Select aria-label="กรองตามสต็อก" value={stockFilter} onChange={setStockFilter} options={[{value:'all',label:`ทั้งหมด (${products.length})`},{value:'ready',label:`พร้อมขาย (${products.length-outOfStock})`},{value:'empty',label:`หมดสต็อก (${outOfStock})`}]} />
-              <Button icon={<ReloadOutlined />} loading={loading} onClick={() => void fetchAll(session.storeId)}>รีเฟรช</Button>
-            </div>
-            {loading ? <div style={{ textAlign: 'center', padding: 40 }}><Spin /></div> : filteredOverview.length === 0 ? <Empty description="ไม่พบสินค้า" /> : (
-              <div className="store-product-grid">
-                {filteredOverview.map(p => {
-                  const img = getImg(p);
-                  const empty = p.stock === 0;
-                  return (
-                    <div key={p.item_id} className={`store-product-card${empty ? ' is-empty' : ''}`}>
-                      <ItemImg src={img} name={p.name} size={76} />
-                      <div className="store-product-card__name">{p.name}</div>
-                      <div className={`store-product-card__stock${empty ? ' is-out' : ''}`}>
-                        {empty ? <Tag color="error">หมด</Tag> : <span>{fmt(p.stock)} ชิ้น</span>}
-                      </div>
-                      <div className="store-product-price">{fmtMoney(p.price)} <small>/ ชิ้น</small></div>
-                      <div className="store-product-actions"><Button type="primary" disabled={empty} icon={<ShoppingCartOutlined />} onClick={() => setSellProduct(p)}>ขายสินค้า</Button>
-                      <Button icon={<SettingOutlined />} aria-label={`จัดการ ${p.name}`} onClick={() => openEditor(p)} /></div>
-                      <button className="store-restock-link" onClick={() => { setRestockSearch(p.name); setTab('restock'); }}>เติมสต็อก</button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+            {loading && !products.length ? <div className="shop-center"><Spin /></div>
+              : filteredOverview.length === 0 ? <Empty className="shop-empty" image={Empty.PRESENTED_IMAGE_SIMPLE} description="ไม่พบสินค้า" />
+              : view === 'list' ? (
+                <Table<StoreProduct> className="shop-table" columns={productColumns} dataSource={filteredOverview} rowKey="item_id" size="middle" scroll={{ x: 520 }}
+                  pagination={filteredOverview.length > 30 ? { pageSize: 30, showSizeChanger: false, size: 'small' } : false}
+                  rowClassName={p => p.stock === 0 ? 'is-out' : ''} />
+              ) : (
+                <div className="shop-grid">
+                  {filteredOverview.map(p => {
+                    const empty = p.stock === 0;
+                    return (
+                      <article key={p.item_id} className={`shop-card${empty ? ' is-out' : ''}`}>
+                        <Dropdown menu={moreMenu(p)} trigger={['click']} placement="bottomRight">
+                          <Button className="shop-card__more" size="small" type="text" icon={<MoreOutlined />} aria-label={`ตัวเลือก ${p.name}`} />
+                        </Dropdown>
+                        <ItemImg src={getImg(p)} name={p.name} size={48} />
+                        <h3 title={p.name}>{p.name}</h3>
+                        <div className="shop-card__meta">
+                          <span className="shop-card__price">{fmtMoney(p.price)}</span>
+                          <span className={empty ? 'shop-danger' : 'shop-muted'}>{empty ? 'หมด' : `${fmt(p.stock)} ชิ้น`}</span>
+                        </div>
+                        {empty
+                          ? <Button size="small" block onClick={() => goRestock(p)} icon={<PlusOutlined />}>เติมสต็อก</Button>
+                          : <Button size="small" block type="primary" icon={<ShoppingCartOutlined />} onClick={() => setSellProduct(p)}>ขาย</Button>}
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
           </>
         )}
 
         {/* ── Bulk Restock ── */}
         {tab === 'restock' && (
           <>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center' }}>
-              <Input prefix={<SearchOutlined />} placeholder="ค้นหาสินค้า…" value={restockSearch} onChange={e => setRestockSearch(e.target.value)} allowClear style={{ flex: 1 }} />
-              <Button type="primary" icon={<PlusOutlined />} disabled={pendingCount === 0} loading={submitting} onClick={() => void handleBulkRestock()}>
-                เติมสต็อก {pendingCount > 0 ? `(${pendingCount} รายการ)` : ''}
-              </Button>
-              {pendingCount > 0 && <Button disabled={submitting} icon={<MinusCircleOutlined />} onClick={() => setRestockQtys({})}>ล้างที่กรอก</Button>}
+            <div className="shop-toolbar">
+              <Input className="shop-search" prefix={<SearchOutlined className="shop-muted" />} placeholder="ค้นหาสินค้า" value={restockSearch} onChange={e => setRestockSearch(e.target.value)} allowClear />
+              <Segmented value={restockFilter} onChange={setRestockFilter} options={[
+                { value: 'all', label: 'ทั้งหมด' },
+                { value: 'empty', label: `หมด ${outOfStock}` },
+                { value: 'pending', label: `กรอกแล้ว ${pendingCount}` },
+              ]} />
             </div>
-
-            <div className="store-restock-list">
-              <div className="store-restock-list__head">
-                <span>สินค้า</span><span>สต็อกปัจจุบัน</span><span>เพิ่ม (ชิ้น)</span>
+            <Table<StoreProduct> className="shop-table" columns={restockColumns} dataSource={filteredRestock} rowKey="item_id" size="middle" scroll={{ x: 420 }}
+              pagination={false} locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="ไม่พบสินค้า" /> }}
+              rowClassName={p => (restockQtys[p.item_id] ?? 0) > 0 ? 'is-pending' : ''} />
+            <div className={`shop-dock${pendingCount ? ' is-visible' : ''}`} aria-hidden={!pendingCount}>
+              <span><b>{pendingCount}</b> รายการ · <b>{fmt(pendingUnits)}</b> ชิ้น</span>
+              <div>
+                <Button type="text" disabled={submitting} onClick={() => setRestockQtys({})}>ล้าง</Button>
+                <Button type="primary" loading={submitting} onClick={() => void handleBulkRestock()}>บันทึกเติมสต็อก</Button>
               </div>
-              {filteredRestock.length === 0 ? <Empty description="ไม่พบสินค้า" style={{ padding: 24 }} /> : filteredRestock.map(p => (
-                <div key={p.item_id} className={`store-restock-row${(restockQtys[p.item_id] ?? 0) > 0 ? ' is-pending' : ''}`}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1 }}>
-                    <ItemImg src={getImg(p)} name={p.name} size={28} />
-                    <span style={{ fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-                  </div>
-                  <span style={{ fontSize: 13, color: p.stock === 0 ? '#dc2626' : '#374151', fontVariantNumeric: 'tabular-nums', textAlign: 'right', minWidth: 60 }}>
-                    {p.stock === 0 ? <Tag color="error" style={{ margin: 0 }}>หมด</Tag> : fmt(p.stock)}
-                  </span>
-                  <InputNumber
-                    disabled={submitting} aria-label={`เพิ่มจำนวน ${p.name}`} min={0} precision={0} size="large"
-                    value={restockQtys[p.item_id] ?? null}
-                    placeholder="0"
-                    onChange={v => setRestockQtys(prev => { const next = { ...prev }; if (!v || v <= 0) delete next[p.item_id]; else next[p.item_id] = v; return next; })}
-                    style={{ width: 80 }}
-                    controls={false}
-                  />
-                </div>
-              ))}
             </div>
           </>
         )}
@@ -400,31 +494,37 @@ export function StorePage() {
         {/* ── Sales ── */}
         {tab === 'sales' && (
           <>
-            <div style={{ display: 'flex', gap: 16, marginBottom: 12, flexWrap: 'wrap' }}>
-              <div style={{ background: '#eff6ff', borderRadius: 8, padding: '8px 16px' }}>
-                <span style={{ fontSize: 12, color: '#64748b' }}>ยอดขายรวม </span>
-                <span style={{ fontWeight: 700, fontSize: 16, color: '#2563eb' }}>{fmtMoney(totalRevenue)}</span>
-              </div>
-              <div style={{ background: '#f0fdf4', borderRadius: 8, padding: '8px 16px' }}>
-                <span style={{ fontSize: 12, color: '#64748b' }}>รายการขายทั้งหมด </span>
-                <span style={{ fontWeight: 700, fontSize: 16, color: '#16a34a' }}>{fmt(sales.length)} รายการ</span>
-              </div>
-            </div>
-            <Table<SaleRecord> columns={salesColumns} dataSource={sales} rowKey="id" size="small" scroll={{ x: 640 }} pagination={{ pageSize: 20, showSizeChanger: false }} locale={{ emptyText: 'ยังไม่มีประวัติการขาย' }} />
+            <dl className="shop-stats shop-stats--3">
+              <div><dt>ยอดขายรวม</dt><dd>{fmtMoney(totalRevenue)}</dd></div>
+              <div><dt>รายการขาย</dt><dd>{fmt(sales.length)}<small>ครั้ง</small></dd></div>
+              <div><dt>ขายไปแล้ว</dt><dd>{fmt(totalSold)}<small>ชิ้น</small></dd></div>
+            </dl>
+            <Table<SaleRecord> className="shop-table" columns={salesColumns} dataSource={sales} rowKey="id" size="middle" scroll={{ x: 680 }}
+              pagination={{ pageSize: 20, showSizeChanger: false, size: 'small', hideOnSinglePage: true }}
+              locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="ยังไม่มีประวัติการขาย" /> }} />
           </>
         )}
-      </div>
+      </main>
 
-      <Modal title={editing === 'new' ? 'เพิ่มสินค้าในร้าน' : 'จัดการสินค้า'} open={editing !== null} onCancel={() => { if (!savingProduct) setEditing(null); }} maskClosable={!savingProduct} closable={!savingProduct} confirmLoading={savingProduct} onOk={() => void saveProduct()} okText="บันทึกสินค้า" cancelText="ยกเลิก" okButtonProps={{disabled: !validEdit}}>
-        <div className="store-editor">
-          {editing === 'new' ? <><label>สินค้าจากแคตตาล็อก</label><Select aria-label="สินค้าใหม่" showSearch optionFilterProp="label" placeholder="ค้นหาชื่อสินค้า" value={editId} onChange={setEditId} loading={!apiData}
-            options={Object.entries(apiData?.itemNames ?? {}).filter(([id]) => !products.some(p => p.item_id === id)).map(([value,label]) => ({value,label}))}
-            optionRender={option => <div className="store-option"><ItemImg src={apiData?.stockImages[String(option.value)]} name={String(option.label)} size={32} />{option.label}</div>} />
-            <p>เพิ่มสินค้าโดยเริ่มที่ 0 ชิ้น แล้วเติมจำนวนได้ในแท็บเติมสต็อก</p></> : editing && <div className="store-option"><ItemImg src={getImg(editing)} name={editing.name} size={64} /><h3>{editing.name}</h3></div>}
-          <label htmlFor="store-edit-price">ราคาขายต่อชิ้น</label><InputNumber id="store-edit-price" size="large" min={0} precision={2} value={editPrice} onChange={setEditPrice} prefix="฿" />
-          {editing && editing !== 'new' && <><label htmlFor="store-edit-stock">ยอดสต็อกที่ถูกต้อง (ชิ้น)</label><InputNumber id="store-edit-stock" size="large" min={0} precision={0} value={editStock} onChange={setEditStock} />
-            <p>ปัจจุบัน {fmt(editing.stock)} → หลังบันทึก {fmt(editStock ?? 0)} ชิ้น</p>
-            <Popconfirm title={`นำ ${editing.name} ออกจากร้าน?`} description={`ลบรายการสินค้าและสต็อก ${fmt(editing.stock)} ชิ้น ประวัติขายยังอยู่`} okText="นำออกจากร้าน" cancelText="เก็บไว้" onConfirm={() => void deleteProduct()}><Button danger disabled={savingProduct} icon={<DeleteOutlined />}>นำสินค้าออกจากร้าน</Button></Popconfirm></>}
+      <Modal title={editing === 'new' ? 'เพิ่มสินค้าในร้าน' : 'แก้ไขสินค้า'} width={420} open={editing !== null} onCancel={() => { if (!savingProduct) setEditing(null); }} mask={{ closable: !savingProduct }} closable={!savingProduct}
+        confirmLoading={savingProduct} onOk={() => void saveProduct()} okText="บันทึก" cancelText="ยกเลิก" okButtonProps={{ disabled: !validEdit }}>
+        <div className="shop-modal">
+          {editing === 'new' ? <label className="shop-field">สินค้าจากแคตตาล็อก
+            <Select aria-label="สินค้าใหม่" showSearch optionFilterProp="label" placeholder="ค้นหาชื่อสินค้า" value={editId} onChange={setEditId} loading={!apiData}
+              options={Object.entries(apiData?.itemNames ?? {}).filter(([id]) => !products.some(p => p.item_id === id)).map(([value, label]) => ({ value, label }))}
+              optionRender={option => <div className="shop-cell"><ItemImg src={apiData?.stockImages[String(option.value)]} name={String(option.label)} size={24} />{option.label}</div>} />
+            <span className="shop-muted">เริ่มที่ 0 ชิ้น แล้วเติมจำนวนได้ในแท็บเติมสต็อก</span>
+          </label> : editing && <div className="shop-modal__item"><ItemImg src={getImg(editing)} name={editing.name} size={44} /><div><strong>{editing.name}</strong><span className="shop-muted">คงเหลือ {fmt(editing.stock)} ชิ้น</span></div></div>}
+          <label className="shop-field">ราคาขายต่อชิ้น<InputNumber id="store-edit-price" min={0} precision={2} value={editPrice} onChange={setEditPrice} prefix="฿" style={{ width: '100%' }} /></label>
+          {editing && editing !== 'new' && <>
+            <label className="shop-field">ยอดสต็อกที่ถูกต้อง
+              <InputNumber id="store-edit-stock" min={0} precision={0} value={editStock} onChange={setEditStock} suffix="ชิ้น" style={{ width: '100%' }} />
+              {editStock !== editing.stock && <span className="shop-muted">{fmt(editing.stock)} → {fmt(editStock ?? 0)} ชิ้น</span>}
+            </label>
+            <Popconfirm title={`นำ ${editing.name} ออกจากร้าน?`} description={`ลบสินค้าและสต็อก ${fmt(editing.stock)} ชิ้น ประวัติขายยังอยู่`} okText="นำออก" cancelText="เก็บไว้" okButtonProps={{ danger: true }} onConfirm={() => void deleteProduct()}>
+              <Button className="shop-modal__danger" type="text" danger size="small" disabled={savingProduct} icon={<DeleteOutlined />}>นำสินค้าออกจากร้าน</Button>
+            </Popconfirm>
+          </>}
         </div>
       </Modal>
       <SellModal product={sellProduct} storeId={session.storeId} imgSrc={sellProduct ? getImg(sellProduct) : undefined} onClose={() => setSellProduct(null)} onSold={() => { setSellProduct(null); void fetchAll(session.storeId); }} />
