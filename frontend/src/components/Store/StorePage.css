@@ -11,9 +11,9 @@
 .shop-empty { padding:40px 0; }
 
 /* Top bar */
-.shop-bar { position:sticky; top:0; z-index:20; background:var(--surface); color:var(--ink); border-bottom:1px solid #BAE6FD; }
-.shop-bar .ant-btn-text { color:var(--muted); }
-.shop-bar .ant-btn-text:hover { background:var(--soft) !important; color:var(--sky-deep) !important; }
+.shop-bar { position:sticky; top:0; z-index:20; background:var(--sky-deep); color:#fff; border-bottom:3px solid var(--sun); }
+.shop-bar .ant-btn-text { color:#fff; }
+.shop-bar .ant-btn-text:hover { background:#ffffff26 !important; color:#fff !important; }
 .shop-logo-btn { position:relative; padding:0; border:0; background:none; cursor:pointer; border-radius:12px; line-height:0; }
 .shop-logo-btn .shop-mark { box-shadow:0 0 0 2px #fff; }
 .shop-logo-btn__edit { position:absolute; right:-4px; bottom:-4px; display:grid; place-items:center; width:20px; height:20px; border-radius:50%; background:var(--sun); color:var(--sun-ink); font-size:11px; box-shadow:0 0 0 2px #fff; line-height:1; }
@@ -21,7 +21,7 @@
 .shop-logo-btn:focus-visible { outline:3px solid var(--sun); outline-offset:3px; }
 .shop-bar__inner { max-width:1200px; margin:0 auto; padding:0 24px; height:64px; display:flex; align-items:center; gap:16px; }
 .shop-brand { display:flex; align-items:center; gap:10px; min-width:0; flex:1; }
-.shop-brand__name { font-weight:700; font-size:16px; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.shop-brand__name { font-weight:700; font-size:16px; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .shop-mark { display:inline-grid; place-items:center; width:32px; height:32px; border-radius:12px; background:var(--sun); color:var(--sun-ink); font-size:16px; flex-shrink:0; overflow:hidden; transition:transform .15s; }
 .shop-mark img { width:100%; height:100%; object-fit:cover; background:#fff; }
 .shop-mark--lg { width:44px; height:44px; border-radius:10px; font-size:20px; }
@@ -206,12 +206,14 @@
 @media(max-width:640px) { .shop-restock-sort > div { width:100%; } .shop-restock-sort .ant-select { flex:1; } }
 
 /* Shared shop navigation: consistent text, target sizes, and selected state. */
-.shop-nav { display:flex; align-self:stretch; gap:4px; }
-.shop-nav > button { appearance:none; border:0; border-bottom:3px solid transparent; background:transparent; color:var(--muted); display:flex; align-items:center; justify-content:center; gap:8px; padding:0 16px; font:inherit; font-weight:600; cursor:pointer; min-height:44px; white-space:nowrap; }
-.shop-nav > button:hover { background:var(--soft); color:var(--sky-deep); }
-.shop-nav > button.is-active { background:var(--soft); border-bottom-color:var(--accent); color:var(--sky-deep); }
+.shop-nav { display:flex; align-self:center; gap:4px; padding:4px; border-radius:12px; background:#ffffff1a; }
+.shop-nav > button { appearance:none; border:0; border-radius:8px; background:transparent; color:#fff; display:flex; align-items:center; justify-content:center; gap:8px; padding:0 16px; font:inherit; font-weight:600; cursor:pointer; min-height:44px; white-space:nowrap; }
+.shop-nav > button:hover { background:#ffffff26; color:#fff; }
+.shop-nav > button.is-active, .shop-nav > button.is-active:hover { background:var(--sun); color:var(--sun-ink); }
+.shop-nav > button.is-active .shop-nav__count { background:var(--sky-deep); color:#fff; }
 .shop-nav__count { background:var(--sun-soft); color:var(--sun-ink); padding:1px 6px; border-radius:6px; font-size:12px; }
-.shop-nav > button:focus-visible, .shop button:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.shop button:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.shop-bar button:focus-visible { outline:2px solid #fff; outline-offset:2px; }
 .shop-brand { flex:1; }
 .shop-bar__end { flex:0 0 auto; }
 .shop-head p { max-width:70ch; line-height:1.65; }
@@ -239,7 +241,7 @@
  .shop-nav > button > .anticon { display:none; }
 }
 @media(max-width:720px) {
- .shop-bar__inner { padding:10px 16px 0; gap:8px; }
+ .shop-bar__inner { padding:10px 16px; gap:8px; }
  .shop-nav { order:3; flex:1 0 100%; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:0; }
  .shop-nav > button { padding:10px 2px; font-size:12px; gap:4px; }
  .shop-head { flex-wrap:wrap; gap:12px; }
