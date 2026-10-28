@@ -1069,10 +1069,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       // POST /api/store/:store_id/restock
       if (method === 'POST' && segments[2] === 'restock') {
+        const { entered_by = 'ตวัน', tags = [] } = req.body ?? {};
+        if (typeof entered_by !== 'string' || !entered_by.trim() || entered_by.trim().length > 100) return res.status(400).json({ error: 'กรุณาระบุชื่อผู้กรอก (ไม่เกิน 100 ตัวอักษร)' });
+        if (!Array.isArray(tags) || tags.length > 1 || tags.some(tag => tag !== 'ตะวัน')) return res.status(400).json({ error: 'แท็กไม่ถูกต้อง' });
         const { item_id, qty, note } = req.body ?? {};
         if (typeof item_id !== 'string' || !item_id) return res.status(400).json({ error: 'item_id ไม่ถูกต้อง' });
         if (!Number.isInteger(qty) || qty <= 0) return res.status(400).json({ error: 'จำนวนต้องเป็นจำนวนเต็มมากกว่า 0' });
-        const { error: restockErr } = await db.from('store_restocks').insert({ store_id, item_id, qty, note: typeof note === 'string' ? note : '' });
+        let { error: restockErr } = await db.from('store_restocks').insert({ store_id, item_id, qty, entered_by: entered_by.trim(), tags, note: typeof note === 'string' ? note : '' });
+        // Keep attribution durable while the additive migration is being rolled out.
+        if (restockErr?.code === 'PGRST204') {
+          const result = await db.from('store_restocks').insert({ store_id, item_id, qty,
+            note: JSON.stringify({ type: 'store-restock-metadata-v1', entered_by: entered_by.trim(), tags, note: typeof note === 'string' ? note : '' }) });
+          restockErr = result.error;
+        }
         if (restockErr) throw restockErr;
         const { data: prod, error: fetchErr } = await db.from('store_products').select('stock').eq('store_id', store_id).eq('item_id', item_id).single();
         if (fetchErr) throw fetchErr;
@@ -1085,13 +1094,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (method === 'GET' && segments[2] === 'restocks') {
         const { data, error } = await db
           .from('store_restocks')
-          .select('id, item_id, qty, note, restocked_at, items(name, image_url)')
+          .select('*, items(name, image_url)')
           .eq('store_id', store_id)
           .order('restocked_at', { ascending: false });
         if (error) throw error;
         const rows = (data ?? []).map((r: Record<string, unknown>) => {
           const item = r.items as { name: string; image_url: string | null } | null;
-          return { id: r.id, item_id: r.item_id, qty: r.qty, note: r.note, restocked_at: r.restocked_at, item_name: item?.name ?? '', image_url: item?.image_url ?? null };
+          let note = r.note, enteredBy = r.entered_by ?? null, tags = r.tags ?? [];
+          try {
+            const metadata = JSON.parse(String(r.note));
+            if (metadata?.type === 'store-restock-metadata-v1' && typeof metadata.entered_by === 'string' && Array.isArray(metadata.tags)) {
+              note = metadata.note; enteredBy = metadata.entered_by; tags = metadata.tags;
+            }
+          } catch { /* Ordinary historical notes are plain text. */ }
+          return { id: r.id, item_id: r.item_id, qty: r.qty, note, entered_by: enteredBy, tags, restocked_at: r.restocked_at, item_name: item?.name ?? '', image_url: item?.image_url ?? null };
         });
         return res.json(rows);
       }

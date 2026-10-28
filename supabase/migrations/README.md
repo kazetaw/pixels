@@ -30,3 +30,6 @@ Run `20260929_04_withdrawal_dashboard.sql` before deploying the new paginated
 withdrawal API. The RPC returns 10 receipts per page, global filter choices, and
 available quantities computed from all pending reservations (independent of the
 current search/page). It does not modify inventory.
+
+## Store restock attribution
+Run `20261028_01_store_restock_metadata.sql` to add dedicated restock name/tag columns. Until it is applied, the API stores versioned metadata in the existing note column and decodes it when reading history. Historical entries retain a null author; new entries store `entered_by`, `tags`, and the existing database-generated `restocked_at`.

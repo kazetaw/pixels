@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useMemo, type ReactNode } from 'react';
 import {
-  Alert, Badge, Button, ConfigProvider, Dropdown, Empty, Input, InputNumber,
+  Alert, Badge, Button, Checkbox, ConfigProvider, Dropdown, Empty, Input, InputNumber,
   Modal, Popconfirm, Segmented, Select, Spin, Table, Tag, Tooltip, message,
 } from 'antd';
 import type { ThemeConfig } from 'antd';
@@ -289,17 +289,22 @@ function StoreApp() {
     finally { setUploadingLogo(false); if (logoInput.current) logoInput.current.value = ''; }
   };
 
+  const [enteredBy, setEnteredBy] = useState('ตวัน');
+  const [tawanTag, setTawanTag] = useState(false);
+  const restockMetadata = { entered_by: enteredBy.trim(), tags: tawanTag ? ['ตะวัน'] : [] };
+  const metadataValid = enteredBy.trim().length > 0;
+
   // Quick restock (one item, from the header button on the restock tab)
   const [quickOpen, setQuickOpen] = useState(false);
   const [quickId, setQuickId] = useState<string>();
   const [quickQty, setQuickQty] = useState<number | null>(null);
   const [quickSaving, setQuickSaving] = useState(false);
-  const quickValid = !!quickId && quickQty !== null && Number.isSafeInteger(quickQty) && quickQty > 0;
+  const quickValid = metadataValid && !!quickId && quickQty !== null && Number.isSafeInteger(quickQty) && quickQty > 0;
   const saveQuickRestock = async () => {
     if (!session || !quickValid || quickSaving) return;
     setQuickSaving(true);
     try {
-      const res = await fetch(`/api/store/${session.storeId}/restock`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ item_id: quickId, qty: quickQty }) });
+      const res = await fetch(`/api/store/${session.storeId}/restock`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ item_id: quickId, qty: quickQty, ...restockMetadata }) });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'เติมสต็อกไม่สำเร็จ');
       void msgApi.success(`เติม ${products.find(p => p.item_id === quickId)?.name ?? ''} +${fmt(quickQty!)} ชิ้นแล้ว`);
       setQuickOpen(false); await fetchAll(session.storeId);
@@ -342,7 +347,15 @@ function StoreApp() {
     setEditing(product); setEditId(product === 'new' ? undefined : product.item_id);
     setEditPrice(product === 'new' ? 0 : product.price); setEditStock(product === 'new' ? 0 : product.stock);
   };
-  const validEdit = !!editId && editPrice !== null && Number.isFinite(editPrice) && editPrice >= 0 && editStock !== null && Number.isSafeInteger(editStock) && editStock >= 0;
+  const restockFields = (
+    <div className="shop-toolbar">
+      <label className="shop-field">ชื่อผู้กรอก
+        <Input aria-label="ชื่อผู้กรอก" value={enteredBy} maxLength={100} onChange={e => setEnteredBy(e.target.value)} disabled={submitting || quickSaving || savingProduct} />
+      </label>
+      <Checkbox checked={tawanTag} onChange={e => setTawanTag(e.target.checked)} disabled={submitting || quickSaving || savingProduct}>แท็ก: ตะวัน</Checkbox>
+    </div>
+  );
+  const validEdit = (editing !== 'new' || !editStock || metadataValid) && !!editId && editPrice !== null && Number.isFinite(editPrice) && editPrice >= 0 && editStock !== null && Number.isSafeInteger(editStock) && editStock >= 0;
   const saveProduct = async () => {
     if (!session || !editing || !validEdit || savingProduct) return;
     setSavingProduct(true);
@@ -354,7 +367,7 @@ function StoreApp() {
       if (!res.ok) throw new Error((await res.json()).error || 'บันทึกสินค้าไม่สำเร็จ');
       // New products start at 0 — apply the initial quantity as a normal restock so it is logged.
       if (editing === 'new' && editStock && editStock > 0) {
-        const r = await fetch(`/api/store/${session.storeId}/restock`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ item_id: editId, qty: editStock }) });
+        const r = await fetch(`/api/store/${session.storeId}/restock`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ item_id: editId, qty: editStock, ...restockMetadata }) });
         if (!r.ok) void msgApi.warning('เพิ่มสินค้าแล้ว แต่เติมจำนวนเริ่มต้นไม่สำเร็จ กรุณาเติมสต็อกอีกครั้ง');
       }
       setEditing(null); void msgApi.success('บันทึกสินค้าแล้ว'); await fetchAll(session.storeId);
@@ -401,14 +414,14 @@ function StoreApp() {
 
   // Bulk restock submit
   const handleBulkRestock = async () => {
-    if (!session || submitting) return;
+    if (!session || submitting || !metadataValid) return;
     const entries = Object.entries(restockQtys).filter(([, q]) => Number.isSafeInteger(q) && q > 0);
     if (!entries.length) return;
     setSubmitting(true);
     let success = 0;
     for (const [item_id, qty] of entries) {
       try {
-        const res = await fetch(`/api/store/${session.storeId}/restock`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ item_id, qty }) });
+        const res = await fetch(`/api/store/${session.storeId}/restock`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ item_id, qty, ...restockMetadata }) });
         if (res.ok) { success++; setRestockQtys(prev => { const next = { ...prev }; delete next[item_id]; return next; }); }
       } catch { /* continue */ }
     }
@@ -645,6 +658,7 @@ function StoreApp() {
                 { value: 'pending', label: `กรอกแล้ว ${pendingCount}` },
               ]} />
             </div>
+            {restockFields}
             <Table<StoreProduct> className="shop-table" columns={restockColumns} dataSource={filteredRestock} rowKey="item_id" size="middle" scroll={{ x: 420 }}
               pagination={false} locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="ไม่พบสินค้า" /> }}
               rowClassName={p => (restockQtys[p.item_id] ?? 0) > 0 ? 'is-pending' : ''} />
@@ -652,7 +666,7 @@ function StoreApp() {
               <span><b>{pendingCount}</b> รายการ · <b>{fmt(pendingUnits)}</b> ชิ้น</span>
               <div>
                 <Button type="text" disabled={submitting} onClick={() => setRestockQtys({})}>ล้าง</Button>
-                <Button type="primary" loading={submitting} onClick={() => void handleBulkRestock()}>บันทึกเติมสต็อก</Button>
+                <Button type="primary" loading={submitting} disabled={!metadataValid} onClick={() => void handleBulkRestock()}>บันทึกเติมสต็อก</Button>
               </div>
             </div>
           </>
@@ -704,6 +718,7 @@ function StoreApp() {
             <InputNumber min={0} precision={0} value={editStock} onChange={setEditStock} suffix="ชิ้น" style={{ width: '100%' }} />
             <span className="shop-muted">ใส่ 0 ได้ แล้วค่อยเติมทีหลัง</span>
           </label>}
+          {editing === 'new' && !!editStock && restockFields}
           {editing && editing !== 'new' && <>
             <label className="shop-field">ยอดสต็อกที่ถูกต้อง
               <InputNumber id="store-edit-stock" min={0} precision={0} value={editStock} onChange={setEditStock} suffix="ชิ้น" style={{ width: '100%' }} />
@@ -723,6 +738,7 @@ function StoreApp() {
               options={products.map(p => ({ value: p.item_id, label: p.name }))}
               optionRender={option => { const p = products.find(x => x.item_id === option.value); return <div className="shop-cell"><ItemImg src={p && getImg(p)} name={String(option.label)} size={24} /><span>{option.label}</span><span className="shop-muted" style={{ marginLeft: 'auto' }}>{p ? fmt(p.stock) : ''}</span></div>; }} />
           </label>
+          {restockFields}
           <label className="shop-field">จำนวนที่ได้รับเพิ่ม
             <InputNumber autoFocus min={1} precision={0} value={quickQty} onChange={setQuickQty} suffix="ชิ้น" placeholder="0" style={{ width: '100%' }} onPressEnter={() => void saveQuickRestock()} />
           </label>
