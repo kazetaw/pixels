@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState, useMemo, type ReactNode } from 'react';
 import {
-  Alert, Badge, Button, Checkbox, ConfigProvider, Dropdown, Empty, Input, InputNumber,
+  Alert, Button, Checkbox, ConfigProvider, Dropdown, Empty, Input, InputNumber,
   Modal, Popconfirm, Segmented, Select, Spin, Table, Tag, Tooltip, message,
 } from 'antd';
 import type { ThemeConfig } from 'antd';
 import {
   AppstoreOutlined, BarsOutlined, DeleteOutlined, EditOutlined, LogoutOutlined, MoreOutlined,
   PlusOutlined, ReloadOutlined, SearchOutlined, ShopOutlined, ShoppingCartOutlined, InboxOutlined,
-  ThunderboltOutlined, DatabaseOutlined, RiseOutlined, WarningOutlined, CheckCircleOutlined, CameraOutlined,
+  BookOutlined, HistoryOutlined, ThunderboltOutlined, DatabaseOutlined, RiseOutlined, WarningOutlined, CheckCircleOutlined, CameraOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { fetchAllData } from '../../api/client';
@@ -49,7 +49,7 @@ const shopTheme: ThemeConfig = {
     borderRadius: 10,
     borderRadiusLG: 16,
     borderRadiusSM: 6,
-    controlHeight: 38,
+    controlHeight: 40,
     fontSize: 14,
     fontFamily: "'Inter', 'IBM Plex Sans Thai', 'Noto Sans Thai', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
@@ -340,11 +340,12 @@ function StoreApp() {
     setEditPrice(product === 'new' ? 0 : product.price); setEditStock(product === 'new' ? 0 : product.stock);
   };
   const restockFields = (
-    <div className="shop-toolbar">
+    <div className="shop-restock-author">
       <label className="shop-field">ชื่อผู้กรอก
-        <Input aria-label="ชื่อผู้กรอก" value={enteredBy} maxLength={100} onChange={e => setEnteredBy(e.target.value)} disabled={submitting || quickSaving || savingProduct} />
+        <Input aria-label="ชื่อผู้กรอก" status={!metadataValid ? 'error' : undefined} value={enteredBy} maxLength={100} onChange={e => setEnteredBy(e.target.value)} disabled={submitting || quickSaving || savingProduct} />
       </label>
       <Checkbox checked={tawanTag} onChange={e => setTawanTag(e.target.checked)} disabled={submitting || quickSaving || savingProduct}>แท็ก: ตะวัน</Checkbox>
+      <span className="shop-restock-author__hint">{metadataValid ? 'บันทึกชื่อและเวลาอัตโนมัติ' : 'กรุณาระบุชื่อก่อนบันทึก'}</span>
     </div>
   );
   const validEdit = (editing !== 'new' || !editStock || metadataValid) && !!editId && editPrice !== null && Number.isFinite(editPrice) && editPrice >= 0 && editStock !== null && Number.isSafeInteger(editStock) && editStock >= 0;
@@ -499,14 +500,15 @@ function StoreApp() {
   ];
 
   const restockColumns: ColumnsType<StoreProduct> = [
-    { title: 'สินค้า', key: 'name', sorter: true, sortOrder: restockSort.key === 'name' ? restockSort.order : null, render: (_, p) => <div className="shop-cell"><ItemImg src={getImg(p)} name={p.name} size={28} /><span>{p.name}</span></div> },
-    { title: 'คงเหลือ (ชิ้น)', key: 'stock', dataIndex: 'stock', sorter: true, sortOrder: restockSort.key === 'stock' ? restockSort.order : null, align: 'right', width: 160, render: (v: number) => <span className={v === 0 ? 'shop-num shop-danger' : 'shop-num'}>{fmt(v)}</span> },
-    { title: 'สถานะ', key: 'status', width: 130, sorter: true, sortOrder: restockSort.key === 'status' ? restockSort.order : null, render: (_, p) => <Tag color={p.stock === 0 ? 'error' : 'success'}>{p.stock === 0 ? 'หมด' : 'มีสต็อก'}</Tag> },
+    { title: 'สินค้า', key: 'name', fixed: 'left', width: 200, sorter: true, sortOrder: restockSort.key === 'name' ? restockSort.order : null, render: (_, p) => <div className="shop-cell"><ItemImg src={getImg(p)} name={p.name} size={28} /><span>{p.name}</span></div> },
+    { title: 'คงเหลือ (ชิ้น)', key: 'stock', dataIndex: 'stock', sorter: true, sortOrder: restockSort.key === 'stock' ? restockSort.order : null, align: 'right', width: 140, render: (v: number) => <span className={v === 0 ? 'shop-num shop-danger' : 'shop-num'}>{fmt(v)}</span> },
+    { title: 'สถานะ', key: 'status', width: 110, sorter: true, sortOrder: restockSort.key === 'status' ? restockSort.order : null, render: (_, p) => <Tag color={p.stock === 0 ? 'error' : 'success'}>{p.stock === 0 ? 'หมด' : 'มีสต็อก'}</Tag> },
     { title: 'เพิ่ม (ชิ้น)', key: 'qty', sorter: true, sortOrder: restockSort.key === 'qty' ? restockSort.order : null, align: 'right', width: 130, render: (_, p) => (
-      <InputNumber disabled={submitting} aria-label={`เพิ่มจำนวน ${p.name}`} min={0} precision={0} controls={false} placeholder="0" style={{ width: 96 }}
+      <InputNumber disabled={submitting} aria-label={`เพิ่มจำนวน ${p.name}`} min={0} max={2147483647 - p.stock} precision={0} controls={false} inputMode="numeric" placeholder="0" style={{ width: 96 }}
         value={restockQtys[p.item_id] ?? null}
         onChange={v => setRestockQtys(prev => { const next = { ...prev }; if (!v || v <= 0) delete next[p.item_id]; else next[p.item_id] = v; return next; })} />
     ) },
+    { title: 'หลังเติม', key: 'after', align: 'right', width: 110, render: (_, p) => <span className={`shop-num${restockQtys[p.item_id] ? ' shop-after-stock' : ' shop-muted'}`}>{fmt(p.stock + (restockQtys[p.item_id] ?? 0))}</span> },
   ];
 
   const salesColumns: ColumnsType<SaleRecord> = [
@@ -528,7 +530,7 @@ function StoreApp() {
 
   const heading: Record<Tab, [string, string]> = {
     overview: ['หน้าร้าน', 'เลือกสินค้าแล้วกดขาย'],
-    restock: ['เติมสต็อก', 'กรอกจำนวนที่ได้รับเพิ่มในช่อง "เพิ่ม (ชิ้น)" ได้หลายรายการ แล้วกดบันทึกครั้งเดียว'],
+    restock: ['เติมสต็อก', 'กรอกจำนวนที่รับเพิ่ม ตรวจยอดหลังเติม แล้วบันทึกพร้อมกันได้หลายรายการ'],
     sales: ['ประวัติขาย', 'รายการขายทั้งหมดของร้าน'],
     accounts: ['สมุดบัญชีสต็อก', 'เมลไหน · ตัวไหน · เก็บอะไร'],
   };
@@ -550,12 +552,16 @@ function StoreApp() {
             <input ref={logoInput} type="file" accept="image/*" hidden onChange={e => void uploadLogo(e.target.files?.[0])} />
             <span className="shop-brand__name">{session.storeName}</span>
           </div>
-          <Segmented<Tab> className="shop-tabs" value={tab} onChange={setTab} options={[
-            { value: 'overview', label: 'หน้าร้าน' },
-            { value: 'restock', label: <Badge count={pendingCount} size="small" offset={[8, -2]}>เติมสต็อก</Badge> },
-            { value: 'sales', label: 'ประวัติขาย' },
-            { value: 'accounts', label: 'สมุดบัญชี' },
-          ]} />
+          <nav className="shop-nav" aria-label="เมนูร้านค้า">
+            {([
+              ['overview', 'หน้าร้าน', <ShopOutlined />],
+              ['restock', 'เติมสต็อก', <PlusOutlined />],
+              ['sales', 'ประวัติขาย', <HistoryOutlined />],
+              ['accounts', 'สมุดบัญชี', <BookOutlined />],
+            ] as const).map(([key, label, icon]) => <button key={key} type="button" className={tab === key ? 'is-active' : ''} aria-current={tab === key ? 'page' : undefined} onClick={() => setTab(key)}>
+              {icon}<span>{label}</span>{key === 'restock' && pendingCount > 0 && <span className="shop-nav__count" aria-label={`${pendingCount} รายการรอบันทึก`}>{pendingCount}</span>}
+            </button>)}
+          </nav>
           <div className="shop-bar__end"><Tooltip title="ออกจากร้าน"><Button type="text" icon={<LogoutOutlined />} aria-label="ออกจากร้าน"
             onClick={() => { saveSession(null); setProducts([]); setSales([]); setApiData(null); setRestockQtys({}); setTab('overview'); }} /></Tooltip></div>
         </div>
@@ -565,7 +571,7 @@ function StoreApp() {
         <div className="shop-head">
           <div><h1>{heading[tab][0]}</h1><p>{heading[tab][1]}</p></div>
           {tab === 'overview' && <Button type="primary" icon={<PlusOutlined />} onClick={() => openEditor('new')}>เพิ่มสินค้าในร้าน</Button>}
-          {tab === 'restock' && <Button type="primary" icon={<PlusOutlined />} onClick={() => openQuickRestock()}>เติมสต็อกทีละรายการ</Button>}
+          {tab === 'restock' && <Button icon={<PlusOutlined />} onClick={() => openQuickRestock()}>เติมสต็อกทีละรายการ</Button>}
         </div>
         {loadError && <Alert className="shop-alert" type="error" showIcon message={loadError} action={<Button size="small" onClick={() => void fetchAll(session.storeId)}>ลองใหม่</Button>} />}
 
@@ -647,8 +653,8 @@ function StoreApp() {
         {tab === 'restock' && (
           <>
             <div className="shop-toolbar">
-              <Input className="shop-search" prefix={<SearchOutlined className="shop-muted" />} placeholder="ค้นหาสินค้า" value={restockSearch} onChange={e => setRestockSearch(e.target.value)} allowClear />
-              <Segmented value={restockFilter} onChange={setRestockFilter} options={[
+              <Input className="shop-search" prefix={<SearchOutlined className="shop-muted" />} aria-label="ค้นหาสินค้าที่จะเติม" placeholder="ค้นหาสินค้าที่จะเติม" value={restockSearch} onChange={e => setRestockSearch(e.target.value)} allowClear />
+              <Segmented className="shop-stock-filters" aria-label="กรองสถานะสต็อก" value={restockFilter} onChange={setRestockFilter} options={[
                 { value: 'all', label: `ทั้งหมด ${products.length}` },
                 { value: 'ready', label: `มีสต็อก ${products.length - outOfStock}` },
                 { value: 'empty', label: `หมด ${outOfStock}` },
@@ -672,18 +678,19 @@ function StoreApp() {
               </div>
             </div>
             {restockFields}
-            <Table<StoreProduct> className="shop-table" columns={restockColumns} dataSource={filteredRestock} rowKey="item_id" size="middle" scroll={{ x: 650 }}
+            <p className="shop-mobile-hint">เลื่อนตารางซ้าย–ขวาเพื่อกรอกจำนวนและตรวจยอดหลังเติม</p>
+            <Table<StoreProduct> className="shop-table shop-restock-table" loading={loading} columns={restockColumns} dataSource={filteredRestock} rowKey="item_id" size="middle" scroll={{ x: 690 }}
               showSorterTooltip={{ title: 'กดเพื่อเปลี่ยนลำดับ · กดจนยกเลิกเพื่อคืนค่า A–Z / ก–ฮ' }}
               onChange={(_, __, sorter) => { const current = Array.isArray(sorter) ? sorter[0] : sorter; setRestockSort(current.order ? { key: current.columnKey as RestockSort['key'], order: current.order } : defaultRestockSort); }}
-              pagination={false} locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="ไม่พบสินค้า" /> }}
+              pagination={false} locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={products.length ? 'ไม่พบสินค้าตามตัวกรองนี้' : 'ยังไม่มีสินค้าในร้าน'}>{products.length ? <Button onClick={() => { setRestockSearch(''); setRestockFilter('all'); }}>แสดงสินค้าทั้งหมด</Button> : <Button type="primary" onClick={() => openEditor('new')}>เพิ่มสินค้าในร้าน</Button>}</Empty> }}
               rowClassName={p => (restockQtys[p.item_id] ?? 0) > 0 ? 'is-pending' : ''} />
-            <div className={`shop-dock${pendingCount ? ' is-visible' : ''}`} aria-hidden={!pendingCount}>
-              <span><b>{pendingCount}</b> รายการ · <b>{fmt(pendingUnits)}</b> ชิ้น</span>
+            {pendingCount > 0 && <div className="shop-dock is-visible" aria-label="สรุปการเติมสต็อก">
+              <span className="shop-dock__summary" aria-live="polite"><strong>พร้อมบันทึก <b>{pendingCount}</b> รายการ</strong><small>เพิ่มทั้งหมด {fmt(pendingUnits)} ชิ้น</small></span>
               <div>
-                <Button type="text" disabled={submitting} onClick={() => setRestockQtys({})}>ล้าง</Button>
-                <Button type="primary" loading={submitting} disabled={!metadataValid} onClick={() => void handleBulkRestock()}>บันทึกเติมสต็อก</Button>
+                <Popconfirm title="ล้างจำนวนที่กรอกทั้งหมด?" okText="ล้างจำนวน" cancelText="เก็บไว้" onConfirm={() => setRestockQtys({})}><Button type="text" disabled={submitting}>ล้างจำนวน</Button></Popconfirm>
+                <Button type="primary" loading={submitting} disabled={!metadataValid} onClick={() => void handleBulkRestock()}>บันทึก {pendingCount} รายการ</Button>
               </div>
-            </div>
+            </div>}
           </>
         )}
 
