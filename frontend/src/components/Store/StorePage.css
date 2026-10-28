@@ -206,3 +206,14 @@
 .shop .shop-occ .ant-tag-checkable-checked { background:var(--accent); border-color:var(--accent); color:#fff; }
 .shop-occ .ant-tag-checkable-checked:hover { color:#fff; }
 @media (max-width:720px) { .shop-grid { grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); } }
+
+/* Badge labels must inherit the same active/inactive color as every other tab. */
+.shop-bar .shop-tabs .ant-badge { color:inherit; font:inherit; }
+.shop-bar .shop-tabs .ant-segmented-item-label { overflow:visible; }
+.shop-bar .shop-tabs .ant-badge-count { background:var(--sun); color:var(--sun-ink); box-shadow:0 0 0 1px var(--sky-deep); }
+.shop-bar .shop-tabs .ant-segmented-item-selected .ant-badge-count { background:var(--sky-deep); color:#fff; }
+.shop-restock-sort { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin:0 0 16px; font-size:12px; }
+.shop-restock-sort > div { display:flex; align-items:center; flex-wrap:wrap; gap:6px; }
+.shop-restock-sort .ant-select { min-width:210px; }
+.shop-table .ant-table-column-sorter-up.active, .shop-table .ant-table-column-sorter-down.active { color:var(--sky-deep); }
+@media(max-width:640px) { .shop-restock-sort > div { width:100%; } .shop-restock-sort .ant-select { flex:1; } }

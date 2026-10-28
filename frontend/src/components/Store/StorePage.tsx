@@ -15,6 +15,7 @@ import type { AppData } from '../../types';
 import { SalesChart } from './SalesChart';
 import './StorePage.css';
 import { toPngBlob } from './profileImage';
+import { compareProductNames, defaultRestockSort, sortRestockProducts, type RestockSort } from './restockSort';
 import { StoreAccounts } from './StoreAccounts';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -312,7 +313,8 @@ function StoreApp() {
 
   // Bulk restock state
   const [restockSearch, setRestockSearch] = useState('');
-  const [restockFilter, setRestockFilter] = useState<'all' | 'empty' | 'pending'>('all');
+  const [restockSort, setRestockSort] = useState<RestockSort>(defaultRestockSort);
+  const [restockFilter, setRestockFilter] = useState<'all' | 'ready' | 'empty' | 'pending'>('all');
   const [restockQtys, setRestockQtys] = useState<Record<string, number>>({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -453,9 +455,7 @@ function StoreApp() {
   };
 
   // Default order: A–Z, then ก–ฮ.
-  const isThai = (name: string) => /^[\u0E00-\u0E7F]/.test(name.trim());
-  const byName = (a: StoreProduct, b: StoreProduct) => Number(isThai(a.name)) - Number(isThai(b.name))
-    || a.name.localeCompare(b.name, ['th', 'en'], { numeric: true, sensitivity: 'base' });
+  const byName = compareProductNames;
   const filteredOverview = useMemo(() => {
     const q = overviewSearch.toLowerCase().trim();
     const list = products.filter(p => (!q || p.name.toLowerCase().includes(q))
@@ -472,9 +472,10 @@ function StoreApp() {
 
   const filteredRestock = useMemo(() => {
     const q = restockSearch.toLowerCase().trim();
-    return products.filter(p => (!q || p.name.toLowerCase().includes(q))
-      && (restockFilter === 'all' || (restockFilter === 'empty' ? p.stock === 0 : (restockQtys[p.item_id] ?? 0) > 0))).sort(byName);
-  }, [products, restockSearch, restockFilter, restockQtys]);
+    const filtered = products.filter(p => (!q || p.name.toLowerCase().includes(q))
+      && (restockFilter === 'all' || (restockFilter === 'empty' ? p.stock === 0 : restockFilter === 'ready' ? p.stock > 0 : (restockQtys[p.item_id] ?? 0) > 0)));
+    return sortRestockProducts(filtered, restockSort, restockQtys);
+  }, [products, restockSearch, restockFilter, restockQtys, restockSort]);
 
   const goRestock = (p: StoreProduct) => openQuickRestock(p.item_id);
 
@@ -498,9 +499,10 @@ function StoreApp() {
   ];
 
   const restockColumns: ColumnsType<StoreProduct> = [
-    { title: 'สินค้า', key: 'name', render: (_, p) => <div className="shop-cell"><ItemImg src={getImg(p)} name={p.name} size={28} /><span>{p.name}</span></div> },
-    { title: 'คงเหลือ', dataIndex: 'stock', align: 'right', width: 100, render: (v: number) => v === 0 ? <Tag color="error" variant="filled">หมด</Tag> : <span className="shop-num">{fmt(v)}</span> },
-    { title: 'เพิ่ม (ชิ้น)', key: 'qty', align: 'right', width: 130, render: (_, p) => (
+    { title: 'สินค้า', key: 'name', sorter: true, sortOrder: restockSort.key === 'name' ? restockSort.order : null, render: (_, p) => <div className="shop-cell"><ItemImg src={getImg(p)} name={p.name} size={28} /><span>{p.name}</span></div> },
+    { title: 'คงเหลือ (ชิ้น)', key: 'stock', dataIndex: 'stock', sorter: true, sortOrder: restockSort.key === 'stock' ? restockSort.order : null, align: 'right', width: 160, render: (v: number) => <span className={v === 0 ? 'shop-num shop-danger' : 'shop-num'}>{fmt(v)}</span> },
+    { title: 'สถานะ', key: 'status', width: 130, sorter: true, sortOrder: restockSort.key === 'status' ? restockSort.order : null, render: (_, p) => <Tag color={p.stock === 0 ? 'error' : 'success'}>{p.stock === 0 ? 'หมด' : 'มีสต็อก'}</Tag> },
+    { title: 'เพิ่ม (ชิ้น)', key: 'qty', sorter: true, sortOrder: restockSort.key === 'qty' ? restockSort.order : null, align: 'right', width: 130, render: (_, p) => (
       <InputNumber disabled={submitting} aria-label={`เพิ่มจำนวน ${p.name}`} min={0} precision={0} controls={false} placeholder="0" style={{ width: 96 }}
         value={restockQtys[p.item_id] ?? null}
         onChange={v => setRestockQtys(prev => { const next = { ...prev }; if (!v || v <= 0) delete next[p.item_id]; else next[p.item_id] = v; return next; })} />
@@ -647,13 +649,32 @@ function StoreApp() {
             <div className="shop-toolbar">
               <Input className="shop-search" prefix={<SearchOutlined className="shop-muted" />} placeholder="ค้นหาสินค้า" value={restockSearch} onChange={e => setRestockSearch(e.target.value)} allowClear />
               <Segmented value={restockFilter} onChange={setRestockFilter} options={[
-                { value: 'all', label: 'ทั้งหมด' },
+                { value: 'all', label: `ทั้งหมด ${products.length}` },
+                { value: 'ready', label: `มีสต็อก ${products.length - outOfStock}` },
                 { value: 'empty', label: `หมด ${outOfStock}` },
                 { value: 'pending', label: `กรอกแล้ว ${pendingCount}` },
               ]} />
             </div>
+            <div className="shop-restock-sort">
+              <span className="shop-muted">แสดง {filteredRestock.length} จาก {products.length} รายการ · กดหัวคอลัมน์เพื่อเรียงลำดับ</span>
+              <div>
+                <Select aria-label="เรียงรายการเติมสต็อก" value={`${restockSort.key}:${restockSort.order}`} onChange={value => { const [key, order] = value.split(':'); setRestockSort({ key: key as RestockSort['key'], order: order as RestockSort['order'] }); }} options={[
+                  { value: 'name:ascend', label: 'ชื่อ A–Z / ก–ฮ' },
+                  { value: 'name:descend', label: 'ชื่อ ฮ–ก / Z–A' },
+                  { value: 'status:ascend', label: 'หมดก่อน' },
+                  { value: 'status:descend', label: 'มีสต็อกก่อน' },
+                  { value: 'stock:ascend', label: 'คงเหลือ น้อย → มาก' },
+                  { value: 'stock:descend', label: 'คงเหลือ มาก → น้อย' },
+                  { value: 'qty:ascend', label: 'จำนวนเติม น้อย → มาก' },
+                  { value: 'qty:descend', label: 'จำนวนเติม มาก → น้อย' },
+                ]} />
+                <Button type="text" disabled={restockSort.key === 'name' && restockSort.order === 'ascend'} onClick={() => setRestockSort(defaultRestockSort)}>คืนค่า A–Z / ก–ฮ</Button>
+              </div>
+            </div>
             {restockFields}
-            <Table<StoreProduct> className="shop-table" columns={restockColumns} dataSource={filteredRestock} rowKey="item_id" size="middle" scroll={{ x: 420 }}
+            <Table<StoreProduct> className="shop-table" columns={restockColumns} dataSource={filteredRestock} rowKey="item_id" size="middle" scroll={{ x: 650 }}
+              showSorterTooltip={{ title: 'กดเพื่อเปลี่ยนลำดับ · กดจนยกเลิกเพื่อคืนค่า A–Z / ก–ฮ' }}
+              onChange={(_, __, sorter) => { const current = Array.isArray(sorter) ? sorter[0] : sorter; setRestockSort(current.order ? { key: current.columnKey as RestockSort['key'], order: current.order } : defaultRestockSort); }}
               pagination={false} locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="ไม่พบสินค้า" /> }}
               rowClassName={p => (restockQtys[p.item_id] ?? 0) > 0 ? 'is-pending' : ''} />
             <div className={`shop-dock${pendingCount ? ' is-visible' : ''}`} aria-hidden={!pendingCount}>
