@@ -1,3 +1,4 @@
+import { accountBucket, accountKey, validateAccount } from './lib/storeAccounts.js';
 import { validMachineLayout } from './lib/machineLayout.js';
 /**
  * api/index.ts — Single Vercel Function catch-all router
@@ -1010,6 +1011,51 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const store_id = segments[1];
       if (!store_id || store_id === 'list' || store_id === 'verify-pin') {
         return res.status(400).json({ error: 'store_id ไม่ถูกต้อง' });
+      }
+
+      // Private JSON documents: one Gmail per object, three characters saved together.
+      if (segments[2] === 'accounts') {
+        if (!/^[0-9a-f-]{36}$/i.test(store_id)) return res.status(400).json({ error: 'ร้านไม่ถูกต้อง' });
+        const { data: store, error: storeError } = await db.from('stores').select('id').eq('id', store_id).maybeSingle();
+        if (storeError) throw storeError;
+        if (!store) return res.status(404).json({ error: 'ไม่พบร้าน' });
+        const bucket = await accountBucket(db);
+        if (method === 'GET' && !segments[3]) {
+          const files = [];
+          for (let offset = 0; ; offset += 100) {
+            const { data, error } = await bucket.list(store_id, { limit:100, offset, sortBy:{column:'name', order:'asc'} });
+            if (error) throw error;
+            files.push(...(data ?? []));
+            if (!data || data.length < 100) break;
+          }
+          const accounts = [];
+          for (const file of files.filter(f=>f.name.endsWith('.json'))) {
+            const { data, error } = await bucket.download(`${store_id}/${file.name}`);
+            if (error) throw error;
+            accounts.push({ ...JSON.parse(await data.text()), key:file.name.slice(0,-5) });
+          }
+          return res.json(accounts.sort((a,b)=>a.email.localeCompare(b.email)));
+        }
+        if ((method === 'POST' && !segments[3]) || (method === 'PUT' && segments[3])) {
+          let account;
+          try { account = validateAccount(req.body); } catch(e) { return res.status(400).json({error:(e as Error).message}); }
+          const key = accountKey(account.email);
+          if (method === 'PUT' && key !== segments[3]) return res.status(400).json({error:'ไม่สามารถเปลี่ยน Gmail ของบัญชีเดิมได้'});
+          const record = {...account, updated_at:new Date().toISOString()};
+          const path = `${store_id}/${key}.json`;
+          const contents = Buffer.from(JSON.stringify(record));
+          const { error } = method === 'POST'
+            ? await bucket.upload(path, contents, {contentType:'application/json',cacheControl:'0',upsert:false})
+            : await bucket.update(path, contents, {contentType:'application/json',cacheControl:'0',upsert:false});
+          if (error) return res.status(409).json({error: /already exists|duplicate/i.test(error.message) ? 'Gmail นี้มีอยู่แล้ว กรุณาแก้ไขรายการเดิม' : 'บันทึกไม่สำเร็จ กรุณาโหลดข้อมูลแล้วลองอีกครั้ง'});
+          return res.status(method === 'POST' ? 201 : 200).json({...record,key});
+        }
+        if (method === 'DELETE' && /^[a-f0-9]{64}$/.test(segments[3] ?? '')) {
+          const {error} = await bucket.remove([`${store_id}/${segments[3]}.json`]);
+          if(error) throw error;
+          return res.json({ok:true});
+        }
+        return res.status(405).json({error:'Method not allowed'});
       }
 
       // GET /api/store/:store_id/products

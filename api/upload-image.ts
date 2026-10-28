@@ -10,7 +10,7 @@ import { getSupabase } from './lib/db.js';
 import { applyCors } from './lib/cors.js';
 import { createHash, randomUUID } from 'crypto';
 
-const IMAGE_FOLDERS = new Set(['machines', 'recipes', 'stocks', 'stores']);
+const IMAGE_FOLDERS = new Set(['machines', 'recipes', 'stocks', 'stores', 'characters']);
 const IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml']);
 
 // Tell Vercel NOT to parse the body — busboy needs the raw stream

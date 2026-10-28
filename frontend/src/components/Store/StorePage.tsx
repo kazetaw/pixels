@@ -14,13 +14,15 @@ import { fetchAllData } from '../../api/client';
 import type { AppData } from '../../types';
 import { SalesChart } from './SalesChart';
 import './StorePage.css';
+import { toPngBlob } from './profileImage';
+import { StoreAccounts } from './StoreAccounts';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type StoreRow = { id: string; name: string; logo_url?: string | null };
 type Session = { storeId: string; storeName: string; logo: string | null };
 type StoreProduct = { item_id: string; name: string; image_url: string | null; price: number; stock: number };
 type SaleRecord = { id: string; item_id: string; item_name: string; image_url: string | null; qty: number; price_per_unit: number; total: number; note: string; sold_at: string };
-type Tab = 'overview' | 'restock' | 'sales';
+type Tab = 'overview' | 'restock' | 'sales' | 'accounts';
 
 // ── Sky · Sun · White theme (scoped to /store) ────────────────────────────────
 const SKY = '#0284C7';
@@ -58,18 +60,6 @@ const shopTheme: ThemeConfig = {
   },
 };
 
-// Logos are stored as a 256px PNG (fixed path per store, so a new upload replaces the old one).
-async function toPngBlob(file: File, size = 256): Promise<Blob> {
-  const url = URL.createObjectURL(file);
-  try {
-    const img = await new Promise<HTMLImageElement>((resolve, reject) => { const i = new Image(); i.onload = () => resolve(i); i.onerror = reject; i.src = url; });
-    const scale = Math.min(1, size / Math.max(img.width, img.height));
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.max(1, Math.round(img.width * scale)); canvas.height = Math.max(1, Math.round(img.height * scale));
-    canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
-    return await new Promise<Blob>((resolve, reject) => canvas.toBlob(b => b ? resolve(b) : reject(new Error('แปลงรูปไม่สำเร็จ')), 'image/png'));
-  } finally { URL.revokeObjectURL(url); }
-}
 
 function StoreLogo({ src, size = 36 }: { src?: string | null; size?: number }) {
   const [broken, setBroken] = useState(false);
@@ -538,6 +528,7 @@ function StoreApp() {
     overview: ['หน้าร้าน', 'เลือกสินค้าแล้วกดขาย'],
     restock: ['เติมสต็อก', 'กรอกจำนวนที่ได้รับเพิ่มในช่อง "เพิ่ม (ชิ้น)" ได้หลายรายการ แล้วกดบันทึกครั้งเดียว'],
     sales: ['ประวัติขาย', 'รายการขายทั้งหมดของร้าน'],
+    accounts: ['สมุดบัญชีสต็อก', 'เมลไหน · ตัวไหน · เก็บอะไร'],
   };
 
   return (
@@ -561,6 +552,7 @@ function StoreApp() {
             { value: 'overview', label: 'หน้าร้าน' },
             { value: 'restock', label: <Badge count={pendingCount} size="small" offset={[8, -2]}>เติมสต็อก</Badge> },
             { value: 'sales', label: 'ประวัติขาย' },
+            { value: 'accounts', label: 'สมุดบัญชี' },
           ]} />
           <div className="shop-bar__end"><Tooltip title="ออกจากร้าน"><Button type="text" icon={<LogoutOutlined />} aria-label="ออกจากร้าน"
             onClick={() => { saveSession(null); setProducts([]); setSales([]); setApiData(null); setRestockQtys({}); setTab('overview'); }} /></Tooltip></div>
@@ -574,6 +566,8 @@ function StoreApp() {
           {tab === 'restock' && <Button type="primary" icon={<PlusOutlined />} onClick={() => openQuickRestock()}>เติมสต็อกทีละรายการ</Button>}
         </div>
         {loadError && <Alert className="shop-alert" type="error" showIcon message={loadError} action={<Button size="small" onClick={() => void fetchAll(session.storeId)}>ลองใหม่</Button>} />}
+
+        {tab === 'accounts' && <StoreAccounts key={session.storeId} storeId={session.storeId} itemNames={Object.values(apiData?.itemNames ?? {})} />}
 
         {/* ── Overview ── */}
         {tab === 'overview' && (
