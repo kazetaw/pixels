@@ -1119,13 +1119,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (typeof entered_by !== 'string' || !entered_by.trim() || entered_by.trim().length > 100) return res.status(400).json({ error: 'กรุณาระบุชื่อผู้กรอก (ไม่เกิน 100 ตัวอักษร)' });
         if (!Array.isArray(tags) || tags.length > 1 || tags.some(tag => tag !== 'ตะวัน')) return res.status(400).json({ error: 'แท็กไม่ถูกต้อง' });
         const { item_id, qty, note } = req.body ?? {};
+        const contributor = typeof req.body?.contributor === 'string' ? req.body.contributor.trim() : '';
         if (typeof item_id !== 'string' || !item_id) return res.status(400).json({ error: 'item_id ไม่ถูกต้อง' });
         if (!Number.isInteger(qty) || qty <= 0) return res.status(400).json({ error: 'จำนวนต้องเป็นจำนวนเต็มมากกว่า 0' });
-        let { error: restockErr } = await db.from('store_restocks').insert({ store_id, item_id, qty, entered_by: entered_by.trim(), tags, note: typeof note === 'string' ? note : '' });
+        let { error: restockErr } = await db.from('store_restocks').insert({ store_id, item_id, qty, entered_by: entered_by.trim(), tags, note: typeof note === 'string' ? note : '', contributor });
         // Keep attribution durable while the additive migration is being rolled out.
         if (restockErr?.code === 'PGRST204') {
           const result = await db.from('store_restocks').insert({ store_id, item_id, qty,
-            note: JSON.stringify({ type: 'store-restock-metadata-v1', entered_by: entered_by.trim(), tags, note: typeof note === 'string' ? note : '' }) });
+            note: JSON.stringify({ type: 'store-restock-metadata-v1', entered_by: entered_by.trim(), tags, note: typeof note === 'string' ? note : '', contributor }) });
           restockErr = result.error;
         }
         if (restockErr) throw restockErr;
@@ -1153,9 +1154,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               note = metadata.note; enteredBy = metadata.entered_by; tags = metadata.tags;
             }
           } catch { /* Ordinary historical notes are plain text. */ }
-          return { id: r.id, item_id: r.item_id, qty: r.qty, note, entered_by: enteredBy, tags, restocked_at: r.restocked_at, item_name: item?.name ?? '', image_url: item?.image_url ?? null };
+          return { id: r.id, item_id: r.item_id, qty: r.qty, note, entered_by: enteredBy, tags, contributor: r.contributor ?? '', restocked_at: r.restocked_at, item_name: item?.name ?? '', image_url: item?.image_url ?? null };
         });
         return res.json(rows);
+      }
+
+      // GET /api/store/:store_id/distributions
+      if (method === 'GET' && segments[2] === 'distributions') {
+        const { data, error } = await db
+          .from('store_distributions')
+          .select('id, contributor, item_id, qty, note, distributed_at, items(name, image_url)')
+          .eq('store_id', store_id)
+          .order('distributed_at', { ascending: false });
+        if (error) throw error;
+        const rows = (data ?? []).map((r: Record<string, unknown>) => {
+          const item = r.items as { name: string; image_url: string | null } | null;
+          return { id: r.id, contributor: r.contributor, item_id: r.item_id, qty: r.qty, note: r.note, distributed_at: r.distributed_at, item_name: item?.name ?? '', image_url: item?.image_url ?? null };
+        });
+        return res.json(rows);
+      }
+
+      // POST /api/store/:store_id/distributions
+      if (method === 'POST' && segments[2] === 'distributions') {
+        const { contributor, item_id, qty, note } = req.body ?? {};
+        if (typeof contributor !== 'string' || !contributor.trim()) return res.status(400).json({ error: 'กรุณาระบุชื่อผู้รับ' });
+        if (typeof item_id !== 'string' || !item_id) return res.status(400).json({ error: 'item_id ไม่ถูกต้อง' });
+        if (!Number.isInteger(qty) || qty <= 0) return res.status(400).json({ error: 'จำนวนต้องเป็นจำนวนเต็มมากกว่า 0' });
+        const { data: prod, error: prodErr } = await db.from('store_products').select('item_id').eq('store_id', store_id).eq('item_id', item_id).maybeSingle();
+        if (prodErr) throw prodErr;
+        if (!prod) return res.status(404).json({ error: 'ไม่พบสินค้าในร้านนี้' });
+        const { error: distErr } = await db.from('store_distributions').insert({ store_id, contributor: contributor.trim(), item_id, qty, note: typeof note === 'string' ? note : '' });
+        if (distErr) throw distErr;
+        return res.status(201).json({ ok: true });
       }
 
       // POST /api/store/:store_id/sales
