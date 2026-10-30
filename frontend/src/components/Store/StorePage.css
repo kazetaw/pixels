@@ -206,7 +206,7 @@
 @media(max-width:640px) { .shop-restock-sort > div { width:100%; } .shop-restock-sort .ant-select { flex:1; } }
 
 /* Shared shop navigation: consistent text, target sizes, and selected state. */
-.shop-nav { display:flex; align-self:center; gap:4px; padding:4px; border-radius:12px; background:#ffffff1a; }
+.shop-nav { display:flex; align-self:center; gap:4px; padding:4px; border-radius:12px; background:#ffffff1a; overflow-x:auto; flex-shrink:1; }
 .shop-nav > button { appearance:none; border:0; border-radius:8px; background:transparent; color:#fff; display:flex; align-items:center; justify-content:center; gap:8px; padding:0 16px; font:inherit; font-weight:600; cursor:pointer; min-height:44px; white-space:nowrap; }
 .shop-nav > button:hover { background:#ffffff26; color:#fff; }
 .shop-nav > button.is-active, .shop-nav > button.is-active:hover { background:var(--sun); color:var(--sun-ink); }
@@ -242,7 +242,7 @@
 }
 @media(max-width:720px) {
  .shop-bar__inner { padding:10px 16px; gap:8px; }
- .shop-nav { order:3; flex:1 0 100%; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:0; }
+ .shop-nav { order:3; flex:1 0 100%; display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:0; }
  .shop-nav > button { padding:10px 2px; font-size:12px; gap:4px; }
  .shop-head { flex-wrap:wrap; gap:12px; }
  .shop-head > div { width:100%; }
