@@ -203,7 +203,7 @@ function SellModal({ product, storeId, imgSrc, onClose, onSold }: { product: Sto
     try {
       const res = await fetch(`/api/store/${storeId}/sales`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ item_id: product.item_id, qty, note }) });
       if (!res.ok) { const e = await res.json(); void message.error(e.error ?? 'บันทึกการขายไม่สำเร็จ'); return; }
-      void message.success(`ขาย ${product.name} ${qty} ชิ้น`);
+      void message.success(`ขาย ${product.name} ${qty} กอง`);
       onSold();
     } catch { void message.error('บันทึกการขายไม่สำเร็จ'); }
     finally { setSaving(false); }
@@ -219,7 +219,7 @@ function SellModal({ product, storeId, imgSrc, onClose, onSold }: { product: Sto
             <ItemImg src={imgSrc} name={product.name} size={44} />
             <div>
               <strong>{product.name}</strong>
-              <span className="shop-muted">{fmtMoney(product.price)} / ชิ้น · คงเหลือ {fmt(product.stock)}</span>
+              <span className="shop-muted">{fmtMoney(product.price)} / กอง · คงเหลือ {fmt(product.stock)}</span>
             </div>
           </div>
           <label className="shop-field">จำนวน
@@ -233,7 +233,7 @@ function SellModal({ product, storeId, imgSrc, onClose, onSold }: { product: Sto
           <label className="shop-field"><span>หมายเหตุ <span className="shop-muted">· ไม่บังคับ</span></span>
             <Input value={note} onChange={e => setNote(e.target.value)} placeholder="เช่น ลูกค้า VIP" maxLength={200} />
           </label>
-          <div className="shop-modal__sum"><span>หลังขายเหลือ {fmt(Math.max(0, product.stock - (qty ?? 0)))} ชิ้น</span></div>
+          <div className="shop-modal__sum"><span>หลังขายเหลือ {fmt(Math.max(0, product.stock - (qty ?? 0)))} กอง</span></div>
         </div>
       )}
     </Modal>
@@ -297,7 +297,7 @@ function StoreApp() {
     try {
       const res = await fetch(`/api/store/${session.storeId}/restock`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ item_id: quickId, qty: quickQty, ...restockMetadata }) });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'เติมสต็อกไม่สำเร็จ');
-      void msgApi.success(`เติม ${products.find(p => p.item_id === quickId)?.name ?? ''} +${fmt(quickQty!)} ชิ้นแล้ว`);
+      void msgApi.success(`เติม ${products.find(p => p.item_id === quickId)?.name ?? ''} +${fmt(quickQty!)} กองแล้ว`);
       setQuickOpen(false); await fetchAll(session.storeId);
     } catch (e) { void msgApi.error(e instanceof Error ? e.message : 'เติมสต็อกไม่สำเร็จ'); }
     finally { setQuickSaving(false); }
@@ -501,9 +501,9 @@ function StoreApp() {
 
   const restockColumns: ColumnsType<StoreProduct> = [
     { title: 'สินค้า', key: 'name', fixed: 'left', width: 200, sorter: true, sortOrder: restockSort.key === 'name' ? restockSort.order : null, render: (_, p) => <div className="shop-cell"><ItemImg src={getImg(p)} name={p.name} size={28} /><span>{p.name}</span></div> },
-    { title: 'คงเหลือ (ชิ้น)', key: 'stock', dataIndex: 'stock', sorter: true, sortOrder: restockSort.key === 'stock' ? restockSort.order : null, align: 'right', width: 140, render: (v: number) => <span className={v === 0 ? 'shop-num shop-danger' : 'shop-num'}>{fmt(v)}</span> },
+    { title: 'คงเหลือ (กอง)', key: 'stock', dataIndex: 'stock', sorter: true, sortOrder: restockSort.key === 'stock' ? restockSort.order : null, align: 'right', width: 140, render: (v: number) => <span className={v === 0 ? 'shop-num shop-danger' : 'shop-num'}>{fmt(v)}</span> },
     { title: 'สถานะ', key: 'status', width: 110, sorter: true, sortOrder: restockSort.key === 'status' ? restockSort.order : null, render: (_, p) => <Tag color={p.stock === 0 ? 'error' : 'success'}>{p.stock === 0 ? 'หมด' : 'มีสต็อก'}</Tag> },
-    { title: 'เพิ่ม (ชิ้น)', key: 'qty', sorter: true, sortOrder: restockSort.key === 'qty' ? restockSort.order : null, align: 'right', width: 130, render: (_, p) => (
+    { title: 'เพิ่ม (กอง)', key: 'qty', sorter: true, sortOrder: restockSort.key === 'qty' ? restockSort.order : null, align: 'right', width: 130, render: (_, p) => (
       <InputNumber disabled={submitting} aria-label={`เพิ่มจำนวน ${p.name}`} min={0} max={2147483647 - p.stock} precision={0} controls={false} inputMode="numeric" placeholder="0" style={{ width: 96 }}
         value={restockQtys[p.item_id] ?? null}
         onChange={v => setRestockQtys(prev => { const next = { ...prev }; if (!v || v <= 0) delete next[p.item_id]; else next[p.item_id] = v; return next; })} />
@@ -515,7 +515,7 @@ function StoreApp() {
     { title: 'วันที่', dataIndex: 'sold_at', width: 150, render: (v: string) => <span className="shop-muted">{new Date(v).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</span> },
     { title: 'สินค้า', key: 'item', render: (_: unknown, r) => <div className="shop-cell"><ItemImg src={r.image_url} name={r.item_name} size={26} /><span>{r.item_name}</span></div> },
     { title: 'จำนวน', dataIndex: 'qty', align: 'right', width: 80, render: (v: number) => <span className="shop-num">{fmt(v)}</span> },
-    { title: 'ราคา/ชิ้น', dataIndex: 'price_per_unit', align: 'right', width: 100, render: (v: number) => <span className="shop-num">{fmtMoney(v)}</span> },
+    { title: 'ราคา/กอง', dataIndex: 'price_per_unit', align: 'right', width: 100, render: (v: number) => <span className="shop-num">{fmtMoney(v)}</span> },
     { title: 'รวม', dataIndex: 'total', align: 'right', width: 110, render: (v: number) => <strong className="shop-num">{fmtMoney(Number(v))}</strong> },
     { title: 'หมายเหตุ', dataIndex: 'note', ellipsis: true, render: (v: string) => v || <span className="shop-muted">—</span> },
     { title: '', key: 'del', width: 48, render: (_: unknown, r) => <Popconfirm title="ลบประวัติการขายนี้?" description="ยอดขายรวมจะลดลง แต่สต็อกจะไม่ถูกคืน" okText="ลบ" cancelText="เก็บไว้" okButtonProps={{ danger: true }} onConfirm={async () => {
@@ -582,7 +582,7 @@ function StoreApp() {
           <>
             <dl className="shop-stats">
               <Kpi icon={<AppstoreOutlined />} label="สินค้า" value={fmt(products.length)} unit="รายการ" />
-              <Kpi icon={<DatabaseOutlined />} label="สต็อกรวม" value={fmt(totalStock)} unit="ชิ้น" tone="sky" />
+              <Kpi icon={<DatabaseOutlined />} label="สต็อกรวม" value={fmt(totalStock)} unit="กอง" tone="sky" />
               <Kpi icon={<ThunderboltOutlined />} label="ยอดขายรวม" value={fmtMoney(totalRevenue)} tone="sun" />
               <Kpi icon={<WarningOutlined />} label="หมดสต็อก" value={fmt(outOfStock)} unit="รายการ" tone={outOfStock ? 'danger' : undefined} />
             </dl>
@@ -636,7 +636,7 @@ function StoreApp() {
                         <h3 title={p.name}>{p.name}</h3>
                         <div className="shop-card__meta">
                           <span className="shop-card__price">{fmtMoney(p.price)}</span>
-                          <span className={empty ? 'shop-danger' : 'shop-muted'}>{empty ? 'หมด' : `${fmt(p.stock)} ชิ้น`}</span>
+                          <span className={empty ? 'shop-danger' : 'shop-muted'}>{empty ? 'หมด' : `${fmt(p.stock)} กอง`}</span>
                         </div>
                         {empty
                           ? <Button size="small" block color="primary" variant="outlined" onClick={() => goRestock(p)} icon={<PlusOutlined />}>เติมสต็อก</Button>
@@ -685,7 +685,7 @@ function StoreApp() {
               pagination={false} locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={products.length ? 'ไม่พบสินค้าตามตัวกรองนี้' : 'ยังไม่มีสินค้าในร้าน'}>{products.length ? <Button onClick={() => { setRestockSearch(''); setRestockFilter('all'); }}>แสดงสินค้าทั้งหมด</Button> : <Button type="primary" onClick={() => openEditor('new')}>เพิ่มสินค้าในร้าน</Button>}</Empty> }}
               rowClassName={p => (restockQtys[p.item_id] ?? 0) > 0 ? 'is-pending' : ''} />
             {pendingCount > 0 && <div className="shop-dock is-visible" aria-label="สรุปการเติมสต็อก">
-              <span className="shop-dock__summary" aria-live="polite"><strong>พร้อมบันทึก <b>{pendingCount}</b> รายการ</strong><small>เพิ่มทั้งหมด {fmt(pendingUnits)} ชิ้น</small></span>
+              <span className="shop-dock__summary" aria-live="polite"><strong>พร้อมบันทึก <b>{pendingCount}</b> รายการ</strong><small>เพิ่มทั้งหมด {fmt(pendingUnits)} กอง</small></span>
               <div>
                 <Popconfirm title="ล้างจำนวนที่กรอกทั้งหมด?" okText="ล้างจำนวน" cancelText="เก็บไว้" onConfirm={() => setRestockQtys({})}><Button type="text" disabled={submitting}>ล้างจำนวน</Button></Popconfirm>
                 <Button type="primary" loading={submitting} disabled={!metadataValid} onClick={() => void handleBulkRestock()}>บันทึก {pendingCount} รายการ</Button>
@@ -700,7 +700,7 @@ function StoreApp() {
             <dl className="shop-stats shop-stats--3">
               <Kpi icon={<ThunderboltOutlined />} label="ยอดขายรวม" value={fmtMoney(totalRevenue)} tone="sun" />
               <Kpi icon={<RiseOutlined />} label="รายการขาย" value={fmt(sales.length)} unit="ครั้ง" tone="sky" />
-              <Kpi icon={<ShoppingCartOutlined />} label="ขายไปแล้ว" value={fmt(totalSold)} unit="ชิ้น" />
+              <Kpi icon={<ShoppingCartOutlined />} label="ขายไปแล้ว" value={fmt(totalSold)} unit="กอง" />
             </dl>
             <div className="shop-dash">
               <section className="shop-panel shop-dash__chart">
@@ -714,7 +714,7 @@ function StoreApp() {
                   : <ul className="shop-alerts">{lowStock.slice(0, 6).map(p => (
                     <li key={p.item_id} className={p.stock === 0 ? 'is-out' : ''}>
                       <ItemImg src={getImg(p)} name={p.name} size={28} />
-                      <span>{p.name}<small>{p.stock === 0 ? 'หมดสต็อก' : `เหลือ ${fmt(p.stock)} ชิ้น`}</small></span>
+                      <span>{p.name}<small>{p.stock === 0 ? 'หมดสต็อก' : `เหลือ ${fmt(p.stock)} กอง`}</small></span>
                       <Button size="small" type="text" icon={<PlusOutlined />} aria-label={`เติมสต็อก ${p.name}`} onClick={() => goRestock(p)} />
                     </li>))}
                   </ul>}
@@ -734,26 +734,26 @@ function StoreApp() {
             <Select aria-label="สินค้าใหม่" showSearch optionFilterProp="label" placeholder="ค้นหาชื่อสินค้า" value={editId} onChange={setEditId} loading={!apiData}
               options={Object.entries(apiData?.itemNames ?? {}).filter(([id]) => !products.some(p => p.item_id === id)).map(([value, label]) => ({ value, label }))}
               optionRender={option => <div className="shop-cell"><ItemImg src={apiData?.stockImages[String(option.value)]} name={String(option.label)} size={24} />{option.label}</div>} />
-          </label> : editing && <div className="shop-modal__item"><ItemImg src={getImg(editing)} name={editing.name} size={44} /><div><strong>{editing.name}</strong><span className="shop-muted">คงเหลือ {fmt(editing.stock)} ชิ้น</span></div></div>}
-          <label className="shop-field">ราคาขายต่อชิ้น<InputNumber id="store-edit-price" min={0} precision={2} value={editPrice} onChange={setEditPrice} prefix="฿" style={{ width: '100%' }} /></label>
+          </label> : editing && <div className="shop-modal__item"><ItemImg src={getImg(editing)} name={editing.name} size={44} /><div><strong>{editing.name}</strong><span className="shop-muted">คงเหลือ {fmt(editing.stock)} กอง</span></div></div>}
+          <label className="shop-field">ราคาขายต่อกอง<InputNumber id="store-edit-price" min={0} precision={2} value={editPrice} onChange={setEditPrice} prefix="฿" style={{ width: '100%' }} /></label>
           {editing === 'new' && <label className="shop-field">จำนวนเริ่มต้น
-            <InputNumber min={0} precision={0} value={editStock} onChange={setEditStock} suffix="ชิ้น" style={{ width: '100%' }} />
+            <InputNumber min={0} precision={0} value={editStock} onChange={setEditStock} suffix="กอง" style={{ width: '100%' }} />
             <span className="shop-muted">ใส่ 0 ได้ แล้วค่อยเติมทีหลัง</span>
           </label>}
           {editing === 'new' && !!editStock && restockFields}
           {editing && editing !== 'new' && <>
             <label className="shop-field">ยอดสต็อกที่ถูกต้อง
-              <InputNumber id="store-edit-stock" min={0} precision={0} value={editStock} onChange={setEditStock} suffix="ชิ้น" style={{ width: '100%' }} />
-              {editStock !== editing.stock && <span className="shop-muted">{fmt(editing.stock)} → {fmt(editStock ?? 0)} ชิ้น</span>}
+              <InputNumber id="store-edit-stock" min={0} precision={0} value={editStock} onChange={setEditStock} suffix="กอง" style={{ width: '100%' }} />
+              {editStock !== editing.stock && <span className="shop-muted">{fmt(editing.stock)} → {fmt(editStock ?? 0)} กอง</span>}
             </label>
-            <Popconfirm title={`นำ ${editing.name} ออกจากร้าน?`} description={`ลบสินค้าและสต็อก ${fmt(editing.stock)} ชิ้น ประวัติขายยังอยู่`} okText="นำออก" cancelText="เก็บไว้" okButtonProps={{ danger: true }} onConfirm={() => void deleteProduct()}>
+            <Popconfirm title={`นำ ${editing.name} ออกจากร้าน?`} description={`ลบสินค้าและสต็อก ${fmt(editing.stock)} กอง ประวัติขายยังอยู่`} okText="นำออก" cancelText="เก็บไว้" okButtonProps={{ danger: true }} onConfirm={() => void deleteProduct()}>
               <Button className="shop-modal__danger" type="text" danger size="small" disabled={savingProduct} icon={<DeleteOutlined />}>นำสินค้าออกจากร้าน</Button>
             </Popconfirm>
           </>}
         </div>
       </Modal>
       <Modal title="เติมสต็อก" width={420} open={quickOpen} onCancel={() => { if (!quickSaving) setQuickOpen(false); }} mask={{ closable: !quickSaving }} closable={!quickSaving}
-        confirmLoading={quickSaving} onOk={() => void saveQuickRestock()} okText={quickValid ? `เติม +${fmt(quickQty!)} ชิ้น` : 'เติมสต็อก'} cancelText="ยกเลิก" okButtonProps={{ disabled: !quickValid }}>
+        confirmLoading={quickSaving} onOk={() => void saveQuickRestock()} okText={quickValid ? `เติม +${fmt(quickQty!)} กอง` : 'เติมสต็อก'} cancelText="ยกเลิก" okButtonProps={{ disabled: !quickValid }}>
         <div className="shop-modal">
           <label className="shop-field">สินค้า
             <Select aria-label="สินค้าที่จะเติม" showSearch optionFilterProp="label" placeholder="ค้นหาชื่อสินค้า" value={quickId} onChange={setQuickId}
@@ -762,10 +762,10 @@ function StoreApp() {
           </label>
           {restockFields}
           <label className="shop-field">จำนวนที่ได้รับเพิ่ม
-            <InputNumber autoFocus min={1} precision={0} value={quickQty} onChange={setQuickQty} suffix="ชิ้น" placeholder="0" style={{ width: '100%' }} onPressEnter={() => void saveQuickRestock()} />
+            <InputNumber autoFocus min={1} precision={0} value={quickQty} onChange={setQuickQty} suffix="กอง" placeholder="0" style={{ width: '100%' }} onPressEnter={() => void saveQuickRestock()} />
           </label>
           <div className="shop-chips">{[10, 50, 100, 500].map(n => <Button key={n} size="small" type={quickQty === n ? 'primary' : 'default'} onClick={() => setQuickQty(n)}>+{n}</Button>)}</div>
-          {quickId && (() => { const p = products.find(x => x.item_id === quickId); return p && <div className="shop-modal__sum">คงเหลือ {fmt(p.stock)} → <b>{fmt(p.stock + (quickQty ?? 0))}</b> ชิ้น</div>; })()}
+          {quickId && (() => { const p = products.find(x => x.item_id === quickId); return p && <div className="shop-modal__sum">คงเหลือ {fmt(p.stock)} → <b>{fmt(p.stock + (quickQty ?? 0))}</b> กอง</div>; })()}
         </div>
       </Modal>
       <SellModal product={sellProduct} storeId={session.storeId} imgSrc={sellProduct ? getImg(sellProduct) : undefined} onClose={() => setSellProduct(null)} onSold={() => { setSellProduct(null); void fetchAll(session.storeId); }} />
