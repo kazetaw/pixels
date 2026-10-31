@@ -272,3 +272,16 @@
 .shop .shop-dock .ant-btn-primary:not(:disabled) { background:#FACC15; border-color:#FACC15; color:#422006; font-weight:600; }
 .shop .shop-dock .ant-btn-primary:not(:disabled):hover { background:#FDE047; border-color:#FDE047; color:#422006; }
 .shop .shop-dock .ant-btn-primary:disabled { background:#e2e8f0; border-color:#e2e8f0; color:#64748b; }
+
+/* Poster export modal */
+.shop-poster { display:flex; flex-direction:column; gap:12px; padding-top:8px; }
+.shop-poster__opts { display:grid; grid-template-columns:1fr 1fr; gap:12px 16px; align-items:end; }
+.shop-poster__switch { flex-direction:row !important; align-items:center; justify-content:space-between; height:38px; }
+.shop-poster__note { margin:0; font-size:13px; }
+.shop-poster__pages { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; max-height:60vh; overflow:auto; padding:2px; }
+.shop-poster__pages.is-single { grid-template-columns:minmax(0,420px); justify-content:center; }
+.shop-poster__pages figure { margin:0; border:1px solid #BAE6FD; border-radius:12px; overflow:hidden; background:#fff; }
+.shop-poster__pages img { display:block; width:100%; aspect-ratio:1; }
+.shop-poster__pages figcaption { display:flex; align-items:center; justify-content:space-between; padding:4px 4px 4px 12px; font-size:13px; color:#3B5470; }
+@media (max-width:600px) { .shop-poster__opts { grid-template-columns:1fr; } }
+.shop-poster .shop-field > .ant-segmented { align-self:flex-start; }

@@ -8,7 +8,7 @@ import {
   AppstoreOutlined, BarsOutlined, DeleteOutlined, EditOutlined, LogoutOutlined, MoreOutlined,
   PlusOutlined, ReloadOutlined, SearchOutlined, ShopOutlined, ShoppingCartOutlined, InboxOutlined,
   BookOutlined, HistoryOutlined, ThunderboltOutlined, DatabaseOutlined, RiseOutlined, WarningOutlined, CheckCircleOutlined, CameraOutlined,
-  TeamOutlined, GiftOutlined,
+  TeamOutlined, GiftOutlined, PictureOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { fetchAllData } from '../../api/client';
@@ -19,6 +19,7 @@ import { toPngBlob } from './profileImage';
 import { compareProductNames, defaultRestockSort, sortRestockProducts, type RestockSort } from './restockSort';
 import { StoreAccounts } from './StoreAccounts';
 import { CONTRIBUTOR_NAMES } from '../shared/contributors';
+import { PosterExportModal } from './PosterExportModal';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type StoreRow = { id: string; name: string; logo_url?: string | null };
@@ -504,6 +505,11 @@ function StoreApp() {
     return list.sort(cmp[sortBy]);
   }, [products, overviewSearch, stockFilter, occFilter, sortBy, occByItem]);
 
+  // Poster export: in-stock items from the current filters/sort.
+  const [posterOpen, setPosterOpen] = useState(false);
+  const posterItems = useMemo(() => filteredOverview.filter(p => p.stock > 0)
+    .map(p => ({ name: p.name, price: p.price, stock: p.stock, image: getImg(p) ?? null })), [filteredOverview, apiData]);
+
   const filteredRestock = useMemo(() => {
     const q = restockSearch.toLowerCase().trim();
     const filtered = products.filter(p => (!q || p.name.toLowerCase().includes(q))
@@ -643,6 +649,7 @@ function StoreApp() {
                   { value: 'list', icon: <BarsOutlined />, title: 'มุมมองตาราง' },
                 ]} />
                 <Tooltip title="รีเฟรช"><Button icon={<ReloadOutlined />} loading={loading} aria-label="รีเฟรช" onClick={() => void fetchAll(session.storeId)} /></Tooltip>
+                <Button icon={<PictureOutlined />} disabled={!posterItems.length} onClick={() => setPosterOpen(true)}>ส่งออกรูป</Button>
               </div>
             </div>
             {occupations.length > 0 && (
@@ -976,6 +983,7 @@ function StoreApp() {
           {quickId && (() => { const p = products.find(x => x.item_id === quickId); return p && <div className="shop-modal__sum">คงเหลือ {fmt(p.stock)} → <b>{fmt(p.stock + (quickQty ?? 0))}</b> กอง</div>; })()}
         </div>
       </Modal>
+      <PosterExportModal open={posterOpen} onClose={() => setPosterOpen(false)} items={posterItems} storeName={session.storeName} logo={session.logo} unit="กอง" />
       <SellModal product={sellProduct} storeId={session.storeId} imgSrc={sellProduct ? getImg(sellProduct) : undefined} onClose={() => setSellProduct(null)} onSold={() => { setSellProduct(null); void fetchAll(session.storeId); }} />
     </div>
   );
