@@ -73,9 +73,9 @@ type Theme = {
 const THEMES: Record<PosterStyle, Theme> = {
   // White product cards on a soft grey page — the familiar marketplace look.
   card: {
-    bg: ctx => { ctx.fillStyle = '#F3F4F6'; ctx.fillRect(0, 0, SIZE, SIZE); },
-    card: { fill: '#FFFFFF', radius: 28, shadow: 'rgba(15, 23, 42, 0.08)' },
-    tile: '#FFFFFF', name: '#475569', price: '#0F172A', muted: '#6B7280',
+    bg: ctx => { ctx.fillStyle = '#F0F9FF'; ctx.fillRect(0, 0, SIZE, SIZE); },
+    card: { fill: '#FFFFFF', radius: 24, shadow: 'rgba(3, 105, 161, 0.08)', stroke: '#D6ECFA' },
+    tile: '#FFFFFF', name: '#334155', price: '#0369A1', muted: '#3B5470',
     stock: { fg: '#4B5563', bg: '#F3F4F6' },
   },
   // Store colours, kept light: sky wash, white cards, warm stock tag.
@@ -102,8 +102,10 @@ export async function renderStorePosters(items: PosterItem[], opts: PosterOption
   const pages: PosterItem[][] = [];
   for (let i = 0; i < items.length; i += opts.perPage) pages.push(items.slice(i, i + opts.perPage));
   const T = THEMES[opts.style ?? 'card'];
+  const logo = opts.logo ? await loadImage(opts.logo) : null;
+  const date = new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
 
-  return pages.map((page, pageIndex) => {
+  return pages.map((page) => {
     const canvas = document.createElement('canvas');
     canvas.width = SIZE; canvas.height = SIZE;
     const ctx = canvas.getContext('2d');
@@ -111,17 +113,43 @@ export async function renderStorePosters(items: PosterItem[], opts: PosterOption
     T.bg(ctx);
     ctx.textBaseline = 'alphabetic';
 
-    // Footer line + page number.
+    // Header band: logo + store name + "title · date", page pill on the right.
+    const headH = 150;
+    const band = ctx.createLinearGradient(0, 0, SIZE, 0);
+    band.addColorStop(0, '#0369A1'); band.addColorStop(1, '#0EA5E9');
+    ctx.fillStyle = band; ctx.fillRect(0, 0, SIZE, headH);
+    ctx.fillStyle = '#FACC15'; ctx.fillRect(0, headH, SIZE, 8);
+    const nx = 48, nRight = SIZE - 48;
+    ctx.textAlign = 'left'; ctx.fillStyle = '#FFFFFF'; ctx.font = `700 46px ${FONT}`;
+    ctx.fillText(wrap(ctx, opts.storeName, nRight - nx, 1)[0] ?? '', nx, 76);
+    ctx.fillStyle = '#E0F2FE'; ctx.font = `500 26px ${FONT}`;
+    ctx.fillText(wrap(ctx, `${opts.title} · ${date}`, nRight - nx, 1)[0] ?? '', nx, 116);
+    const gridTop = headH + 8 + 32;
+
+    // Footer, bottom-right: contact text + profile picture.
     const pad = 48;
     const foot = opts.footer.trim();
-    const bottom = SIZE - (foot || pages.length > 1 ? 80 : pad);
-    if (foot) {
-      ctx.fillStyle = T.muted; ctx.font = `500 26px ${FONT}`; ctx.textAlign = 'center';
-      ctx.fillText(wrap(ctx, foot, SIZE - pad * 2 - 160, 1)[0] ?? '', SIZE / 2, SIZE - 38);
-    }
-    if (pages.length > 1) {
-      ctx.fillStyle = T.muted; ctx.font = `600 22px ${FONT}`; ctx.textAlign = 'right';
-      ctx.fillText(`${pageIndex + 1} / ${pages.length}`, SIZE - pad, SIZE - 38);
+    const footH = foot || logo ? 96 : 40;
+    const bottom = SIZE - footH;
+    if (foot || logo) {
+      const av = 60, cy = SIZE - footH / 2 + 4;
+      let right = SIZE - pad;
+      if (logo) {
+        const ax = right - av, ay = cy - av / 2;
+        ctx.save(); ctx.shadowColor = 'rgba(3, 105, 161, 0.25)'; ctx.shadowBlur = 12; ctx.shadowOffsetY = 3;
+        ctx.fillStyle = '#FFFFFF'; ctx.beginPath(); ctx.arc(ax + av / 2, cy, av / 2 + 3, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+        ctx.save(); ctx.beginPath(); ctx.arc(ax + av / 2, cy, av / 2, 0, Math.PI * 2); ctx.clip();
+        ctx.fillStyle = '#F0F9FF'; ctx.fillRect(ax, ay, av, av);
+        const sc = Math.max(av / logo.width, av / logo.height); // cover the circle
+        ctx.drawImage(logo, ax + (av - logo.width * sc) / 2, ay + (av - logo.height * sc) / 2, logo.width * sc, logo.height * sc);
+        ctx.restore();
+        right = ax - 16;
+      }
+      if (foot) {
+        ctx.fillStyle = '#0369A1'; ctx.font = `600 30px ${FONT}`; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+        ctx.fillText(wrap(ctx, foot, right - pad, 1)[0] ?? '', right, cy + 1);
+        ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
+      }
     }
 
     // Grid geometry.
@@ -137,12 +165,12 @@ export async function renderStorePosters(items: PosterItem[], opts: PosterOption
     const priceF = Math.round(Math.max(22, Math.min(50, tileW * 0.12)));
     const stockF0 = Math.round(Math.max(14, Math.min(24, tileW * 0.062)));
     const textH = 14 + nameF * 1.35 + priceF * 1.2;
-    const maxCellH = (bottom - pad - gap * (rowsForSize - 1)) / rowsForSize;
+    const maxCellH = (bottom - gridTop - gap * (rowsForSize - 1)) / rowsForSize;
     const tileH = Math.min(tileW, maxCellH - inset * 2 - textH);   // picture area may be wider than tall
     const cellH = tileH + inset * 2 + textH;
     const cardW = cellW;
     const gridH = rows * cellH + (rows - 1) * gap;
-    const startY = pad + Math.max(0, (bottom - pad - gridH) / 2);
+    const startY = gridTop + Math.max(0, (bottom - gridTop - gridH) / 2);
 
     page.forEach((item, i) => {
       const r = Math.floor(i / cols), c = i % cols;

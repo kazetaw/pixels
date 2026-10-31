@@ -12,7 +12,7 @@ const money = (n: number) => `฿${new Intl.NumberFormat('th-TH', { maximumFract
 /** Pick products, preview and download/share square "ready to sell" posters. */
 export function PosterExportModal({ open, onClose, items, storeName, logo, unit }: Props) {
   const title = 'สินค้าพร้อมขาย';
-  const [footer, setFooter] = useState('สนใจทักแชทได้เลย');
+  const [footer, setFooter] = useState('FB: เป็ด ก๊าบ กั๊บ ก๊าบบ');
   const [perPage, setPerPage] = useState<number>(9);
   const [showStock, setShowStock] = useState(true);
   const [pages, setPages] = useState<Page[]>([]);
@@ -114,7 +114,7 @@ export function PosterExportModal({ open, onClose, items, storeName, logo, unit 
               <Segmented value={perPage} onChange={v => setPerPage(Number(v))} options={[{ value: 4, label: '4' }, { value: 9, label: '9' }, { value: 16, label: '16' }]} />
             </div>
             <label className="shop-field shop-poster__switch">แสดงคงเหลือ<Switch size="small" checked={showStock} onChange={setShowStock} /></label>
-            <label className="shop-field shop-poster__footerText">ข้อความท้ายรูป<Input value={footer} onChange={e => setFooter(e.target.value)} maxLength={60} placeholder="เว้นว่างได้" /></label>
+            <label className="shop-field shop-poster__footerText">ข้อความมุมขวาล่าง<Input value={footer} onChange={e => setFooter(e.target.value)} maxLength={60} placeholder="เว้นว่างได้" /></label>
           </div>
           {error && <Alert type="error" showIcon message={error} />}
           {!chosen.length
