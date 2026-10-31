@@ -361,3 +361,9 @@ export async function createContributorReturn(
     body: JSON.stringify(payload),
   }));
 }
+
+export async function markContributorReturnCraftDone(id: string, craft_done: boolean): Promise<void> {
+  await handleResponse(await fetch(`/api/contributor-returns/${encodeURIComponent(id)}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ craft_done }),
+  }));
+}

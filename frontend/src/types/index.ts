@@ -171,6 +171,8 @@ export interface ContributorReturn {
   returned_at: string;
   item_name: string;
   image_url: string | null;
+  craft_done: boolean;
+  craft_done_at: string | null;
 }
 
 export interface ContributorSummaryItem {

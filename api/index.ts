@@ -1379,6 +1379,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(201).json(data);
       }
 
+      if (method === 'PATCH' && segments[1]) {
+        const id = segments[1];
+        const { craft_done } = req.body ?? {};
+        if (typeof craft_done !== 'boolean') return res.status(400).json({ error: 'craft_done must be boolean' });
+        const { data, error } = await db.from('contributor_returns')
+          .update({ craft_done, craft_done_at: craft_done ? new Date().toISOString() : null })
+          .eq('id', id).select('id, craft_done, craft_done_at').single();
+        if (error) throw error;
+        return res.json(data);
+      }
+
       return res.status(405).json({ error: 'Method not allowed' });
     } catch (e) { return res.status(500).json({ error: (e as Error).message }); }
   }

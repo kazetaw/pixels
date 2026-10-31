@@ -24,8 +24,8 @@
 .floor-cards-heading { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
 .floor-cards-heading h3 { font-size: 18px; font-weight: 600; color: #1e293b; margin: 0 auto 0 0; }
 .floor-cards-heading > span { font-size: 12px; color: #64748b; background: #f1f5f9; border-radius: 99px; padding: 4px 8px; }
-.floor-cards-scroll { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
-.floor-card2 { min-width: 0; min-height: 248px; height: auto; box-sizing: border-box; display: flex; flex-direction: column; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; background: white; box-shadow: 0 1px 2px #0f172a0d; scroll-margin: 24px; }
+.floor-cards-scroll { display: grid; grid-template-columns: 1fr; gap: 12px; }
+.floor-card2 { min-width: 0; min-height: 0; height: auto; box-sizing: border-box; display: grid; grid-template-columns: auto 1fr auto auto; grid-template-rows: auto auto; align-items: center; column-gap: 16px; row-gap: 4px; padding: 12px 16px; border: 1px solid #e2e8f0; border-radius: 10px; background: white; box-shadow: 0 1px 2px #0f172a0d; scroll-margin: 24px; }
 .floor-card2.is-highlighted { outline: 3px solid #fbbf24; outline-offset: 2px; }
 .floor-card2--running { background: linear-gradient(135deg,#eff6ff,#dbeafe); border-color: #bfdbfe; }
 .floor-card2--completed { background: linear-gradient(135deg,#ecfdf5,#d1fae5); border-color: #a7f3d0; }
@@ -133,4 +133,23 @@
 @container (max-width:560px) {
  .floor-card2 .floor-card2__settings.ant-btn { height:16px!important; min-height:16px!important; padding:0!important; }
  .floor-card2 .floor-card2__actions .ant-btn { height:24px!important; min-height:24px!important; padding:0!important; }
+}
+
+/* Desktop and tablet use the same square silhouette as the phone tiles. */
+@container (min-width:561px) {
+ .floor-card2 { aspect-ratio:1; min-height:0; height:auto; padding:8px; display:grid; grid-template-rows:24px 18px minmax(0,1fr) 32px 18px 32px; gap:2px; overflow:hidden; }
+ .floor-card2__head { display:flex; min-width:0; gap:4px; }
+ .floor-card2__num { font-size:14px; white-space:nowrap; }
+ .floor-card2__head .ant-tag { font-size:10px; line-height:16px; padding:0 4px; white-space:nowrap; }
+ .floor-card2 .floor-card2__settings.ant-btn { width:24px; min-width:24px; height:24px!important; min-height:24px!important; padding:0!important; }
+ .floor-card2__machine { min-height:0; margin:0; line-height:18px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+ .floor-card2__machine .floor-card2__finish-time { display:none; }
+ .floor-card2__avatar { width:100%; height:100%; min-height:0; margin:0; }
+ .floor-card2__avatar .item-thumbnail, .floor-card2__avatar .item-thumbnail img { width:100%!important; height:100%!important; max-width:80px; max-height:80px; object-fit:contain; }
+ .floor-card2__status { min-height:0; height:32px; line-height:16px; overflow:hidden; }
+ .floor-card2__recipe { min-height:0; height:18px; line-height:18px; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+ .floor-card2__actions { display:grid; grid-template-columns:1fr 32px 1fr; height:32px; gap:4px; padding:0; margin:0; }
+ .floor-card2 .floor-card2__actions .ant-btn { height:32px!important; min-height:32px!important; padding:0 3px!important; font-size:11px; gap:3px; white-space:nowrap; }
+ .floor-card2__actions .floor-card2__custom-time { grid-column:auto; grid-row:auto; }
+ .floor-card2__custom-time > span:not(.ant-btn-icon):not(.ant-btn-loading-icon) { display:none; }
 }

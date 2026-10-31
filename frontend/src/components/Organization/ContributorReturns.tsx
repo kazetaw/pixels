@@ -1,11 +1,12 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Avatar, Tabs, Spin, Alert, Button, Form, Select, InputNumber, Input, Table, Tag, message } from 'antd';
+import { Avatar, Tabs, Spin, Alert, Button, Form, Select, InputNumber, Input, Popconfirm, Table, Tag, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { ReloadOutlined } from '@ant-design/icons';
+import { CheckCircleFilled, CheckOutlined, ReloadOutlined } from '@ant-design/icons';
 import {
   fetchContributorSummary,
   fetchContributorReturns,
   createContributorReturn,
+  markContributorReturnCraftDone,
 } from '../../api/client';
 import { CONTRIBUTOR_PROFILES, contributorLabel } from '../shared/contributors';
 import type { ContributorReturn, ContributorSummary, ContributorSummaryItem } from '../../types';
@@ -309,6 +310,17 @@ function RecordTab({ summaryData, onSummaryRefresh }: {
     { title: 'สินค้า', dataIndex: 'item_name', key: 'item_name', render: (name: string, row) => name || row.item_id },
     { title: 'จำนวน', dataIndex: 'qty', key: 'qty', align: 'right' as const, width: 90, render: (n: number) => fmt(n) },
     { title: 'หมายเหตุ', dataIndex: 'note', key: 'note', render: (n: string) => n || '—' },
+    { title: 'หักคราฟ', key: 'craft_done', width: 120, align: 'center' as const,
+      render: (_: unknown, r: ContributorReturn) => r.craft_done
+        ? <Tag color="success" icon={<CheckCircleFilled />}>เรียบร้อย</Tag>
+        : <Popconfirm title="ยืนยันหักคราฟเรียบร้อย?" okText="ยืนยัน" cancelText="ยกเลิก"
+            onConfirm={async () => {
+              await markContributorReturnCraftDone(r.id, true);
+              void loadLog();
+            }}>
+            <Button size="small" icon={<CheckOutlined />}>หักคราฟ</Button>
+          </Popconfirm>
+    },
   ];
 
   const filteredLog = selectedContrib ? log.filter((r) => r.contributor === selectedContrib) : log;

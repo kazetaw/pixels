@@ -1,7 +1,7 @@
 import { MachineLayout } from './components/MachineLayout/MachineLayout';
 import { Withdrawals } from './components/Withdrawals/Withdrawals';
 import { ItemVisualProvider } from './components/shared/ItemVisual';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Layout,
   Menu,
@@ -33,6 +33,7 @@ import {
   TeamOutlined,
   ApartmentOutlined as _ApartmentOutlined,
   GiftOutlined,
+  LockOutlined,
 } from '@ant-design/icons';
 
 import { useAppState } from './hooks/useAppState';
@@ -714,6 +715,29 @@ function BomWorkspace({
 
 export default function App() {
   const [isAdmin, setIsAdmin] = useState(isAdminPath);
+  const [adminUnlocked, setAdminUnlocked] = useState(() => {
+    // Persist per browser session — clear when browser closes
+    try { return sessionStorage.getItem('admin-pin-ok') === '1'; } catch { return false; }
+  });
+  const [adminPinDigits, setAdminPinDigits] = useState(['', '', '', '']);
+  const [adminPinError, setAdminPinError] = useState(false);
+  const adminPinRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const ADMIN_PIN = '7774';
+
+  const handleAdminPin = (index: number, value: string) => {
+    const d = value.replace(/\D/g, '').slice(-1);
+    const next = [...adminPinDigits]; next[index] = d; setAdminPinDigits(next); setAdminPinError(false);
+    if (d && index < 3) adminPinRefs.current[index + 1]?.focus();
+    if (d && index === 3) {
+      if (next.join('') === ADMIN_PIN) {
+        try { sessionStorage.setItem('admin-pin-ok', '1'); } catch { /* ignore */ }
+        setAdminUnlocked(true); setAdminPinDigits(['', '', '', '']);
+      } else {
+        setAdminPinError(true);
+        setTimeout(() => { setAdminPinDigits(['', '', '', '']); setAdminPinError(false); adminPinRefs.current[0]?.focus(); }, 600);
+      }
+    }
+  };
   const isInventoryPath = () => window.location.pathname.replace(/\/+$/, '') === '/inventory';
   const isStorePath = () => window.location.pathname.replace(/\/+$/, '') === '/store';
   const [isStore] = useState(isStorePath);
@@ -850,6 +874,35 @@ export default function App() {
   }
 
   if (isStore) return <StorePage />;
+
+  // Admin PIN gate
+  if (isAdmin && !adminUnlocked) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc' }}>
+        <div style={{ background: '#fff', borderRadius: 16, padding: '40px 32px', boxShadow: '0 4px 24px rgba(0,0,0,.1)', textAlign: 'center', width: 320 }}>
+          <LockOutlined style={{ fontSize: 32, color: '#2563eb', marginBottom: 16 }} />
+          <h2 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 700, color: '#0f172a' }}>Admin</h2>
+          <p style={{ margin: '0 0 24px', fontSize: 13, color: '#64748b' }}>ใส่ PIN เพื่อเข้าใช้งาน</p>
+          <div style={{ display: 'flex', gap: 14, justifyContent: 'center' }}>
+            {adminPinDigits.map((d, i) => (
+              <div key={i} style={{ position: 'relative', width: 52, height: 52 }}>
+                <input ref={el => { adminPinRefs.current[i] = el; }} type="password" inputMode="numeric" maxLength={1} value={d}
+                  autoFocus={i === 0}
+                  onChange={e => handleAdminPin(i, e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Backspace' && !d && i > 0) adminPinRefs.current[i - 1]?.focus(); }}
+                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, cursor: 'text', zIndex: 1 }}
+                />
+                <div style={{ width: 52, height: 52, borderRadius: '50%', border: `2px solid ${adminPinError ? '#ef4444' : d ? '#2563eb' : '#e2e8f0'}`, background: adminPinError ? '#fef2f2' : d ? '#eff6ff' : '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'border-color .15s' }}>
+                  {d && <div style={{ width: 12, height: 12, borderRadius: '50%', background: adminPinError ? '#ef4444' : '#2563eb' }} />}
+                </div>
+              </div>
+            ))}
+          </div>
+          {adminPinError && <p style={{ fontSize: 12, color: '#ef4444', marginTop: 12 }}>PIN ไม่ถูกต้อง</p>}
+        </div>
+      </div>
+    );
+  }
 
   // A compact share link for teammates who only need to check the current stock.
   // It intentionally renders the same Inventory component and app data, without
