@@ -63,6 +63,8 @@ export function FloorTimerDashboard() {
   const [_timerForm] = Form.useForm<{ hours: number; minutes: number; seconds: number }>();  const [configuring, setConfiguring] = useState<FloorTimer | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [_timerForm2] = Form.useForm<{ hours: number; minutes: number; seconds: number }>();
+  const [customTimerFloor, setCustomTimerFloor] = useState<FloorTimer | null>(null);
+  const [customTimerForm] = Form.useForm<{ hours: number; minutes: number; seconds: number }>();
   const [floorForm] = Form.useForm<{ floor_number: number; profession?: string; machine_id?: string; recipe_id?: string }>();
   const [configForm] = Form.useForm<{ profession?: string; machine_id?: string; recipe_id?: string }>();
   const [messageApi, contextHolder] = message.useMessage();
@@ -264,6 +266,7 @@ export function FloorTimerDashboard() {
                       {floor.displayStatus === 'running'
                         ? <Button className="floor-card2__stop" size="small" icon={<PauseCircleOutlined />} onClick={() => void patchFloor(floor.floor_number, { status: 'idle', start_time: null, estimated_duration_seconds: 0, completed_at: null }, 'หยุดแล้ว')}>หยุด</Button>
                         : <Button size="small" type="primary" icon={<PlayCircleOutlined />} disabled={!floor.recipe_id} loading={saving} onClick={() => void startDirect(floor)}>เริ่ม</Button>}
+                      <Button size="small" icon={<ClockCircleOutlined />} onClick={() => { customTimerForm.setFieldsValue({ hours: 0, minutes: 30, seconds: 0 }); setCustomTimerFloor(floor); }} title="กำหนดเวลาเอง" />
                       <Button className="floor-card2__reset" size="small" icon={<ReloadOutlined />} onClick={() => void patchFloor(floor.floor_number, { status: 'idle', start_time: null, estimated_duration_seconds: 0, completed_at: null }, 'รีเซ็ตแล้ว')}>รีเซ็ต</Button>
                     </div>
                   </div>
@@ -272,6 +275,31 @@ export function FloorTimerDashboard() {
             </div></section>
     }
 
+
+    <Modal
+      open={!!customTimerFloor}
+      onCancel={() => setCustomTimerFloor(null)}
+      title={`กำหนดเวลาเอง — ชั้น ${customTimerFloor?.floor_number ?? ''}`}
+      okText="เริ่มจับเวลา"
+      cancelText="ยกเลิก"
+      okButtonProps={{ loading: saving, icon: <PlayCircleOutlined /> }}
+      onOk={async () => {
+        const values = await customTimerForm.validateFields();
+        const duration = (values.hours || 0) * 3600 + (values.minutes || 0) * 60 + (values.seconds || 0);
+        if (!duration) { customTimerForm.setFields([{ name: 'seconds', errors: ['ตั้งเวลาอย่างน้อย 1 วินาที'] }]); return; }
+        await patchFloor(customTimerFloor!.floor_number, { status: 'running', start_time: new Date().toISOString(), estimated_duration_seconds: duration, completed_at: null }, `เริ่มจับเวลาชั้น ${customTimerFloor!.floor_number} แล้ว`);
+        setCustomTimerFloor(null);
+      }}
+    >
+      <p className="floor-modal-note">ระบุเวลาที่ต้องการ — ระบบจะเริ่มนับถอยหลังทันที</p>
+      <Form form={customTimerForm} layout="vertical" initialValues={{ hours: 0, minutes: 30, seconds: 0 }}>
+        <div className="floor-time-inputs">
+          <Form.Item label="ชั่วโมง" name="hours" rules={[{ required: true }]}><InputNumber min={0} max={99} /></Form.Item>
+          <Form.Item label="นาที" name="minutes" rules={[{ required: true }]}><InputNumber min={0} max={59} /></Form.Item>
+          <Form.Item label="วินาที" name="seconds" rules={[{ required: true }]}><InputNumber min={0} max={59} /></Form.Item>
+        </div>
+      </Form>
+    </Modal>
 
     <Modal open={!!configuring} onCancel={() => setConfiguring(null)} onOk={() => void saveConfig()} okText="บันทึกการตั้งค่า" okButtonProps={{ loading: saving }} cancelText="ยกเลิก" title={`ตั้งค่าเครื่องและสูตร — ชั้น ${configuring?.floor_number ?? ''}`}>
       <p className="floor-modal-note">เปลี่ยนอาชีพได้จากตรงนี้ โดยเครื่องและสูตรเดิมจะถูกล้างเพื่อให้เลือกใหม่อย่างถูกต้อง</p>
