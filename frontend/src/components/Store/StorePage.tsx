@@ -8,7 +8,7 @@ import {
   AppstoreOutlined, BarsOutlined, DeleteOutlined, EditOutlined, LogoutOutlined, MoreOutlined,
   PlusOutlined, ReloadOutlined, SearchOutlined, ShopOutlined, ShoppingCartOutlined, InboxOutlined,
   BookOutlined, HistoryOutlined, ThunderboltOutlined, DatabaseOutlined, RiseOutlined, WarningOutlined, CheckCircleOutlined, CameraOutlined,
-  TeamOutlined, PictureOutlined,
+  TeamOutlined as _TeamOutlined, PictureOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { fetchAllData } from '../../api/client';
@@ -310,7 +310,7 @@ function StoreApp() {
   const [apiData, setApiData] = useState<AppData | null>(null);
   const [products, setProducts] = useState<StoreProduct[]>([]);
   const [sales, setSales] = useState<SaleRecord[]>([]);
-  const [restocks, setRestocks] = useState<Array<{ id: string; item_id: string; item_name: string; image_url: string | null; qty: number; contributor: string; restocked_at: string }>>([]);
+  const [_restocks, setRestocks] = useState<Array<{ id: string; item_id: string; item_name: string; image_url: string | null; qty: number; contributor: string; restocked_at: string }>>([]);
   const [loading, setLoading] = useState(false);
   const [sellProduct, setSellProduct] = useState<StoreProduct | null>(null);
   const [msgApi, ctx] = message.useMessage();
