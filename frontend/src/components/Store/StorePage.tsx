@@ -8,7 +8,7 @@ import {
   AppstoreOutlined, BarsOutlined, DeleteOutlined, EditOutlined, LogoutOutlined, MoreOutlined,
   PlusOutlined, ReloadOutlined, SearchOutlined, ShopOutlined, ShoppingCartOutlined, InboxOutlined,
   BookOutlined, HistoryOutlined, ThunderboltOutlined, DatabaseOutlined, RiseOutlined, WarningOutlined, CheckCircleOutlined, CameraOutlined,
-  TeamOutlined, GiftOutlined, PictureOutlined,
+  TeamOutlined, PictureOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { fetchAllData } from '../../api/client';
@@ -26,8 +26,7 @@ type StoreRow = { id: string; name: string; logo_url?: string | null };
 type Session = { storeId: string; storeName: string; logo: string | null };
 type StoreProduct = { item_id: string; name: string; image_url: string | null; price: number; stock: number };
 type SaleRecord = { id: string; item_id: string; item_name: string; image_url: string | null; qty: number; price_per_unit: number; total: number; note: string; sold_at: string };
-type Tab = 'overview' | 'restock' | 'sales' | 'accounts' | 'summary' | 'distribution';
-type DistributionRecord = { id: string; contributor: string; item_id: string; item_name: string; image_url: string | null; qty: number; note: string; distributed_at: string };
+type Tab = 'overview' | 'restock' | 'sales' | 'accounts';
 
 // ── Sky · Sun · White theme (scoped to /store) ────────────────────────────────
 const SKY = '#0284C7';
@@ -312,18 +311,12 @@ function StoreApp() {
   const [products, setProducts] = useState<StoreProduct[]>([]);
   const [sales, setSales] = useState<SaleRecord[]>([]);
   const [restocks, setRestocks] = useState<Array<{ id: string; item_id: string; item_name: string; image_url: string | null; qty: number; contributor: string; restocked_at: string }>>([]);
-  const [distributions, setDistributions] = useState<DistributionRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [sellProduct, setSellProduct] = useState<StoreProduct | null>(null);
   const [msgApi, ctx] = message.useMessage();
 
-  // Contributor & distribution form state
+  // Contributor form state
   const [restockContributor, setRestockContributor] = useState('');
-  const [distContributor, setDistContributor] = useState('');
-  const [distItemId, setDistItemId] = useState<string | undefined>();
-  const [distQty, setDistQty] = useState<number | null>(null);
-  const [distNote, setDistNote] = useState('');
-  const [distSubmitting, setDistSubmitting] = useState(false);
 
   // Bulk restock state
   const [restockSearch, setRestockSearch] = useState('');
@@ -413,17 +406,15 @@ function StoreApp() {
   const fetchAll = async (storeId: string) => {
     setLoading(true); setLoadError('');
     try {
-      const [pRes, sRes, rRes, dRes] = await Promise.all([
+      const [pRes, sRes, rRes] = await Promise.all([
         fetch(`/api/store/${storeId}/products`),
         fetch(`/api/store/${storeId}/sales`),
         fetch(`/api/store/${storeId}/restocks`),
-        fetch(`/api/store/${storeId}/distributions`),
       ]);
       if (!pRes.ok || !sRes.ok) throw new Error('โหลดไม่สำเร็จ');
       setProducts(await pRes.json());
       setSales(await sRes.json());
       if (rRes.ok) setRestocks(await rRes.json());
-      if (dRes.ok) setDistributions(await dRes.json());
     } catch { setLoadError('โหลดข้อมูลร้านไม่สำเร็จ กรุณากดรีเฟรช'); }
     finally { setLoading(false); }
   };
@@ -572,8 +563,6 @@ function StoreApp() {
     restock: ['เติมสต็อก', 'กรอกจำนวนที่รับเพิ่ม ตรวจยอดหลังเติม แล้วบันทึกพร้อมกันได้หลายรายการ'],
     sales: ['ประวัติขาย', 'รายการขายทั้งหมดของร้าน'],
     accounts: ['สมุดบัญชีสต็อก', 'เมลไหน · ตัวไหน · เก็บอะไร'],
-    summary: ['สรุปรายคน', 'ยอดเติมและจ่ายคืนแยกตามผู้เติม'],
-    distribution: ['จ่ายคืน', 'บันทึกการจ่ายของคืนให้แต่ละคน'],
   };
 
   return (
@@ -599,14 +588,12 @@ function StoreApp() {
               ['restock', 'เติมสต็อก', <PlusOutlined />],
               ['sales', 'ประวัติขาย', <HistoryOutlined />],
               ['accounts', 'สมุดบัญชี', <BookOutlined />],
-              ['summary', 'สรุปรายคน', <TeamOutlined />],
-              ['distribution', 'จ่ายคืน', <GiftOutlined />],
             ] as const).map(([key, label, icon]) => <button key={key} type="button" className={tab === key ? 'is-active' : ''} aria-current={tab === key ? 'page' : undefined} onClick={() => setTab(key)}>
               {icon}<span>{label}</span>{key === 'restock' && pendingCount > 0 && <span className="shop-nav__count" aria-label={`${pendingCount} รายการรอบันทึก`}>{pendingCount}</span>}
             </button>)}
           </nav>
           <div className="shop-bar__end"><Tooltip title="ออกจากร้าน"><Button type="text" icon={<LogoutOutlined />} aria-label="ออกจากร้าน"
-            onClick={() => { saveSession(null); setProducts([]); setSales([]); setRestocks([]); setDistributions([]); setRestockContributor(''); setApiData(null); setRestockQtys({}); setTab('overview'); }} /></Tooltip></div>
+            onClick={() => { saveSession(null); setProducts([]); setSales([]); setRestocks([]); setRestockContributor(''); setApiData(null); setRestockQtys({}); setTab('overview'); }} /></Tooltip></div>
         </div>
       </header>
 
@@ -770,176 +757,6 @@ function StoreApp() {
           </>
         )}
         {/* ── Summary ── */}
-        {tab === 'summary' && (() => {
-          const allContributors = Array.from(new Set([
-            ...restocks.map(r => r.contributor).filter(Boolean),
-            ...distributions.map(d => d.contributor).filter(Boolean),
-          ])).sort((a, b) => a.localeCompare(b, 'th'));
-
-          const totalContributed = restocks.reduce((s, r) => s + r.qty, 0);
-          const totalDistributed = distributions.reduce((s, d) => s + d.qty, 0);
-
-          return (
-            <>
-              <dl className="shop-stats shop-stats--3">
-                <Kpi icon={<TeamOutlined />} label="ผู้เติม" value={fmt(allContributors.length)} unit="คน" />
-                <Kpi icon={<PlusOutlined />} label="เติมรวม" value={fmt(totalContributed)} unit="ชิ้น" tone="sky" />
-                <Kpi icon={<GiftOutlined />} label="จ่ายคืนรวม" value={fmt(totalDistributed)} unit="ชิ้น" tone={totalDistributed >= totalContributed ? 'ok' : 'sun'} />
-              </dl>
-              {allContributors.length === 0
-                ? <Empty className="shop-empty" image={Empty.PRESENTED_IMAGE_SIMPLE} description="ยังไม่มีข้อมูล" />
-                : allContributors.map(contributor => {
-                    const itemMap = new Map<string, { item_name: string; image_url: string | null; contributed: number; distributed: number }>();
-                    for (const r of restocks.filter(x => x.contributor === contributor)) {
-                      const e = itemMap.get(r.item_id) ?? { item_name: r.item_name, image_url: r.image_url, contributed: 0, distributed: 0 };
-                      e.contributed += r.qty;
-                      itemMap.set(r.item_id, e);
-                    }
-                    for (const d of distributions.filter(x => x.contributor === contributor)) {
-                      const e = itemMap.get(d.item_id) ?? { item_name: d.item_name, image_url: d.image_url, contributed: 0, distributed: 0 };
-                      e.distributed += d.qty;
-                      itemMap.set(d.item_id, e);
-                    }
-                    const items = Array.from(itemMap.entries()).sort((a, b) => a[1].item_name.localeCompare(b[1].item_name, 'th'));
-                    const totalC = items.reduce((s, [, v]) => s + v.contributed, 0);
-                    const totalD = items.reduce((s, [, v]) => s + v.distributed, 0);
-                    const allSettled = totalD >= totalC;
-                    return (
-                      <section key={contributor} className="shop-summary-person">
-                        <header className="shop-summary-person__header">
-                          <span className="shop-summary-person__name">{contributor}</span>
-                          <span className={`shop-summary-person__badge ${allSettled ? 'is-ok' : 'is-owed'}`}>
-                            {allSettled ? 'ครบแล้ว' : `ค้างอยู่ ${fmt(totalC - totalD)} ชิ้น`}
-                          </span>
-                        </header>
-                        <table className="shop-summary-table">
-                          <thead><tr><th>สินค้า</th><th>เติม</th><th>รับคืน</th><th>คงค้าง</th></tr></thead>
-                          <tbody>
-                            {items.map(([item_id, v]) => {
-                              const owed = v.contributed - v.distributed;
-                              return (
-                                <tr key={item_id} className={owed > 0 ? 'is-owed' : ''}>
-                                  <td><div className="shop-cell"><ItemImg src={v.image_url} name={v.item_name} size={24} /><span>{v.item_name}</span></div></td>
-                                  <td className="shop-num">{fmt(v.contributed)}</td>
-                                  <td className="shop-num">{fmt(v.distributed)}</td>
-                                  <td className={`shop-num ${owed > 0 ? 'shop-danger' : 'shop-ok-text'}`}>{owed > 0 ? `−${fmt(owed)}` : '✓'}</td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </section>
-                    );
-                  })
-              }
-            </>
-          );
-        })()}
-
-        {/* ── Distribution ── */}
-        {tab === 'distribution' && (() => {
-          const handleDistSubmit = async () => {
-            if (!session || distSubmitting || !distContributor || !distItemId || !distQty) return;
-            setDistSubmitting(true);
-            try {
-              const res = await fetch(`/api/store/${session.storeId}/distributions`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ contributor: distContributor, item_id: distItemId, qty: distQty, note: distNote }),
-              });
-              if (!res.ok) { const e = await res.json(); void msgApi.error(e.error ?? 'บันทึกไม่สำเร็จ'); return; }
-              void msgApi.success(`บันทึกจ่ายคืน ${products.find(p => p.item_id === distItemId)?.name ?? ''} ${fmt(distQty)} ชิ้น ให้ ${distContributor}`);
-              setDistQty(null); setDistNote('');
-              await fetchAll(session.storeId);
-            } catch { void msgApi.error('บันทึกไม่สำเร็จ กรุณาลองอีกครั้ง'); }
-            finally { setDistSubmitting(false); }
-          };
-
-          const hintContrib = distContributor && distItemId
-            ? restocks.filter(r => r.contributor === distContributor && r.item_id === distItemId).reduce((s, r) => s + r.qty, 0)
-            : null;
-          const hintDist = distContributor && distItemId
-            ? distributions.filter(d => d.contributor === distContributor && d.item_id === distItemId).reduce((s, d) => s + d.qty, 0)
-            : null;
-
-          const distValid = !!distContributor && !!distItemId && !!distQty && distQty > 0;
-
-          return (
-            <>
-              <div className="shop-dist-form">
-                <h2 className="shop-dist-form__title">บันทึกการจ่ายคืน</h2>
-                <label className="shop-field">ผู้รับ
-                  <Select
-                    aria-label="ผู้รับ"
-                    showSearch
-                    placeholder="เลือกผู้รับ"
-                    value={distContributor || undefined}
-                    onChange={(v: string) => setDistContributor(v)}
-                    options={CONTRIBUTOR_NAMES.map(n => ({ value: n, label: n }))}
-                    style={{width: '100%'}}
-                  />
-                </label>
-                <label className="shop-field">สินค้าที่จ่ายคืน
-                  <Select
-                    aria-label="สินค้าที่จ่ายคืน"
-                    showSearch
-                    optionFilterProp="label"
-                    placeholder="ค้นหาสินค้า"
-                    value={distItemId}
-                    onChange={(v: string) => setDistItemId(v)}
-                    options={products.map(p => ({ value: p.item_id, label: p.name }))}
-                    optionRender={option => {
-                      const p = products.find(x => x.item_id === option.value);
-                      return <div className="shop-cell"><ItemImg src={p && getImg(p)} name={String(option.label)} size={24} /><span>{option.label}</span></div>;
-                    }}
-                    style={{width: '100%'}}
-                  />
-                </label>
-                {hintContrib !== null && hintDist !== null && (
-                  <div className="shop-dist-hint">
-                    <span>{distContributor} เติมสินค้านี้ <strong>{fmt(hintContrib)}</strong> ชิ้น · รับคืนแล้ว <strong>{fmt(hintDist)}</strong> ชิ้น · คงค้าง <strong className={hintContrib - hintDist > 0 ? 'shop-danger' : 'shop-ok-text'}>{fmt(Math.max(0, hintContrib - hintDist))}</strong> ชิ้น</span>
-                  </div>
-                )}
-                <label className="shop-field">จำนวนที่จ่ายคืน
-                  <InputNumber
-                    aria-label="จำนวนที่จ่ายคืน"
-                    min={1}
-                    precision={0}
-                    value={distQty}
-                    onChange={setDistQty}
-                    suffix="ชิ้น"
-                    style={{width: '100%'}}
-                  />
-                </label>
-                <label className="shop-field"><span>หมายเหตุ <span className="shop-muted">· ไม่บังคับ</span></span>
-                  <Input value={distNote} onChange={e => setDistNote(e.target.value)} placeholder="เช่น จ่ายครั้งที่ 1" maxLength={200} />
-                </label>
-                <Button type="primary" block loading={distSubmitting} disabled={!distValid} onClick={() => void handleDistSubmit()}>บันทึกจ่ายคืน</Button>
-              </div>
-
-              {distributions.length > 0 && (
-                <section className="shop-dist-history">
-                  <h2>ประวัติการจ่ายคืน</h2>
-                  <Table<DistributionRecord>
-                    className="shop-table"
-                    columns={[
-                      { title: 'วันที่', dataIndex: 'distributed_at', width: 150, render: (v: string) => <span className="shop-muted">{new Date(v).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</span> },
-                      { title: 'ผู้รับ', dataIndex: 'contributor', width: 120 },
-                      { title: 'สินค้า', key: 'item', render: (_: unknown, r) => <div className="shop-cell"><ItemImg src={r.image_url} name={r.item_name} size={26} /><span>{r.item_name}</span></div> },
-                      { title: 'จำนวน', dataIndex: 'qty', align: 'right', width: 80, render: (v: number) => <span className="shop-num">{fmt(v)}</span> },
-                      { title: 'หมายเหตุ', dataIndex: 'note', ellipsis: true, render: (v: string) => v || <span className="shop-muted">—</span> },
-                    ]}
-                    dataSource={distributions}
-                    rowKey="id"
-                    size="middle"
-                    scroll={{x: 560}}
-                    pagination={{pageSize: 20, showSizeChanger: false, size: 'small', hideOnSinglePage: true}}
-                  />
-                </section>
-              )}
-            </>
-          );
-        })()}
       </main>
 
       <Modal title={editing === 'new' ? 'เพิ่มสินค้าในร้าน' : 'แก้ไขสินค้า'} width={420} open={editing !== null} onCancel={() => { if (!savingProduct) setEditing(null); }} mask={{ closable: !savingProduct }} closable={!savingProduct}
