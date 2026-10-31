@@ -1233,6 +1233,156 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
+  // ── GET /api/contributor-summary ─────────────────────────────────────────────
+  if (segments[0] === 'contributor-summary' && method === 'GET') {
+    try {
+      const db = getSupabase();
+      const [purchases, returnsResult, itemsResult] = await Promise.all([
+        readAllPurchases(),
+        db.from('contributor_returns').select('contributor, item_id, qty'),
+        db.from('items').select('item_id, name, image_url'),
+      ]);
+
+      if (returnsResult.error) throw returnsResult.error;
+      if (itemsResult.error) throw itemsResult.error;
+
+      const returns = returnsResult.data ?? [];
+      type ItemMeta = { name: string; image_url: string | null };
+      const itemMeta = new Map<string, ItemMeta>(
+        (itemsResult.data ?? []).map((r) => [r.item_id as string, { name: r.name as string, image_url: r.image_url as string | null }])
+      );
+
+      type SummaryItem = { item_id: string; item_name: string; image_url: string | null; contributed_qty: number; returned_qty: number; pending_qty: number };
+      const summaryMap = new Map<string, Map<string, SummaryItem>>();
+
+      for (const p of purchases) {
+        const contrib = (p.contributor ?? '').trim();
+        if (!contrib) continue;
+        if (!summaryMap.has(contrib)) summaryMap.set(contrib, new Map());
+        const itemMap = summaryMap.get(contrib)!;
+        const meta = itemMeta.get(p.item_id);
+        const existing = itemMap.get(p.item_id) ?? {
+          item_id: p.item_id,
+          item_name: meta?.name ?? p.item_id,
+          image_url: meta?.image_url ?? null,
+          contributed_qty: 0,
+          returned_qty: 0,
+          pending_qty: 0,
+        };
+        existing.contributed_qty += p.quantity;
+        existing.pending_qty = existing.contributed_qty - existing.returned_qty;
+        itemMap.set(p.item_id, existing);
+      }
+
+      for (const r of returns) {
+        const contrib = (r.contributor as string).trim();
+        if (!summaryMap.has(contrib)) summaryMap.set(contrib, new Map());
+        const itemMap = summaryMap.get(contrib)!;
+        const item_id = r.item_id as string;
+        const meta = itemMeta.get(item_id);
+        const existing = itemMap.get(item_id) ?? {
+          item_id,
+          item_name: meta?.name ?? item_id,
+          image_url: meta?.image_url ?? null,
+          contributed_qty: 0,
+          returned_qty: 0,
+          pending_qty: 0,
+        };
+        existing.returned_qty += r.qty as number;
+        existing.pending_qty = existing.contributed_qty - existing.returned_qty;
+        itemMap.set(item_id, existing);
+      }
+
+      // Only include contributors who have at least one stock_purchase record
+      const contributorSet = new Set(purchases.map((p) => (p.contributor ?? '').trim()).filter(Boolean));
+
+      const result = Array.from(summaryMap.entries())
+        .filter(([contrib]) => contributorSet.has(contrib))
+        .map(([contributor, itemMap]) => {
+          const items = Array.from(itemMap.values()).sort((a, b) =>
+            a.item_name.localeCompare(b.item_name, 'th')
+          );
+          const total_contributed = items.reduce((s, i) => s + i.contributed_qty, 0);
+          const total_returned = items.reduce((s, i) => s + i.returned_qty, 0);
+          const total_pending = total_contributed - total_returned;
+          return { contributor, items, total_contributed, total_returned, total_pending };
+        })
+        .sort((a, b) => {
+          if (b.total_pending !== a.total_pending) return b.total_pending - a.total_pending;
+          return a.contributor.localeCompare(b.contributor, 'th');
+        });
+
+      return res.json(result);
+    } catch (e) { return res.status(500).json({ error: (e as Error).message }); }
+  }
+
+  // ── /api/contributor-returns ──────────────────────────────────────────────────
+  if (segments[0] === 'contributor-returns') {
+    const db = getSupabase();
+    try {
+      if (method === 'GET') {
+        const params = new URL(req.url ?? '', 'http://localhost').searchParams;
+        const contributor = params.get('contributor')?.trim() ?? '';
+        const limit = Math.min(200, Math.max(1, Number(params.get('limit') ?? 100)));
+        let query = db
+          .from('contributor_returns')
+          .select('id, contributor, item_id, qty, note, returned_at, items(name, image_url)')
+          .order('returned_at', { ascending: false })
+          .limit(limit);
+        if (contributor) query = query.eq('contributor', contributor);
+        const { data, error } = await query;
+        if (error) throw error;
+        const rows = (data ?? []).map((r: Record<string, unknown>) => {
+          const item = r.items as { name: string; image_url: string | null } | null;
+          return {
+            id: r.id,
+            contributor: r.contributor,
+            item_id: r.item_id,
+            qty: r.qty,
+            note: r.note,
+            returned_at: r.returned_at,
+            item_name: item?.name ?? '',
+            image_url: item?.image_url ?? null,
+          };
+        });
+        return res.json(rows);
+      }
+
+      if (method === 'POST') {
+        const { contributor, item_id, qty, note } = req.body ?? {};
+        if (typeof contributor !== 'string' || !contributor.trim() || contributor.trim().length > 100)
+          return res.status(400).json({ error: 'กรุณาระบุชื่อผู้รับ (ไม่เกิน 100 ตัวอักษร)' });
+        if (typeof item_id !== 'string' || !item_id.trim())
+          return res.status(400).json({ error: 'กรุณาระบุสินค้า' });
+        if (!Number.isSafeInteger(qty) || qty <= 0)
+          return res.status(400).json({ error: 'จำนวนต้องเป็นจำนวนเต็มมากกว่า 0' });
+
+        const { data: itemRow, error: itemErr } = await db
+          .from('items')
+          .select('item_id')
+          .eq('item_id', item_id.trim())
+          .maybeSingle();
+        if (itemErr) throw itemErr;
+        if (!itemRow) return res.status(400).json({ error: 'ไม่พบสินค้าในระบบ' });
+
+        const { data, error } = await db
+          .from('contributor_returns')
+          .insert({
+            contributor: contributor.trim(),
+            item_id: item_id.trim(),
+            qty,
+            note: typeof note === 'string' ? note.trim().slice(0, 500) : '',
+          })
+          .select('id, contributor, item_id, qty, note, returned_at')
+          .single();
+        if (error) throw error;
+        return res.status(201).json(data);
+      }
+
+      return res.status(405).json({ error: 'Method not allowed' });
+    } catch (e) { return res.status(500).json({ error: (e as Error).message }); }
+  }
+
   // ── 404 ──────────────────────────────────────────────────────────────────────
   return res.status(404).json({ error: `Route not found: ${method} /api/${path}` });
 }

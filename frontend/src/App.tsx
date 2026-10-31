@@ -32,6 +32,7 @@ import {
   CloseCircleFilled,
   TeamOutlined,
   ApartmentOutlined as _ApartmentOutlined,
+  GiftOutlined,
 } from '@ant-design/icons';
 
 import { useAppState } from './hooks/useAppState';
@@ -49,6 +50,7 @@ import { ProductionTargetsBoard } from './components/Targets/ProductionTargetsBo
 import { AssignmentEditor } from './components/Organization/AssignmentEditor';
 import { AssignmentSummary } from './components/Organization/AssignmentSummary';
 import { OrganizationChart } from './components/Organization/OrganizationChart';
+import { ContributorReturns } from './components/Organization/ContributorReturns';
 import { ProductionFlowBoard } from './components/Planner/ProductionFlowBoard';
 import { StorePage } from './components/Store/StorePage';
 import { ProductionCalculator } from './components/shared/ProductionCalculator';
@@ -56,9 +58,9 @@ import type { SaveStatus } from './hooks/useAppState';
 
 const { Sider, Content } = Layout;
 
-type MainView = 'crafting-guide' | 'machine-layout' | 'withdrawal-admin' | 'withdrawals' | 'assignments' | 'planner' | 'shared-planner' | 'production-flow' | 'data' | 'inventory' | 'floors' | 'targets' | 'budget' | 'organization';
+type MainView = 'crafting-guide' | 'machine-layout' | 'withdrawal-admin' | 'withdrawals' | 'assignments' | 'planner' | 'shared-planner' | 'production-flow' | 'data' | 'inventory' | 'floors' | 'targets' | 'budget' | 'organization' | 'contributor-returns';
 
-const ADMIN_VIEWS: MainView[] = ['crafting-guide', 'machine-layout', 'withdrawal-admin', 'planner', 'production-flow', 'withdrawals', 'assignments', 'shared-planner', 'data', 'inventory', 'floors', 'targets', 'budget', 'organization'];
+const ADMIN_VIEWS: MainView[] = ['crafting-guide', 'machine-layout', 'withdrawal-admin', 'planner', 'production-flow', 'withdrawals', 'assignments', 'shared-planner', 'data', 'inventory', 'floors', 'targets', 'budget', 'organization', 'contributor-returns'];
 const PUBLIC_VIEWS: MainView[] = ['crafting-guide', 'withdrawals', 'shared-planner', 'inventory', 'floors', 'targets', 'organization'];
 const isAdminPath = () => window.location.pathname.replace(/\/+$/, '') === '/admin';
 function savedNavigation(admin: boolean): MainView {
@@ -72,6 +74,11 @@ function savedNavigation(admin: boolean): MainView {
 const NAV_ITEMS = [
   { key: 'crafting-guide', icon: <_ApartmentOutlined />, label: 'ไกด์การคราฟ' },
   { key: 'machine-layout', icon: <_ApartmentOutlined />, label: 'จัดเครื่องลงชั้น' },
+  {
+    key: 'floors',
+    icon: <ClockCircleOutlined />,
+    label: 'สถานะชั้น',
+  },
   { key: 'withdrawals', icon: <InboxOutlined />, label: 'เบิกสินค้า' },
   { key: 'withdrawal-admin', icon: <InboxOutlined />, label: 'จัดการการเบิก' },
   { key: 'planner', icon: <AimOutlined />, label: 'วางแผนการผลิต' },
@@ -93,11 +100,6 @@ const NAV_ITEMS = [
     label: 'คลังสต็อก',
   },
   {
-    key: 'floors',
-    icon: <ClockCircleOutlined />,
-    label: 'สถานะชั้น',
-  },
-  {
     key: 'targets',
     icon: <AimOutlined />,
     label: 'เป้าหมายการผลิต',
@@ -111,6 +113,11 @@ const NAV_ITEMS = [
     key: 'organization',
     icon: <TeamOutlined />,
     label: 'ผังบริษัท',
+  },
+  {
+    key: 'contributor-returns',
+    icon: <GiftOutlined />,
+    label: 'จ่ายคืน',
   },
 ];
 
@@ -1098,6 +1105,16 @@ export default function App() {
                     Object.entries(itemNames).map(([id, name]) => [name, id])
                   )}
                 />
+            </div>
+          )}
+
+          {isAdmin && view === 'contributor-returns' && (
+            <div className="page-content">
+              <PageHead
+                title="จ่ายคืน"
+                sub="สรุปของที่แต่ละคนเติมมา และบันทึกการส่งคืนให้ผู้เติม"
+              />
+              <ContributorReturns />
             </div>
           )}
         </Content>

@@ -338,3 +338,26 @@ export interface AssignmentSummaryItem {
 export async function fetchAssignmentSummary(): Promise<AssignmentSummaryItem[]> {
   return handleResponse(await fetch('/api/assignment-summary'));
 }
+
+// ── Contributor returns ───────────────────────────────────────────────────────
+
+import type { ContributorReturn, ContributorSummary } from '../types';
+
+export async function fetchContributorSummary(): Promise<ContributorSummary[]> {
+  return handleResponse<ContributorSummary[]>(await fetch('/api/contributor-summary'));
+}
+
+export async function fetchContributorReturns(contributor?: string): Promise<ContributorReturn[]> {
+  const qs = contributor ? `?contributor=${encodeURIComponent(contributor)}` : '';
+  return handleResponse<ContributorReturn[]>(await fetch(`/api/contributor-returns${qs}`));
+}
+
+export async function createContributorReturn(
+  payload: { contributor: string; item_id: string; qty: number; note?: string }
+): Promise<ContributorReturn> {
+  return handleResponse<ContributorReturn>(await fetch('/api/contributor-returns', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }));
+}

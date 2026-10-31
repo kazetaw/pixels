@@ -159,3 +159,33 @@ export interface PlanResponse {
   intermediate_supply: IntermediateSupplyEntry[];
   raw_materials: RawMaterialEntry[];
 }
+
+// ── Contributor returns ───────────────────────────────────────────────────────
+
+export interface ContributorReturn {
+  id: string;
+  contributor: string;
+  item_id: string;
+  qty: number;
+  note: string;
+  returned_at: string;
+  item_name: string;
+  image_url: string | null;
+}
+
+export interface ContributorSummaryItem {
+  item_id: string;
+  item_name: string;
+  image_url: string | null;
+  contributed_qty: number;
+  returned_qty: number;
+  pending_qty: number;
+}
+
+export interface ContributorSummary {
+  contributor: string;
+  items: ContributorSummaryItem[];
+  total_contributed: number;
+  total_returned: number;
+  total_pending: number;
+}
