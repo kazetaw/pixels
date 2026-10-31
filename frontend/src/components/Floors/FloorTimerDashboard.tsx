@@ -261,10 +261,10 @@ export function FloorTimerDashboard() {
                     {/* Actions */}
                     <div className="floor-card2__actions">
                       {floor.displayStatus === 'running'
-                        ? <Button className="floor-card2__stop" size="small" icon={<PauseCircleOutlined />} onClick={() => void patchFloor(floor.floor_number, { status: 'idle', start_time: null, estimated_duration_seconds: 0, completed_at: null }, 'หยุดแล้ว')}>หยุด</Button>
-                        : <Button size="small" type="primary" icon={<PlayCircleOutlined />} disabled={!floor.recipe_id} loading={saving} onClick={() => void startDirect(floor)}>เริ่ม</Button>}
+                        ? <Button className="floor-card2__stop" title="หยุด" aria-label={`หยุด ชั้น ${floor.floor_number}`} size="small" icon={<PauseCircleOutlined />} onClick={() => void patchFloor(floor.floor_number, { status: 'idle', start_time: null, estimated_duration_seconds: 0, completed_at: null }, 'หยุดแล้ว')}>หยุด</Button>
+                        : <Button size="small" type="primary" title="เริ่ม" aria-label={`เริ่ม ชั้น ${floor.floor_number}`} icon={<PlayCircleOutlined />} disabled={!floor.recipe_id} loading={saving} onClick={() => void startDirect(floor)}>เริ่ม</Button>}
                       <Button className="floor-card2__custom-time" size="small" aria-label={`กำหนดเวลาเอง ชั้น ${floor.floor_number}`} icon={<ClockCircleOutlined />} onClick={() => { customTimerForm.setFieldsValue({ hours: 0, minutes: 30, seconds: 0 }); setCustomTimerFloor(floor); }} title="กำหนดเวลาเอง">กำหนดเวลาเอง</Button>
-                      <Button className="floor-card2__reset" size="small" icon={<ReloadOutlined />} onClick={() => void patchFloor(floor.floor_number, { status: 'idle', start_time: null, estimated_duration_seconds: 0, completed_at: null }, 'รีเซ็ตแล้ว')}>รีเซ็ต</Button>
+                      <Button className="floor-card2__reset" title="รีเซ็ต" aria-label={`รีเซ็ต ชั้น ${floor.floor_number}`} size="small" icon={<ReloadOutlined />} onClick={() => void patchFloor(floor.floor_number, { status: 'idle', start_time: null, estimated_duration_seconds: 0, completed_at: null }, 'รีเซ็ตแล้ว')}>รีเซ็ต</Button>
                     </div>
                   </div>
                 );
