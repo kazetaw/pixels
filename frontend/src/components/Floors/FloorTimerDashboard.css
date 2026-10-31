@@ -86,3 +86,26 @@
 .floor-time-inputs .ant-form-item { min-width:0; }
 @container (max-width:360px) { .floor-cards-scroll { grid-template-columns:1fr; } }
 @media (pointer:coarse) { .floor-card2__settings.ant-btn { width:36px; height:36px; } .floor-card2__head { grid-template-columns:minmax(0,1fr) 36px; } }
+
+/* Compact three-column phone view. Actions stay readable on their own rows. */
+@container (max-width:560px) {
+  .floor-details-panel { padding:8px; }
+  .floor-cards-scroll { grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; }
+  .floor-card2 { padding:6px; min-height:0; }
+  .floor-card2__head { grid-template-columns:minmax(0,1fr) 24px; gap:3px; }
+  .floor-card2__num { font-size:12px; }
+  .floor-card2__settings.ant-btn { width:24px; min-width:24px; height:32px; padding:0; }
+  .floor-card2__head .ant-tag { font-size:10px; padding:0 4px; line-height:18px; }
+  .floor-card2__machine { font-size:10px; line-height:1.5; }
+  .floor-card2__avatar, .floor-card2__avatar .item-thumbnail, .floor-card2__avatar .item-thumbnail img { width:56px!important; height:56px!important; }
+  .floor-card2__recipe { font-size:11px; line-height:1.5; }
+  .floor-card2__status { font-size:11px; }
+  .fcs--timer { font-size:12px; }
+  .fcs--idle, .fcs--sub { font-size:10px; }
+  .floor-card2__actions { grid-template-columns:minmax(0,1fr); gap:4px; }
+  .floor-card2__actions .ant-btn { font-size:11px; min-height:36px; padding:5px 2px; gap:3px; }
+  .floor-card2__actions .floor-card2__custom-time { grid-column:1; grid-row:auto; }
+  .floor-card2__actions .floor-card2__custom-time .ant-btn-icon { display:none; }
+  .floor-cards-heading { gap:6px; }
+  .floor-cards-heading h3 { font-size:14px; }
+}
