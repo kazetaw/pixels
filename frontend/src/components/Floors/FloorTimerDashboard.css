@@ -67,3 +67,22 @@
 .floor-card2__avatar .item-thumbnail { background:transparent; }
 .floor-card2__avatar .item-thumbnail img { width:80px; height:80px; object-fit:contain; }
 .floor-card2__recipe { height:auto; min-height:18px; font-size:12px; font-weight:600; color:#334155; text-align:center; overflow-wrap:anywhere; line-height:1.5; margin:6px 0; }
+
+/* Narrow cards keep all actions legible instead of squeezing three buttons. */
+.floor-card2__actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; }
+.floor-card2__actions .ant-btn { width:100%; height:auto; min-height:40px; padding:6px 4px; gap:4px; line-height:1.4; white-space:normal; }
+.floor-card2__actions .floor-card2__custom-time { grid-column:1/-1; grid-row:2; }
+.floor-card2__actions .ant-btn > span { overflow-wrap:anywhere; }
+.floor-card2__head { display:grid; grid-template-columns:minmax(0,1fr) 32px; gap:6px; }
+.floor-card2__num { white-space:normal; overflow-wrap:anywhere; }
+.floor-card2__head .ant-tag { grid-column:1/-1; grid-row:2; justify-self:start; white-space:normal; max-width:100%; }
+.floor-card2__settings.ant-btn { grid-column:2; grid-row:1; width:32px; height:32px; min-width:32px; }
+.floor-card2__machine { white-space:normal; overflow-wrap:anywhere; min-height:36px; margin-top:6px; }
+.floor-card2__finish-time { display:block; }
+.floor-card2__status { text-align:center; overflow-wrap:anywhere; }
+.floor-cards-heading { flex-wrap:wrap; }
+.floor-cards-heading > .ant-btn { min-height:36px; }
+.floor-time-inputs { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.floor-time-inputs .ant-form-item { min-width:0; }
+@container (max-width:360px) { .floor-cards-scroll { grid-template-columns:1fr; } }
+@media (pointer:coarse) { .floor-card2__settings.ant-btn { width:36px; height:36px; } .floor-card2__head { grid-template-columns:minmax(0,1fr) 36px; } }
