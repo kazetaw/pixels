@@ -192,7 +192,7 @@ export function FloorTimerDashboard() {
             ))}
           </section>
 
-          {/* ── Floor map: one cell per floor, click to jump ── */}
+          {/* ── Floor map: 12 per row, click to jump; + adds a floor ── */}
           <section className="floor-map" aria-label="ผังชั้น">
             <div className="floor-map__cells">
               {displayFloors.map((floor) => (
@@ -204,8 +204,9 @@ export function FloorTimerDashboard() {
                     window.setTimeout(() => document.getElementById(`floor-card-${floor.floor_number}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 0);
                   }}>{floor.floor_number}</button>
               ))}
+              <button type="button" className="floor-map__cell floor-map__cell--add" title="เพิ่มชั้นใหม่" aria-label="เพิ่มชั้นใหม่" onClick={openAddFloor}><PlusOutlined /></button>
             </div>
-            <Button icon={<PlusOutlined />} onClick={openAddFloor}>เพิ่มชั้น</Button>
+            <p className="floor-map__hint">คลิกเพื่อไปยังรายละเอียดชั้น</p>
           </section>
 
           {/* ── Floor cards ── */}
