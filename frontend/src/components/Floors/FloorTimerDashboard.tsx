@@ -2,7 +2,7 @@ import './FloorTimerDashboard.css';
 import { ItemLabel, ItemVisualProvider, itemSelectVisuals } from '../shared/ItemVisual';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Empty, Form, InputNumber, Modal, Select, Spin, Tag, message } from 'antd';
-import { PauseCircleOutlined, PlayCircleOutlined, PlusOutlined, ReloadOutlined, SettingOutlined } from '@ant-design/icons';
+import { ClockCircleOutlined, PauseCircleOutlined, PlayCircleOutlined, PlusOutlined, ReloadOutlined, SettingOutlined } from '@ant-design/icons';
 import { createFloorTimer, fetchAllData, fetchFloorTimers, updateFloorTimer } from '../../api/client';
 import type { FloorDisplayStatus, FloorTimer, Machine, Recipe, StockImageMap } from '../../types';
 import { machinesForProfession } from './floorOptions';

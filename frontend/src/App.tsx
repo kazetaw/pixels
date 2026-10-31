@@ -61,14 +61,14 @@ const { Sider, Content } = Layout;
 type MainView = 'crafting-guide' | 'machine-layout' | 'withdrawal-admin' | 'withdrawals' | 'assignments' | 'planner' | 'shared-planner' | 'production-flow' | 'data' | 'inventory' | 'floors' | 'targets' | 'budget' | 'organization' | 'contributor-returns';
 
 const ADMIN_VIEWS: MainView[] = ['crafting-guide', 'machine-layout', 'withdrawal-admin', 'planner', 'production-flow', 'withdrawals', 'assignments', 'shared-planner', 'data', 'inventory', 'floors', 'targets', 'budget', 'organization', 'contributor-returns'];
-const PUBLIC_VIEWS: MainView[] = ['crafting-guide', 'withdrawals', 'shared-planner', 'inventory', 'floors', 'targets', 'organization'];
+const PUBLIC_VIEWS: MainView[] = ['floors'];
 const isAdminPath = () => window.location.pathname.replace(/\/+$/, '') === '/admin';
 function savedNavigation(admin: boolean): MainView {
   try {
     const saved = localStorage.getItem(admin ? 'admin-view' : 'app-view') as MainView | null;
     if (saved && (admin ? ADMIN_VIEWS : PUBLIC_VIEWS).includes(saved)) return saved;
   } catch { /* Storage may be unavailable. */ }
-  return 'withdrawals';
+  return 'floors';
 }
 
 const NAV_ITEMS = [
