@@ -9,7 +9,10 @@ export type PosterOptions = {
   unit: string;           // e.g. "กอง"
   showStock: boolean;
   perPage: number;        // 4 | 9 | 16
+  style?: PosterStyle;
 };
+
+export type PosterStyle = 'card' | 'soft' | 'minimal';
 
 const SIZE = 1080;
 const FONT = "'Inter', 'IBM Plex Sans Thai', 'Noto Sans Thai', Tahoma, sans-serif";
@@ -60,93 +63,144 @@ function drawContain(ctx: CanvasRenderingContext2D, img: HTMLImageElement, x: nu
   ctx.restore();
 }
 
+type Theme = {
+  bg: (ctx: CanvasRenderingContext2D) => void;
+  card: { fill: string; radius: number; shadow?: string; stroke?: string } | null;
+  tile: string; name: string; price: string; muted: string;
+  stock: { fg: string; bg: string | null; dot?: string };
+};
+
+const THEMES: Record<PosterStyle, Theme> = {
+  // White product cards on a soft grey page — the familiar marketplace look.
+  card: {
+    bg: ctx => { ctx.fillStyle = '#F3F4F6'; ctx.fillRect(0, 0, SIZE, SIZE); },
+    card: { fill: '#FFFFFF', radius: 28, shadow: 'rgba(15, 23, 42, 0.08)' },
+    tile: '#FFFFFF', name: '#475569', price: '#0F172A', muted: '#6B7280',
+    stock: { fg: '#4B5563', bg: '#F3F4F6' },
+  },
+  // Store colours, kept light: sky wash, white cards, warm stock tag.
+  soft: {
+    bg: ctx => { const g = ctx.createLinearGradient(0, 0, 0, SIZE); g.addColorStop(0, '#E0F2FE'); g.addColorStop(1, '#FFFFFF'); ctx.fillStyle = g; ctx.fillRect(0, 0, SIZE, SIZE); },
+    card: { fill: '#FFFFFF', radius: 32, shadow: 'rgba(3, 105, 161, 0.10)', stroke: '#E0F2FE' },
+    tile: '#FFFFFF', name: '#334155', price: '#0369A1', muted: '#64748B',
+    stock: { fg: '#475569', bg: '#F1F5F9' },
+  },
+  // No boxes at all: picture, then a quiet line of text.
+  minimal: {
+    bg: ctx => { ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, SIZE, SIZE); },
+    card: null,
+    tile: '#FFFFFF', name: '#52525B', price: '#18181B', muted: '#71717A',
+    stock: { fg: '#71717A', bg: null },
+  },
+};
+
 export async function renderStorePosters(items: PosterItem[], opts: PosterOptions): Promise<HTMLCanvasElement[]> {
   if (!items.length) throw new Error('ไม่มีสินค้าพร้อมขายให้ส่งออก');
   await document.fonts?.ready;
   const urls = [...new Set(items.map(i => i.image).filter((u): u is string => !!u))];
   const images = new Map(await Promise.all(urls.map(async u => [u, await loadImage(u)] as const)));
-  const logo = opts.logo ? await loadImage(opts.logo) : null;
   const pages: PosterItem[][] = [];
   for (let i = 0; i < items.length; i += opts.perPage) pages.push(items.slice(i, i + opts.perPage));
-  const date = new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
+  const T = THEMES[opts.style ?? 'card'];
 
   return pages.map((page, pageIndex) => {
     const canvas = document.createElement('canvas');
     canvas.width = SIZE; canvas.height = SIZE;
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('เบราว์เซอร์ไม่รองรับการสร้างรูป');
-    const INK = '#111827', MUTED = '#6B7280', TILE = '#F5F6F8';
-    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, SIZE, SIZE);
-
-    // Header: one quiet line — logo + store name on the left, title · date (· page) on the right.
-    const pad = 56, headY = 72;
-    let nameX = pad;
-    if (logo) {
-      const ls = 48;
-      ctx.save(); ctx.beginPath(); ctx.roundRect(pad, headY - ls / 2, ls, ls, 12); ctx.clip();
-      ctx.fillStyle = TILE; ctx.fillRect(pad, headY - ls / 2, ls, ls);
-      drawContain(ctx, logo, pad, headY - ls / 2, ls); ctx.restore();
-      nameX = pad + ls + 16;
-    }
-    const meta = [opts.title.trim(), date, pages.length > 1 ? `${pageIndex + 1}/${pages.length}` : ''].filter(Boolean).join('  ·  ');
-    ctx.textBaseline = 'middle';
-    ctx.font = `400 24px ${FONT}`; ctx.fillStyle = MUTED; ctx.textAlign = 'right';
-    const metaW = ctx.measureText(meta).width;
-    ctx.fillText(meta, SIZE - pad, headY);
-    ctx.textAlign = 'left'; ctx.fillStyle = INK; ctx.font = `700 32px ${FONT}`;
-    ctx.fillText(wrap(ctx, opts.storeName, SIZE - pad - metaW - 32 - nameX, 1)[0] ?? '', nameX, headY);
+    T.bg(ctx);
     ctx.textBaseline = 'alphabetic';
 
-    // Footer (optional), small and centred.
+    // Footer line + page number.
+    const pad = 48;
     const foot = opts.footer.trim();
-    const bottom = SIZE - (foot ? 84 : pad);
+    const bottom = SIZE - (foot || pages.length > 1 ? 80 : pad);
     if (foot) {
-      ctx.fillStyle = MUTED; ctx.font = `400 24px ${FONT}`; ctx.textAlign = 'center';
-      ctx.fillText(wrap(ctx, foot, SIZE - pad * 2, 1)[0] ?? '', SIZE / 2, SIZE - 44); ctx.textAlign = 'left';
+      ctx.fillStyle = T.muted; ctx.font = `500 26px ${FONT}`; ctx.textAlign = 'center';
+      ctx.fillText(wrap(ctx, foot, SIZE - pad * 2 - 160, 1)[0] ?? '', SIZE / 2, SIZE - 38);
+    }
+    if (pages.length > 1) {
+      ctx.fillStyle = T.muted; ctx.font = `600 22px ${FONT}`; ctx.textAlign = 'right';
+      ctx.fillText(`${pageIndex + 1} / ${pages.length}`, SIZE - pad, SIZE - 38);
     }
 
-    // Grid of product pictures with a short caption underneath.
+    // Grid geometry.
     const n = page.length;
     const cols = opts.perPage <= 4 ? 2 : opts.perPage <= 9 ? 3 : 4;
     const rows = Math.max(1, Math.ceil(n / cols));
     const rowsForSize = pages.length > 1 ? Math.ceil(opts.perPage / cols) : rows;
-    const gapX = cols >= 4 ? 24 : 32, gapY = cols >= 4 ? 20 : 28;
-    const top = headY + 52;
-    const cellW = (SIZE - pad * 2 - gapX * (cols - 1)) / cols;
-    const nameF = Math.round(Math.max(16, Math.min(28, cellW * 0.075)));
-    const infoF = Math.round(Math.max(15, Math.min(26, cellW * 0.07)));
-    const caption = 10 + nameF * 1.3 + 4 + infoF * 1.3;
-    const cellH = Math.min((bottom - top - gapY * (rowsForSize - 1)) / rowsForSize, cellW + caption);
-    const tile = Math.min(cellW, cellH - caption);
-    const gridH = rows * cellH + (rows - 1) * gapY;
-    const startY = top + Math.max(0, (bottom - top - gridH) / 2);
+    const gap = cols >= 4 ? 18 : cols === 3 ? 24 : 32;
+    const cellW = (SIZE - pad * 2 - gap * (cols - 1)) / cols;
+    const inset = T.card ? Math.round(cellW * 0.055) : 0;         // card padding
+    const tileW = cellW - inset * 2;                              // cards always use the full column width
+    const nameF = Math.round(Math.max(15, Math.min(28, tileW * 0.068)));
+    const priceF = Math.round(Math.max(22, Math.min(50, tileW * 0.12)));
+    const stockF0 = Math.round(Math.max(14, Math.min(24, tileW * 0.062)));
+    const textH = 14 + nameF * 1.35 + priceF * 1.2;
+    const maxCellH = (bottom - pad - gap * (rowsForSize - 1)) / rowsForSize;
+    const tileH = Math.min(tileW, maxCellH - inset * 2 - textH);   // picture area may be wider than tall
+    const cellH = tileH + inset * 2 + textH;
+    const cardW = cellW;
+    const gridH = rows * cellH + (rows - 1) * gap;
+    const startY = pad + Math.max(0, (bottom - pad - gridH) / 2);
 
     page.forEach((item, i) => {
       const r = Math.floor(i / cols), c = i % cols;
       const inRow = r === rows - 1 ? n - r * cols : cols;
-      const x = pad + (cols - inRow) * (cellW + gapX) / 2 + c * (cellW + gapX);
-      const y = startY + r * (cellH + gapY);
-      const cx = x + cellW / 2;
-      const tx = cx - tile / 2;
+      const colX = pad + (cols - inRow) * (cellW + gap) / 2 + c * (cellW + gap);
+      const x = colX + (cellW - cardW) / 2;
+      const y = startY + r * (cellH + gap);
 
-      ctx.fillStyle = TILE; ctx.beginPath(); ctx.roundRect(tx, y, tile, tile, Math.min(24, tile * 0.1)); ctx.fill();
+      if (T.card) {
+        ctx.save();
+        if (T.card.shadow) { ctx.shadowColor = T.card.shadow; ctx.shadowBlur = 28; ctx.shadowOffsetY = 8; }
+        ctx.fillStyle = T.card.fill; ctx.beginPath(); ctx.roundRect(x, y, cardW, cellH, Math.min(T.card.radius, cardW * 0.1)); ctx.fill();
+        ctx.restore();
+        if (T.card.stroke) { ctx.strokeStyle = T.card.stroke; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(x + 1, y + 1, cardW - 2, cellH - 2, Math.min(T.card.radius, cardW * 0.1)); ctx.stroke(); }
+      }
+
+      // Picture
+      const tx = x + inset, ty = y + inset;
+      ctx.fillStyle = T.tile; ctx.beginPath(); ctx.roundRect(tx, ty, tileW, tileH, Math.min(20, tileH * 0.08)); ctx.fill();
       const img = item.image ? images.get(item.image) : null;
-      if (img) { const inset = tile * 0.1; drawContain(ctx, img, tx + inset, y + inset, tile - inset * 2); }
+      if (img) { const m = tileH * 0.07, sz = tileH - m * 2; drawContain(ctx, img, tx + (tileW - sz) / 2, ty + m, sz); }
 
-      ctx.textAlign = 'center';
-      let ty = y + tile + 10 + nameF;
-      ctx.fillStyle = INK; ctx.font = `500 ${nameF}px ${FONT}`;
-      ctx.fillText(wrap(ctx, item.name, cellW, 1)[0] ?? '', cx, ty);
-      ty += 4 + infoF * 1.3;
+      // Name
+      const tile = tileW;
+      const left = tx, right = tx + tile;
+      let by = ty + tileH + 14 + nameF;
+      ctx.textAlign = 'left'; ctx.fillStyle = T.name; ctx.font = `500 ${nameF}px ${FONT}`;
+      ctx.fillText(wrap(ctx, item.name, tile, 1)[0] ?? '', left, by);
 
-      const price = money(item.price);
-      const stock = opts.showStock ? `  ·  เหลือ ${num(item.stock)} ${opts.unit}` : '';
-      ctx.font = `700 ${infoF}px ${FONT}`; const pw = ctx.measureText(price).width;
-      ctx.font = `400 ${infoF}px ${FONT}`; const sw = ctx.measureText(stock).width;
-      const left = cx - (pw + sw) / 2;
-      ctx.textAlign = 'left';
-      ctx.fillStyle = INK; ctx.font = `700 ${infoF}px ${FONT}`; ctx.fillText(price, left, ty);
-      if (stock) { ctx.fillStyle = MUTED; ctx.font = `400 ${infoF}px ${FONT}`; ctx.fillText(stock, left + pw, ty); }
+      // Price (left) + stock (right) on one line, stock shrinks if needed.
+      by += priceF * 1.2;
+      const priceText = money(item.price);
+      ctx.font = `800 ${priceF}px ${FONT}`;
+      const pw = ctx.measureText(priceText).width;
+      ctx.fillStyle = T.price; ctx.fillText(priceText, left, by);
+      if (opts.showStock) {
+        const label = `เหลือ ${num(item.stock)} ${opts.unit}`;
+        let sf = stockF0;
+        const widthOf = () => { ctx.font = `600 ${sf}px ${FONT}`; return ctx.measureText(label).width + (T.stock.bg ? sf * 1.2 : T.stock.dot ? sf * 1.1 : 0); };
+        let sw = widthOf();
+        while (sf > 11 && pw + 12 + sw > tile) { sf -= 1; sw = widthOf(); }
+        const midY = by - priceF * 0.36;
+        if (T.stock.bg) {
+          const h = sf * 1.8;
+          ctx.fillStyle = T.stock.bg; ctx.beginPath(); ctx.roundRect(right - sw, midY - h / 2, sw, h, h / 2); ctx.fill();
+          ctx.fillStyle = T.stock.fg; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText(label, right - sw / 2, midY + 1);
+        } else {
+          ctx.fillStyle = T.stock.fg; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+          ctx.fillText(label, right, midY + 1);
+          if (T.stock.dot) {
+            ctx.font = `600 ${sf}px ${FONT}`;
+            const tw = ctx.measureText(label).width;
+            ctx.fillStyle = T.stock.dot; ctx.beginPath(); ctx.arc(right - tw - sf * 0.6, midY, sf * 0.28, 0, Math.PI * 2); ctx.fill();
+          }
+        }
+        ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
+      }
     });
     return canvas;
   });

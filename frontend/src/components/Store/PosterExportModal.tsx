@@ -10,7 +10,7 @@ const toBlob = (c: HTMLCanvasElement) => new Promise<Blob>((resolve, reject) => 
 
 /** Preview + download/share square "ready to sell" posters for social media. */
 export function PosterExportModal({ open, onClose, items, storeName, logo, unit }: Props) {
-  const [title, setTitle] = useState('สินค้าพร้อมขาย');
+  const title = 'สินค้าพร้อมขาย';
   const [footer, setFooter] = useState('สนใจทักแชทได้เลย');
   const [perPage, setPerPage] = useState<number>(9);
   const [showStock, setShowStock] = useState(true);
@@ -54,7 +54,6 @@ export function PosterExportModal({ open, onClose, items, storeName, logo, unit 
     ]}>
       <div className="shop-poster">
         <div className="shop-poster__opts">
-          <label className="shop-field">หัวข้อ<Input value={title} onChange={e => setTitle(e.target.value)} maxLength={40} /></label>
           <label className="shop-field">ข้อความท้ายรูป<Input value={footer} onChange={e => setFooter(e.target.value)} maxLength={60} placeholder="เว้นว่างได้" /></label>
           <div className="shop-field">สินค้าต่อรูป
             <Segmented value={perPage} onChange={v => setPerPage(Number(v))} options={[{ value: 4, label: '4' }, { value: 9, label: '9' }, { value: 16, label: '16' }]} />
