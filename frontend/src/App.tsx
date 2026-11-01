@@ -62,7 +62,7 @@ const { Sider, Content } = Layout;
 type MainView = 'crafting-guide' | 'machine-layout' | 'withdrawal-admin' | 'withdrawals' | 'assignments' | 'planner' | 'shared-planner' | 'production-flow' | 'data' | 'inventory' | 'floors' | 'targets' | 'budget' | 'organization' | 'contributor-returns';
 
 const ADMIN_VIEWS: MainView[] = ['crafting-guide', 'machine-layout', 'withdrawal-admin', 'planner', 'production-flow', 'withdrawals', 'assignments', 'shared-planner', 'data', 'inventory', 'floors', 'targets', 'budget', 'organization', 'contributor-returns'];
-const PUBLIC_VIEWS: MainView[] = ['floors'];
+const PUBLIC_VIEWS: MainView[] = ['floors', 'withdrawals'];
 const isAdminPath = () => window.location.pathname.replace(/\/+$/, '') === '/admin';
 function savedNavigation(admin: boolean): MainView {
   try {
