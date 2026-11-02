@@ -53,10 +53,10 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, width: number, maxLin
 }
 
 function drawContain(ctx: CanvasRenderingContext2D, img: HTMLImageElement, x: number, y: number, size: number) {
-  const scale = Math.min(size / img.width, size / img.height);
+  const scale = Math.min(1, size / img.width, size / img.height);
   const w = img.width * scale, h = img.height * scale;
   ctx.save();
-  // Small pixel-art sprites stay crisp when enlarged; real photos are smoothed.
+  // Preserve source proportions and only shrink oversized product images.
   ctx.imageSmoothingEnabled = scale < 2;
   ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(img, x + (size - w) / 2, y + (size - h) / 2, w, h);
