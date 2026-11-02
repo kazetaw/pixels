@@ -800,7 +800,7 @@ function StoreApp() {
           {quickId && (() => { const p = products.find(x => x.item_id === quickId); return p && <div className="shop-modal__sum">คงเหลือ {fmt(p.stock)} → <b>{fmt(p.stock + (quickQty ?? 0))}</b> กอง</div>; })()}
         </div>
       </Modal>
-      <PosterExportModal open={posterOpen} onClose={() => setPosterOpen(false)} items={posterItems} storeName={session.storeName} logo={session.logo} unit="กอง" />
+      <PosterExportModal open={posterOpen} onClose={() => setPosterOpen(false)} items={posterItems} storeName={session.storeName} storeId={session.storeId} unit="กอง" />
       <SellModal product={sellProduct} storeId={session.storeId} imgSrc={sellProduct ? getImg(sellProduct) : undefined} onClose={() => setSellProduct(null)} onSold={() => { setSellProduct(null); void fetchAll(session.storeId); }} />
     </div>
   );

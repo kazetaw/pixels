@@ -158,8 +158,8 @@ export async function renderStorePosters(items: PosterItem[], opts: PosterOption
     const tileW = cellW - inset * 2;                              // cards always use the full column width
     const nameF = Math.round(Math.max(22, Math.min(36, tileW * 0.10)));
     const priceF = Math.round(Math.max(30, Math.min(56, tileW * 0.15)));
-    const stockF0 = Math.round(Math.max(24, Math.min(36, tileW * 0.11)));
-    const rowH = Math.max(priceF * 1.2, opts.showStock ? stockF0 * 1.8 : 0);
+    const stockF0 = Math.round(Math.max(18, Math.min(26, tileW * 0.08)));
+    const rowH = Math.max(priceF * 1.2, opts.showStock ? stockF0 * 1.6 : 0);
     const maxCellH = (bottom - gridTop - gap * (rowsForSize - 1)) / rowsForSize;
     const cellH = maxCellH;
     const contentH = cellH - inset * 2 - rowH - 20;
@@ -215,7 +215,7 @@ export async function renderStorePosters(items: PosterItem[], opts: PosterOption
         while (sf > 14 && ctx.measureText(label).width + sf * 0.8 > stockW) {
           sf -= 1; ctx.font = `800 ${sf}px ${FONT}`;
         }
-        const h = sf * 1.8;
+        const h = sf * 1.6;
         const sw = Math.min(stockW, ctx.measureText(label).width + sf * 0.8);
         const right = tx + tileW;
         ctx.fillStyle = T.stock.bg ?? '#FACC15';

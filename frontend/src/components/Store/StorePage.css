@@ -318,3 +318,8 @@
   .shop-poster__opts { grid-template-columns:auto auto; }
   .shop-poster__footerText { grid-column:1 / -1; }
 }
+
+.shop-poster__logo { display:flex; align-items:center; gap:12px; padding:12px; border:1px solid #d6ecfa; border-radius:12px; }
+.shop-poster__logo > img { width:56px; height:56px; border-radius:50%; object-fit:cover; flex-shrink:0; }
+.shop-poster__logo > div { min-width:0; }
+.shop-poster__logo input { width:100%; max-width:100%; font-size:13px; }

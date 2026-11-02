@@ -1,17 +1,44 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Checkbox, Empty, Input, Modal, Segmented, Spin, Switch } from 'antd';
 import { DownloadOutlined, InboxOutlined, SearchOutlined, ShareAltOutlined } from '@ant-design/icons';
+import { toPngBlob } from './profileImage';
 import { renderStorePosters, type PosterItem } from './storePoster';
 
-type Props = { open: boolean; onClose: () => void; items: PosterItem[]; storeName: string; logo: string | null; unit: string };
+type Props = { open: boolean; onClose: () => void; items: PosterItem[]; storeName: string; storeId: string; unit: string };
 type Page = { url: string; blob: Blob };
 
 const toBlob = (c: HTMLCanvasElement) => new Promise<Blob>((resolve, reject) => c.toBlob(b => b ? resolve(b) : reject(new Error('สร้างรูปไม่สำเร็จ')), 'image/png'));
 const money = (n: number) => `฿${new Intl.NumberFormat('th-TH', { maximumFractionDigits: 2 }).format(n)}`;
 
 /** Pick products, preview and download/share square "ready to sell" posters. */
-export function PosterExportModal({ open, onClose, items, storeName, logo, unit }: Props) {
+export function PosterExportModal({ open, onClose, items, storeName, storeId, unit }: Props) {
   const title = 'สินค้าพร้อมขาย';
+  const storageKey = `store-poster-logo:${storeId}`;
+  const [exportLogo, setExportLogo] = useState('/avatars/store-duck.jpeg');
+  const [imageBusy, setImageBusy] = useState(false);
+  const [imageError, setImageError] = useState('');
+  useEffect(() => {
+    try { setExportLogo(localStorage.getItem(storageKey) || '/avatars/store-duck.jpeg'); }
+    catch { setExportLogo('/avatars/store-duck.jpeg'); }
+  }, [storageKey]);
+  const changeExportLogo = async (file?: File) => {
+    if (!file) return;
+    setImageError('');
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024) {
+      setImageError('เลือกรูป JPG, PNG หรือ WebP ขนาดไม่เกิน 10 MB'); return;
+    }
+    setImageBusy(true);
+    try {
+      const blob = await toPngBlob(file, 512);
+      const data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = reject; reader.readAsDataURL(blob);
+      });
+      setExportLogo(data);
+      try { localStorage.setItem(storageKey, data); }
+      catch { setImageError('ใช้รูปนี้ได้ในครั้งนี้ แต่บันทึกไว้ในเบราว์เซอร์ไม่ได้'); }
+    } catch { setImageError('อ่านรูปไม่ได้ กรุณาเลือกรูปใหม่'); }
+    finally { setImageBusy(false); }
+  };
   const [footer, setFooter] = useState('FB: เป็ด ก๊าบ กั๊บ ก๊าบบ');
   const [perPage, setPerPage] = useState<number>(9);
   const [showStock, setShowStock] = useState(true);
@@ -41,7 +68,7 @@ export function PosterExportModal({ open, onClose, items, storeName, logo, unit 
     const timer = window.setTimeout(async () => {
       setBusy(true); setError('');
       try {
-        const canvases = await renderStorePosters(chosen, { storeName, logo, title, footer, unit, showStock, perPage });
+        const canvases = await renderStorePosters(chosen, { storeName, logo: exportLogo, title, footer, unit, showStock, perPage });
         const next: Page[] = [];
         for (const c of canvases) { const blob = await toBlob(c); const url = URL.createObjectURL(blob); created.push(url); next.push({ url, blob }); }
         if (!cancelled) setPages(next);
@@ -50,7 +77,7 @@ export function PosterExportModal({ open, onClose, items, storeName, logo, unit 
       } finally { if (!cancelled) setBusy(false); }
     }, 300);
     return () => { cancelled = true; clearTimeout(timer); created.forEach(u => URL.revokeObjectURL(u)); };
-  }, [open, chosen, storeName, logo, footer, unit, showStock, perPage]);
+  }, [open, chosen, storeName, exportLogo, footer, unit, showStock, perPage]);
 
   const fileName = (i: number) => `${storeName || 'store'}-พร้อมขาย${pages.length > 1 ? `-${i + 1}` : ''}.png`;
   const download = (i: number) => { const a = document.createElement('a'); a.href = pages[i].url; a.download = fileName(i); a.click(); };
@@ -58,7 +85,7 @@ export function PosterExportModal({ open, onClose, items, storeName, logo, unit 
   const files = pages.map((p, i) => new File([p.blob], fileName(i), { type: 'image/png' }));
   const canShare = typeof navigator !== 'undefined' && !!navigator.canShare && files.length > 0 && navigator.canShare({ files });
   const share = async () => { try { await navigator.share({ files, title: `${storeName} · ${title}` }); } catch { /* cancelled */ } };
-  const ready = !busy && pages.length > 0 && chosen.length > 0;
+  const ready = !busy && !imageBusy && pages.length > 0 && chosen.length > 0;
 
   return (
     <Modal open={open} onCancel={onClose} title="ส่งออกรูปสินค้าพร้อมขาย" width={1000} className="shop-poster-modal" footer={
@@ -109,6 +136,17 @@ export function PosterExportModal({ open, onClose, items, storeName, logo, unit 
         {/* 2 · Options + preview */}
         <section className="shop-poster__right" aria-label="ตัวอย่างรูป">
           <header><strong>2 · ตัวอย่างรูป</strong><span className="shop-muted">1080×1080</span></header>
+          <div className="shop-poster__logo">
+            <img src={exportLogo} alt="รูปสำหรับส่งออก" />
+            <div>
+              <label className="shop-field">รูปสำหรับส่งออก
+                <input type="file" accept="image/jpeg,image/png,image/webp" disabled={imageBusy} onChange={e => { void changeExportLogo(e.target.files?.[0]); e.target.value = ''; }} />
+              </label>
+              <small className="shop-muted">แยกจากรูปโปรไฟล์ร้าน · จำรูปไว้ในเบราว์เซอร์นี้</small>
+              {imageBusy && <span role="status"> กำลังเตรียมรูป…</span>}
+            </div>
+          </div>
+          {imageError && <Alert type="warning" showIcon message={imageError} />}
           <div className="shop-poster__opts">
             <div className="shop-field">สินค้าต่อรูป
               <Segmented value={perPage} onChange={v => setPerPage(Number(v))} options={[{ value: 4, label: '4' }, { value: 9, label: '9' }, { value: 16, label: '16' }]} />
