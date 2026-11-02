@@ -664,14 +664,18 @@ function StoreApp() {
                           <Button className="shop-card__more" size="small" type="text" icon={<MoreOutlined />} aria-label={`ตัวเลือก ${p.name}`} />
                         </Dropdown>
                         <ItemImg src={getImg(p)} name={p.name} size={52} />
-                        <h3 title={p.name}>{p.name}</h3>
-                        <div className="shop-card__meta">
-                          <span className="shop-card__price">{fmtMoney(p.price)}</span>
-                          <span className={empty ? 'shop-danger' : 'shop-muted'}>{empty ? 'หมด' : `${fmt(p.stock)} กอง`}</span>
+                        <div className="shop-card__body">
+                          <h3 title={p.name}>{p.name}</h3>
+                          <div className="shop-card__meta">
+                            <span className="shop-card__price">{fmtMoney(p.price)}</span>
+                            <span className="shop-card__stock">{empty ? 'หมด' : `${fmt(p.stock)} กอง`}</span>
+                          </div>
                         </div>
-                        {empty
-                          ? <Button size="small" block color="primary" variant="outlined" onClick={() => goRestock(p)} icon={<PlusOutlined />}>เติมสต็อก</Button>
-                          : <Button size="small" block type="primary" icon={<ShoppingCartOutlined />} onClick={() => setSellProduct(p)}>ขาย</Button>}
+                        <div className="shop-card__actions">
+                          {empty
+                            ? <Button size="small" block color="primary" variant="outlined" onClick={() => goRestock(p)} icon={<PlusOutlined />}>เติมสต็อก</Button>
+                            : <Button size="small" block type="primary" icon={<ShoppingCartOutlined />} onClick={() => setSellProduct(p)}>ขาย</Button>}
+                        </div>
                       </article>
                     );
                   })}
