@@ -1,21 +1,19 @@
-// Renders "ready to sell" posters (1080×1080 PNG) for social posts, straight to canvas.
+// Renders "ready to sell" posters as a single tall PNG for social posts, straight to canvas.
 
 export type PosterItem = { name: string; price: number; stock: number; image?: string | null };
 export type PosterOptions = {
   storeName: string;
   logo?: string | null;
-  title: string;          // e.g. "สินค้าพร้อมขาย"
   footer: string;         // e.g. "สนใจทักแชทได้เลย"
   unit: string;           // e.g. "กอง"
   showStock: boolean;
-  perPage: number;        // 4 | 9 | 16
+  cols: number;           // 1–5 columns per row; rows auto-expand
   style?: PosterStyle;
 };
 
 export type PosterStyle = 'card' | 'soft' | 'minimal';
 
-const SIZE = 1080;
-const FONT = "'Inter', 'IBM Plex Sans Thai', 'Noto Sans Thai', Tahoma, sans-serif";
+const FONT = "'IBM Plex Sans Thai', 'Noto Sans Thai', Tahoma, sans-serif";
 
 function loadImage(url: string): Promise<HTMLImageElement | null> {
   return new Promise(resolve => {
@@ -28,7 +26,6 @@ function loadImage(url: string): Promise<HTMLImageElement | null> {
   });
 }
 
-const money = (n: number) => `฿${new Intl.NumberFormat('th-TH', { maximumFractionDigits: 2 }).format(n)}`;
 const num = (n: number) => n.toLocaleString('th-TH');
 
 /** Split text into word-ish pieces (Thai has no spaces), then wrap to at most `maxLines`. */
@@ -56,40 +53,37 @@ function drawContain(ctx: CanvasRenderingContext2D, img: HTMLImageElement, x: nu
   const scale = Math.min(1, size / img.width, size / img.height);
   const w = img.width * scale, h = img.height * scale;
   ctx.save();
-  // Preserve source proportions and only shrink oversized product images.
   ctx.imageSmoothingEnabled = scale < 2;
   ctx.imageSmoothingQuality = 'high';
+  // Center both axes
   ctx.drawImage(img, x + (size - w) / 2, y + (size - h) / 2, w, h);
   ctx.restore();
 }
 
 type Theme = {
-  bg: (ctx: CanvasRenderingContext2D) => void;
+  bg: (ctx: CanvasRenderingContext2D, w: number, h: number) => void;
   card: { fill: string; radius: number; shadow?: string; stroke?: string } | null;
   tile: string; name: string; price: string; muted: string;
   stock: { fg: string; bg: string | null; dot?: string };
 };
 
 const THEMES: Record<PosterStyle, Theme> = {
-  // White product cards on a soft grey page — the familiar marketplace look.
   card: {
-    bg: ctx => { ctx.fillStyle = '#F0F9FF'; ctx.fillRect(0, 0, SIZE, SIZE); },
+    bg: (ctx, w, h) => { ctx.fillStyle = '#F0F9FF'; ctx.fillRect(0, 0, w, h); },
     card: { fill: '#FFFFFF', radius: 24, shadow: 'rgba(3, 105, 161, 0.08)', stroke: '#D6ECFA' },
-    tile: '#FFFFFF', name: '#334155', price: '#0369A1', muted: '#3B5470',
+    tile: '#FFFFFF', name: '#334155', price: '#0C1E33', muted: '#3B5470',
     stock: { fg: '#713F12', bg: '#FACC15' },
   },
-  // Store colours, kept light: sky wash, white cards, warm stock tag.
   soft: {
-    bg: ctx => { const g = ctx.createLinearGradient(0, 0, 0, SIZE); g.addColorStop(0, '#E0F2FE'); g.addColorStop(1, '#FFFFFF'); ctx.fillStyle = g; ctx.fillRect(0, 0, SIZE, SIZE); },
+    bg: (ctx, w, h) => { const g = ctx.createLinearGradient(0, 0, 0, h); g.addColorStop(0, '#E0F2FE'); g.addColorStop(1, '#FFFFFF'); ctx.fillStyle = g; ctx.fillRect(0, 0, w, h); },
     card: { fill: '#FFFFFF', radius: 32, shadow: 'rgba(3, 105, 161, 0.10)', stroke: '#E0F2FE' },
-    tile: '#FFFFFF', name: '#334155', price: '#0369A1', muted: '#64748B',
+    tile: '#FFFFFF', name: '#334155', price: '#0C1E33', muted: '#64748B',
     stock: { fg: '#713F12', bg: '#FACC15' },
   },
-  // No boxes at all: picture, then a quiet line of text.
   minimal: {
-    bg: ctx => { ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, SIZE, SIZE); },
-    card: null,
-    tile: '#FFFFFF', name: '#52525B', price: '#18181B', muted: '#71717A',
+    bg: (ctx, w, h) => { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h); },
+    card: { fill: '#FFFFFF', radius: 16, shadow: 'rgba(0,0,0,0.08)' },
+    tile: '#FFFFFF', name: '#52525B', price: '#0C1E33', muted: '#71717A',
     stock: { fg: '#713F12', bg: '#FACC15' },
   },
 };
@@ -99,137 +93,180 @@ export async function renderStorePosters(items: PosterItem[], opts: PosterOption
   await document.fonts?.ready;
   const urls = [...new Set(items.map(i => i.image).filter((u): u is string => !!u))];
   const images = new Map(await Promise.all(urls.map(async u => [u, await loadImage(u)] as const)));
-  const pages: PosterItem[][] = [];
-  for (let i = 0; i < items.length; i += opts.perPage) pages.push(items.slice(i, i + opts.perPage));
   const T = THEMES[opts.style ?? 'card'];
   const logo = await loadImage(opts.logo || '/avatars/store-duck.jpeg');
-  const date = new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
 
-  return pages.map((page) => {
-    const canvas = document.createElement('canvas');
-    canvas.width = SIZE; canvas.height = SIZE;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('เบราว์เซอร์ไม่รองรับการสร้างรูป');
-    T.bg(ctx);
-    ctx.textBaseline = 'alphabetic';
+  const W = 1080;
+  const pad = 48;
+  const cols = Math.max(1, Math.min(10, opts.cols));
+  const n = items.length;
+  const rows = Math.max(1, Math.ceil(n / cols));
+  const gap = cols >= 5 ? 12 : cols >= 4 ? 16 : cols === 3 ? 20 : cols === 2 ? 28 : 0;
+  const cellW = (W - pad * 2 - gap * (cols - 1)) / cols;
+  const radius = Math.min(T.card ? T.card.radius : 0, cellW * 0.08);
 
-    // Header band: logo + store name + "title · date", page pill on the right.
-    const headH = 130;
-    const band = ctx.createLinearGradient(0, 0, SIZE, 0);
-    band.addColorStop(0, '#0369A1'); band.addColorStop(1, '#0EA5E9');
-    ctx.fillStyle = band; ctx.fillRect(0, 0, SIZE, headH);
-    ctx.fillStyle = '#FACC15'; ctx.fillRect(0, headH, SIZE, 8);
-    if (logo) {
-      const av = 96, ax = 40, ay = 17;
+  const nameF = Math.round(Math.max(20, Math.min(34, cellW * 0.095)));
+  const priceF = Math.round(Math.max(28, Math.min(52, cellW * 0.14)));
+  const stockF0 = Math.round(Math.max(16, Math.min(24, cellW * 0.075)));
+  const infoBarH = Math.round(nameF * 1.4 + priceF * 1.7 + 24);
+  const cellH = cellW + infoBarH;
+
+  // Header
+  const headH = 148;
+  const gridTop = headH + 8 + 32;
+
+  // Footer
+  const foot = opts.footer.trim();
+  const footH = foot ? 96 : 40;
+
+  // Total canvas height = header + grid + footer
+  const gridH = rows * cellH + (rows - 1) * gap;
+  const H = gridTop + gridH + 32 + footH;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('เบราว์เซอร์ไม่รองรับการสร้างรูป');
+
+  // Background — tile the theme bg over full height
+  T.bg(ctx, W, H);
+  ctx.textBaseline = 'alphabetic';
+
+  // Header band: logo + store name + tagline
+  const band = ctx.createLinearGradient(0, 0, W, 0);
+  band.addColorStop(0, '#0369A1'); band.addColorStop(1, '#0EA5E9');
+  ctx.fillStyle = band; ctx.fillRect(0, 0, W, headH);
+  ctx.fillStyle = '#FACC15'; ctx.fillRect(0, headH, W, 8);
+  if (logo) {
+    const av = 96, ax = 40, ay = 17;
+    ctx.save();
+    ctx.fillStyle = '#FFFFFF'; ctx.beginPath(); ctx.arc(ax + av / 2, ay + av / 2, av / 2 + 4, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(ax + av / 2, ay + av / 2, av / 2, 0, Math.PI * 2); ctx.clip();
+    if (!opts.logo || opts.logo === '/avatars/store-duck.jpeg') {
+      ctx.drawImage(logo, logo.width * 0.23, logo.height * 0.20, logo.width * 0.53, logo.height * 0.565, ax, ay, av, av);
+    } else {
+      const scale = Math.max(av / logo.width, av / logo.height);
+      ctx.drawImage(logo, ax + (av - logo.width * scale) / 2, ay + (av - logo.height * scale) / 2, logo.width * scale, logo.height * scale);
+    }
+    ctx.restore();
+  }
+  const nx = logo ? 160 : 48, nRight = W - 48;
+  ctx.textAlign = 'left'; ctx.fillStyle = '#FFFFFF'; ctx.font = `700 46px ${FONT}`;
+  ctx.fillText(wrap(ctx, opts.storeName, nRight - nx, 1)[0] ?? '', nx, 70);
+  ctx.fillStyle = 'rgba(224,242,254,0.55)'; ctx.font = `300 20px ${FONT}`;
+  ctx.fillText('Ped Kab Kub Kabb', nx, 102);
+
+  // Footer
+  if (foot) {
+    ctx.fillStyle = '#0369A1'; ctx.font = `600 30px ${FONT}`;
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillText(wrap(ctx, foot, W - pad * 2, 1)[0] ?? '', W - pad, H - footH / 2 + 5);
+    ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
+  }
+
+  // Grid — all items in one pass, rows grow downward
+  const startY = gridTop;
+
+  items.forEach((item, i) => {
+    const r = Math.floor(i / cols), c = i % cols;
+    const x = pad + c * (cellW + gap);
+    const y = startY + r * (cellH + gap);
+
+    // Card background
+    if (T.card) {
       ctx.save();
-      ctx.fillStyle = '#FFFFFF'; ctx.beginPath(); ctx.arc(ax + av / 2, ay + av / 2, av / 2 + 4, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(ax + av / 2, ay + av / 2, av / 2, 0, Math.PI * 2); ctx.clip();
-      if (!opts.logo || opts.logo === '/avatars/store-duck.jpeg') {
-        // Crop only the default duck's white margins, leaving uploaded images intact.
-        ctx.drawImage(logo, logo.width * 0.23, logo.height * 0.20, logo.width * 0.53, logo.height * 0.565, ax, ay, av, av);
-      } else {
-        const scale = Math.max(av / logo.width, av / logo.height);
-        ctx.drawImage(logo, ax + (av - logo.width * scale) / 2, ay + (av - logo.height * scale) / 2, logo.width * scale, logo.height * scale);
+      if (T.card.shadow) { ctx.shadowColor = T.card.shadow; ctx.shadowBlur = 24; ctx.shadowOffsetY = 6; }
+      ctx.fillStyle = T.card.fill;
+      ctx.beginPath(); ctx.roundRect(x, y, cellW, cellH, radius); ctx.fill();
+      ctx.restore();
+      if (T.card.stroke) {
+        ctx.strokeStyle = T.card.stroke; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.roundRect(x + 0.75, y + 0.75, cellW - 1.5, cellH - 1.5, radius); ctx.stroke();
       }
+    }
+
+    // Image zone
+    const imgSize = cellW;
+    ctx.save();
+    ctx.beginPath();
+    if (radius > 0) { ctx.roundRect(x, y, imgSize, imgSize, [radius, radius, 0, 0]); }
+    else { ctx.rect(x, y, imgSize, imgSize); }
+    ctx.clip();
+    ctx.fillStyle = T.card ? T.card.fill : '#FFFFFF';
+    ctx.fillRect(x, y, imgSize, imgSize);
+    const img = item.image ? images.get(item.image) : null;
+    if (img) {
+      const imgPad = Math.round(imgSize * 0.18);
+      drawContain(ctx, img, x + imgPad, y + imgPad, imgSize - imgPad * 2);
+    }
+    ctx.restore();
+
+    // Info bar
+    const infoY = y + imgSize;
+    const infoX = x;
+    if (T.card) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(infoX, infoY, cellW, infoBarH, [0, 0, radius, radius]);
+      ctx.fillStyle = T.card.fill;
+      ctx.fill();
       ctx.restore();
     }
-    const nx = logo ? 160 : 48, nRight = SIZE - 48;
-    ctx.textAlign = 'left'; ctx.fillStyle = '#FFFFFF'; ctx.font = `700 46px ${FONT}`;
-    ctx.fillText(wrap(ctx, opts.storeName, nRight - nx, 1)[0] ?? '', nx, 66);
-    ctx.fillStyle = '#E0F2FE'; ctx.font = `500 26px ${FONT}`;
-    ctx.fillText(wrap(ctx, `${opts.title} · ${date}`, nRight - nx, 1)[0] ?? '', nx, 104);
-    const gridTop = headH + 8 + 32;
 
-    // Contact footer; the shop avatar now belongs to the header.
-    const pad = 48;
-    const foot = opts.footer.trim();
-    const footH = foot ? 96 : 40;
-    const bottom = SIZE - footH;
-    if (foot) {
-      ctx.fillStyle = '#0369A1'; ctx.font = `600 30px ${FONT}`;
-      ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
-      ctx.fillText(wrap(ctx, foot, SIZE - pad * 2, 1)[0] ?? '', SIZE - pad, SIZE - footH / 2 + 5);
-      ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
+    const px = infoX + Math.round(cellW * 0.07);
+    const pRight = infoX + cellW - Math.round(cellW * 0.07);
+    const pWidth = pRight - px;
+
+    // Product name
+    const nameY = infoY + Math.round(nameF * 1.15) + 8;
+    ctx.font = `600 ${nameF}px ${FONT}`;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = T.name;
+    const nameLines = wrap(ctx, item.name, pWidth, 1);
+    ctx.fillText(nameLines[0] ?? '', px, nameY, pWidth);
+
+    // Price row
+    const priceRowY = nameY + Math.round(priceF * 1.45) + 4;
+    const midPriceY = priceRowY - priceF * 0.5;
+    const numText = new Intl.NumberFormat('th-TH', { maximumFractionDigits: 2 }).format(item.price);
+    const bahtF = Math.round(priceF * 0.62);
+    const bahtSymbol = '฿';
+
+    ctx.textBaseline = 'middle';
+    ctx.font = `700 ${bahtF}px ${FONT}`;
+    ctx.fillStyle = T.price;
+    ctx.textAlign = 'left';
+    const bahtW = ctx.measureText(bahtSymbol).width + 3;
+    ctx.fillText(bahtSymbol, px, midPriceY + Math.round(priceF * 0.08));
+
+    ctx.font = `800 ${priceF}px ${FONT}`;
+    let pf = priceF;
+    const stockW = opts.showStock ? pWidth * 0.46 : 0;
+    const availW = pWidth - bahtW - stockW - (opts.showStock ? 12 : 0);
+    while (pf > 18 && ctx.measureText(numText).width > availW) {
+      pf -= 1; ctx.font = `800 ${pf}px ${FONT}`;
+    }
+    ctx.fillText(numText, px + bahtW, midPriceY, availW);
+
+    // Stock pill
+    if (opts.showStock) {
+      const label = `${num(item.stock)} ${opts.unit}`;
+      let sf = stockF0;
+      ctx.font = `700 ${sf}px ${FONT}`;
+      while (sf > 13 && ctx.measureText(label).width + sf * 0.9 > stockW) {
+        sf -= 1; ctx.font = `700 ${sf}px ${FONT}`;
+      }
+      const pillH = Math.round(sf * 1.65);
+      const pillW = Math.min(stockW, ctx.measureText(label).width + Math.round(sf * 0.9));
+      const pillX = pRight - pillW;
+      const pillY = midPriceY - pillH / 2;
+      ctx.fillStyle = T.stock.bg ?? '#F59E0B';
+      ctx.beginPath(); ctx.roundRect(pillX, pillY, pillW, pillH, pillH / 2); ctx.fill();
+      ctx.fillStyle = T.stock.fg; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(label, pillX + pillW / 2, midPriceY, pillW - Math.round(sf * 0.8));
     }
 
-    // Grid geometry.
-    const n = page.length;
-    const cols = opts.perPage <= 4 ? 2 : opts.perPage <= 9 ? 3 : 4;
-    const rows = Math.max(1, Math.ceil(n / cols));
-    const rowsForSize = pages.length > 1 ? Math.ceil(opts.perPage / cols) : rows;
-    const gap = cols >= 4 ? 18 : cols === 3 ? 24 : 32;
-    const cellW = (SIZE - pad * 2 - gap * (cols - 1)) / cols;
-    const inset = Math.round(cellW * 0.065);         // card padding
-    const tileW = cellW - inset * 2;                              // cards always use the full column width
-    const nameF = Math.round(Math.max(22, Math.min(36, tileW * 0.10)));
-    const priceF = Math.round(Math.max(30, Math.min(56, tileW * 0.15)));
-    const stockF0 = Math.round(Math.max(18, Math.min(26, tileW * 0.08)));
-    const rowH = Math.max(priceF * 1.2, opts.showStock ? stockF0 * 1.6 : 0);
-    const maxCellH = (bottom - gridTop - gap * (rowsForSize - 1)) / rowsForSize;
-    const cellH = maxCellH;
-    const contentH = cellH - inset * 2 - rowH - 20;
-    const cardW = cellW;
-    const gridH = rows * cellH + (rows - 1) * gap;
-    const startY = gridTop + Math.max(0, (bottom - gridTop - gridH) / 2);
-
-    page.forEach((item, i) => {
-      const r = Math.floor(i / cols), c = i % cols;
-      const inRow = r === rows - 1 ? n - r * cols : cols;
-      const colX = pad + (cols - inRow) * (cellW + gap) / 2 + c * (cellW + gap);
-      const x = colX + (cellW - cardW) / 2;
-      const y = startY + r * (cellH + gap);
-
-      if (T.card) {
-        ctx.save();
-        if (T.card.shadow) { ctx.shadowColor = T.card.shadow; ctx.shadowBlur = 28; ctx.shadowOffsetY = 8; }
-        ctx.fillStyle = T.card.fill; ctx.beginPath(); ctx.roundRect(x, y, cardW, cellH, Math.min(T.card.radius, cardW * 0.1)); ctx.fill();
-        ctx.restore();
-        if (T.card.stroke) { ctx.strokeStyle = T.card.stroke; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(x + 1, y + 1, cardW - 2, cellH - 2, Math.min(T.card.radius, cardW * 0.1)); ctx.stroke(); }
-      }
-
-      // Give the image the full available area with its name centered underneath.
-      const tx = x + inset, ty = y + inset;
-      const labelSize = Math.min(nameF, cols >= 4 ? 23 : 30);
-      const lineH = labelSize * 1.35;
-      ctx.font = `600 ${labelSize}px ${FONT}`;
-      const lines = wrap(ctx, item.name, tileW, 1);
-      const pictureSize = Math.min(tileW, Math.max(24, contentH - lineH - 8));
-      const img = item.image ? images.get(item.image) : null;
-      if (img) drawContain(ctx, img, tx + (tileW - pictureSize) / 2, ty, pictureSize);
-      ctx.textAlign = 'center'; ctx.fillStyle = T.name;
-      ctx.fillText(lines[0] ?? '', tx + tileW / 2, ty + pictureSize + 8 + labelSize);
-
-      const rowTop = ty + contentH + 20;
-      ctx.strokeStyle = '#E0EDF5'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(tx, rowTop - 10); ctx.lineTo(tx + tileW, rowTop - 10); ctx.stroke();
-      const midY = rowTop + rowH / 2;
-      const stockW = opts.showStock ? tileW * 0.44 : 0;
-      const priceW = opts.showStock ? tileW - stockW - 10 : tileW;
-      const priceText = money(item.price);
-      let pf = priceF;
-      ctx.font = `800 ${pf}px ${FONT}`;
-      while (pf > 16 && ctx.measureText(priceText).width > priceW) {
-        pf -= 1; ctx.font = `800 ${pf}px ${FONT}`;
-      }
-      ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillStyle = T.price;
-      ctx.fillText(priceText, tx, midY, priceW);
-      if (opts.showStock) {
-        const label = `${num(item.stock)} ${opts.unit}`;
-        let sf = Math.min(stockF0, pf * 0.78);
-        ctx.font = `800 ${sf}px ${FONT}`;
-        while (sf > 14 && ctx.measureText(label).width + sf * 0.8 > stockW) {
-          sf -= 1; ctx.font = `800 ${sf}px ${FONT}`;
-        }
-        const h = sf * 1.6;
-        const sw = Math.min(stockW, ctx.measureText(label).width + sf * 0.8);
-        const right = tx + tileW;
-        ctx.fillStyle = T.stock.bg ?? '#FACC15';
-        ctx.beginPath(); ctx.roundRect(right - sw, midY - h / 2, sw, h, h / 2); ctx.fill();
-        ctx.fillStyle = T.stock.fg; ctx.textAlign = 'center';
-        ctx.fillText(label, right - sw / 2, midY, sw - sf * 0.8);
-      }
-      ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
-    });
-    return canvas;
+    ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
   });
+
+  return [canvas];
 }

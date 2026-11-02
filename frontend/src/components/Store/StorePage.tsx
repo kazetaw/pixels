@@ -54,7 +54,7 @@ const shopTheme: ThemeConfig = {
     borderRadiusSM: 6,
     controlHeight: 40,
     fontSize: 14,
-    fontFamily: "'Inter', 'IBM Plex Sans Thai', 'Noto Sans Thai', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    fontFamily: "'IBM Plex Sans Thai', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
   components: {
     Segmented: { itemSelectedBg: '#FFFFFF', trackBg: '#E0F2FE', itemColor: '#3B5470', itemHoverColor: '#0C1E33', itemSelectedColor: SKY },
@@ -79,10 +79,10 @@ function StoreLogo({ src, size = 36 }: { src?: string | null; size?: number }) {
 function fmt(n: number) { return n.toLocaleString('th-TH'); }
 function fmtMoney(n: number) { return `฿${new Intl.NumberFormat('th-TH', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(n)}`; }
 
-function ItemImg({ src, name, size = 40 }: { src?: string | null; name: string; size?: number }) {
+function ItemImg({ src, name, size = 40, fill = false }: { src?: string | null; name: string; size?: number; fill?: boolean }) {
   return (
-    <span className="shop-thumb" style={{ width: size, height: size }}>
-      {src ? <img src={src} alt={name} loading="lazy" /> : <InboxOutlined style={{ fontSize: size * 0.42 }} />}
+    <span className="shop-thumb" style={fill ? undefined : { width: size, height: size }}>
+      {src ? <img src={src} alt={name} loading="lazy" /> : <InboxOutlined style={{ fontSize: fill ? 32 : size * 0.42 }} />}
     </span>
   );
 }
@@ -663,7 +663,7 @@ function StoreApp() {
                         <Dropdown menu={moreMenu(p)} trigger={['click']} placement="bottomRight">
                           <Button className="shop-card__more" size="small" type="text" icon={<MoreOutlined />} aria-label={`ตัวเลือก ${p.name}`} />
                         </Dropdown>
-                        <ItemImg src={getImg(p)} name={p.name} size={52} />
+                        <ItemImg src={getImg(p)} name={p.name} fill />
                         <div className="shop-card__body">
                           <h3 title={p.name}>{p.name}</h3>
                           <div className="shop-card__meta">
