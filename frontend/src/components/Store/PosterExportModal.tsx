@@ -16,7 +16,8 @@ const STYLE_OPTIONS: { value: PosterStyle; label: string }[] = [
   { value: 'soft',    label: 'นุ่ม' },
   { value: 'minimal', label: 'มินิมอล' },
 ];
-const COLS_OPTIONS = [1, 2, 3, 4, 5].map(v => ({ value: v, label: `${v}` }));
+
+
 export function PosterExportModal({ open, onClose, items, storeName, storeId, unit }: Props) {
   const storageKey = `store-poster-logo:${storeId}`;
   const [exportLogo, setExportLogo] = useState('/avatars/store-duck.jpeg');
