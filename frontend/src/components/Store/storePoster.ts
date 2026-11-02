@@ -114,25 +114,30 @@ export async function renderStorePosters(items: PosterItem[], opts: PosterOption
     ctx.textBaseline = 'alphabetic';
 
     // Header band: logo + store name + "title · date", page pill on the right.
-    const headH = 150;
+    const headH = 130;
     const band = ctx.createLinearGradient(0, 0, SIZE, 0);
     band.addColorStop(0, '#0369A1'); band.addColorStop(1, '#0EA5E9');
     ctx.fillStyle = band; ctx.fillRect(0, 0, SIZE, headH);
     ctx.fillStyle = '#FACC15'; ctx.fillRect(0, headH, SIZE, 8);
     if (logo) {
-      const av = 96, ax = 40, ay = 27;
+      const av = 96, ax = 40, ay = 17;
       ctx.save();
       ctx.fillStyle = '#FFFFFF'; ctx.beginPath(); ctx.arc(ax + av / 2, ay + av / 2, av / 2 + 4, 0, Math.PI * 2); ctx.fill();
       ctx.beginPath(); ctx.arc(ax + av / 2, ay + av / 2, av / 2, 0, Math.PI * 2); ctx.clip();
-      const scale = Math.max(av / logo.width, av / logo.height);
-      ctx.drawImage(logo, ax + (av - logo.width * scale) / 2, ay + (av - logo.height * scale) / 2, logo.width * scale, logo.height * scale);
+      if (!opts.logo || opts.logo === '/avatars/store-duck.jpeg') {
+        // Crop only the default duck's white margins, leaving uploaded images intact.
+        ctx.drawImage(logo, logo.width * 0.23, logo.height * 0.20, logo.width * 0.53, logo.height * 0.565, ax, ay, av, av);
+      } else {
+        const scale = Math.max(av / logo.width, av / logo.height);
+        ctx.drawImage(logo, ax + (av - logo.width * scale) / 2, ay + (av - logo.height * scale) / 2, logo.width * scale, logo.height * scale);
+      }
       ctx.restore();
     }
     const nx = logo ? 160 : 48, nRight = SIZE - 48;
     ctx.textAlign = 'left'; ctx.fillStyle = '#FFFFFF'; ctx.font = `700 46px ${FONT}`;
-    ctx.fillText(wrap(ctx, opts.storeName, nRight - nx, 1)[0] ?? '', nx, 76);
+    ctx.fillText(wrap(ctx, opts.storeName, nRight - nx, 1)[0] ?? '', nx, 66);
     ctx.fillStyle = '#E0F2FE'; ctx.font = `500 26px ${FONT}`;
-    ctx.fillText(wrap(ctx, `${opts.title} · ${date}`, nRight - nx, 1)[0] ?? '', nx, 116);
+    ctx.fillText(wrap(ctx, `${opts.title} · ${date}`, nRight - nx, 1)[0] ?? '', nx, 104);
     const gridTop = headH + 8 + 32;
 
     // Contact footer; the shop avatar now belongs to the header.
@@ -198,7 +203,7 @@ export async function renderStorePosters(items: PosterItem[], opts: PosterOption
       ctx.strokeStyle = '#E0EDF5'; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(tx, rowTop - 10); ctx.lineTo(tx + tileW, rowTop - 10); ctx.stroke();
       const midY = rowTop + rowH / 2;
-      const stockW = opts.showStock ? tileW * 0.55 : 0;
+      const stockW = opts.showStock ? tileW * 0.44 : 0;
       const priceW = opts.showStock ? tileW - stockW - 10 : tileW;
       const priceText = money(item.price);
       let pf = priceF;
@@ -210,7 +215,7 @@ export async function renderStorePosters(items: PosterItem[], opts: PosterOption
       ctx.fillText(priceText, tx, midY, priceW);
       if (opts.showStock) {
         const label = `${num(item.stock)} ${opts.unit}`;
-        let sf = stockF0;
+        let sf = Math.min(stockF0, pf * 0.78);
         ctx.font = `800 ${sf}px ${FONT}`;
         while (sf > 14 && ctx.measureText(label).width + sf * 0.8 > stockW) {
           sf -= 1; ctx.font = `800 ${sf}px ${FONT}`;

@@ -40,7 +40,7 @@ export function PosterExportModal({ open, onClose, items, storeName, storeId, un
     finally { setImageBusy(false); }
   };
   const [footer, setFooter] = useState('FB: เป็ด ก๊าบ กั๊บ ก๊าบบ');
-  const [perPage, setPerPage] = useState<number>(9);
+  const [perPage, setPerPage] = useState<number>(4);
   const [showStock, setShowStock] = useState(true);
   const [pages, setPages] = useState<Page[]>([]);
   const [busy, setBusy] = useState(false);
