@@ -1,7 +1,7 @@
 .accounts-tools { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
 .accounts-tools > .ant-input-affix-wrapper { flex:1; min-width:220px; }
 .accounts-caption { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; font-size:12px; color:#526b80; margin:16px 0 24px; line-height:1.6; }
-.accounts-board { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px; align-items:start; }
+.accounts-board { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:start; }
 .accounts-board--single { grid-template-columns: minmax(0,1fr); max-width:720px; }
 .accounts-lane { min-width:0; }
 .accounts-lane__head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:14px; padding-bottom:12px; border-bottom:2px solid #bbdccd; }
@@ -11,16 +11,16 @@
 .accounts-lane__head > span { font-size:12px; color:#526b80; }
 .accounts-lane__empty { padding:24px 0; color:#526b80; font-size:13px; }
 .account-group { border:1px solid #d6e7ed; border-radius:12px; overflow:hidden; background:#fff; margin-bottom:14px; }
-.account-group > header { display:flex; align-items:center; justify-content:space-between; gap:8px; background:#f3f9f6; padding:8px 12px; }
+.account-group > header { display:flex; align-items:center; justify-content:space-between; gap:8px; background:#f3f9f6; padding:12px 16px; }
 .accounts-lane--craft .account-group > header { background:#fffbf1; }
 .account-group > header > div { display:flex; align-items:center; gap:8px; min-width:0; }
 .account-group > header strong { font-size:14px; overflow-wrap:anywhere; }
 .account-group > header .anticon { color:#526b80; }
 .account-group > header > .ant-btn { flex-shrink:0; width:40px; height:40px; }
-.account-compact-head, .account-characters > li { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; padding:12px 14px; }
+.account-compact-head, .account-characters > li { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; padding:14px 16px; }
 .account-compact-head { color:#526b80; font-size:12px; border-bottom:1px solid #eef4f7; padding-top:8px; padding-bottom:8px; }
 .account-characters { list-style:none; padding:0; margin:0; }
-.account-characters > li { align-items:center; border-bottom:1px solid #eef4f7; }
+.account-characters > li { align-items:start; min-height:76px; border-bottom:1px solid #eef4f7; }
 .account-characters > li:last-child { border:0; }
 .account-person { display:flex; align-items:center; gap:10px; min-width:0; }
 .account-person > div { min-width:0; display:flex; flex-direction:column; gap:3px; }

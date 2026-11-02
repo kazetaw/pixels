@@ -102,3 +102,16 @@
   .floor-tile__product > div > span { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .floor-tile__bar i, .floor-map__cell { transition: none; } }
+
+/* Stable content rows keep timers and actions aligned across floor cards. */
+.floor-tile { border-radius:14px; padding:16px; }
+.floor-tile__product { min-height:76px; }
+.floor-tile__product b { min-height:2.7em; }
+.floor-tile__status { min-height:86px; }
+.floor-tile__img { grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(0,1fr); }
+@container (max-width:520px) {
+ .floor-tile { padding:10px; }
+ .floor-tile__product { align-items:center; text-align:center; min-height:94px; }
+ .floor-tile__product > div { width:100%; }
+ .floor-tile__status { min-height:76px; }
+}

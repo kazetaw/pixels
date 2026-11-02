@@ -1,0 +1,6 @@
+<!doctype html><html lang="th"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ตัวอย่างรูปสินค้าพร้อมขาย</title><style>body{margin:0;background:#e5edf2;font:16px Tahoma,sans-serif;text-align:center;color:#075985}nav{padding:16px}button{padding:8px 20px;margin:4px;cursor:pointer}canvas{width:min(88vw,700px);height:auto;display:block;margin:0 auto 24px}</style><nav>ตัวอย่างจากระบบส่งออกจริง · รูปสินค้าจากโปรเจกต์ · ราคาและจำนวนสมมติ<br><button data-count="4">4 สินค้า</button><button data-count="9">9 สินค้า</button><button data-count="16">16 สินค้า</button></nav><main></main><script type="module">
+import {renderStorePosters} from '/src/components/Store/storePoster.ts';
+const products=[{"name":"ก้อนโคลน","image":"/preview-products/product-1.png"}];
+async function render(n){const items=Array.from({length:n},(_,i)=>({...products[i%products.length],price:120+i*10,stock:12+i}));const pages=await renderStorePosters(items,{storeName:'ร้านตัวอย่าง',logo:'/avatars/store-duck.jpeg',title:'สินค้าพร้อมขาย',footer:'สนใจทักแชทได้เลย',unit:'กอง',showStock:true,perPage:n});document.querySelector('main').replaceChildren(...pages);}
+document.querySelectorAll('button').forEach(b=>b.onclick=()=>render(Number(b.dataset.count)));render(4);
+</script></html>
