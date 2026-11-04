@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 5173,
+    port: 9999,
     proxy: {
       '/api/withdrawals': {
         target: process.env.LOCAL_API_URL || 'http://localhost:3001',

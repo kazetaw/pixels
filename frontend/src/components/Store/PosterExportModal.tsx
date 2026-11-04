@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Checkbox, Input, Modal, Segmented, Spin, Switch, Empty } from 'antd';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Button, Checkbox, Input, Modal, Segmented, Spin, Empty, Divider } from 'antd';
 import { DownloadOutlined, InboxOutlined, SearchOutlined, ShareAltOutlined, ExpandOutlined } from '@ant-design/icons';
 import { toPngBlob } from './profileImage';
 import { renderStorePosters, type PosterItem, type PosterStyle } from './storePoster';
@@ -12,22 +12,199 @@ const toBlob = (c: HTMLCanvasElement) => new Promise<Blob>((resolve, reject) =>
 const money = (n: number) => `฿${new Intl.NumberFormat('th-TH', { maximumFractionDigits: 2 }).format(n)}`;
 
 const STYLE_OPTIONS: { value: PosterStyle; label: string }[] = [
-  { value: 'card',    label: 'การ์ด' },
-  { value: 'soft',    label: 'นุ่ม' },
+  { value: 'card', label: 'การ์ด' },
+  { value: 'soft', label: 'นุ่ม' },
   { value: 'minimal', label: 'มินิมอล' },
 ];
 
+// ── Design settings persisted to localStorage ──────────────────────
+type DesignSettings = {
+  footer: string;
+  perPage: 4 | 9 | 16;
+  posterStyle: PosterStyle;
+  showStock: boolean;
+  textAlign: 'left' | 'center' | 'right';
+  imgSize: 'xs' | 'small' | 'medium' | 'large';
+  imgPosition: 'top' | 'center' | 'bottom';
+  pillPosition: 'right' | 'left' | 'inline';
+  showBahtSymbol: boolean;
+  priceColor: string;
+  pillBg: string;
+  pillFg: string;
+  // 0 = auto from layout
+  nameFontSize: number;
+  priceFontSize: number;
+  stockFontSize: number;
+};
 
+const DESIGN_DEFAULTS: DesignSettings = {
+  footer: 'FB: เป็ด ก๊าบ กั๊บ ก๊าบบ',
+  perPage: 4,
+  posterStyle: 'card',
+  showStock: true,
+  textAlign: 'center',
+  imgSize: 'medium',
+  imgPosition: 'center',
+  pillPosition: 'right',
+  showBahtSymbol: true,
+  priceColor: '#0C1E33',
+  pillBg: '#FACC15',
+  pillFg: '#713F12',
+  nameFontSize: 0,
+  priceFontSize: 0,
+  stockFontSize: 0,
+};
+
+function loadDesign(key: string): DesignSettings {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return DESIGN_DEFAULTS;
+    return { ...DESIGN_DEFAULTS, ...JSON.parse(raw) as Partial<DesignSettings> };
+  } catch { return DESIGN_DEFAULTS; }
+}
+function saveDesign(key: string, d: DesignSettings) {
+  try { localStorage.setItem(key, JSON.stringify(d)); } catch { /* quota */ }
+}
+
+// ── Labelled control row ───────────────────────────────────────────
+function SettingRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="pe-row">
+      <span className="pe-row__label">{label}</span>
+      <div className="pe-row__ctrl">{children}</div>
+    </div>
+  );
+}
+
+// ── Checkbox toggle row (replaces Ant Switch) ──────────────────────
+function ToggleRow({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label className="pe-check-row">
+      <span>{label}</span>
+      <Checkbox checked={checked} onChange={e => onChange(e.target.checked)} />
+    </label>
+  );
+}
+
+// ── Font size row: − input + ↺ ────────────────────────────────────
+function FontSizeRow({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+  const isAuto = value === 0;
+  const [draft, setDraft] = useState(value === 0 ? '' : String(value));
+
+  useEffect(() => { setDraft(value === 0 ? '' : String(value)); }, [value]);
+
+  const clamp = (n: number) => Math.max(1, Math.min(120, n));
+
+  const commit = (raw: string) => {
+    const n = parseInt(raw, 10);
+    if (!raw.trim() || isNaN(n)) { onChange(0); setDraft(''); }
+    else { const c = clamp(n); onChange(c); setDraft(String(c)); }
+  };
+
+  const step = (dir: 1 | -1) => {
+    const cur = value || 20; // default starting point when auto
+    const next = clamp(cur + dir);
+    onChange(next); setDraft(String(next));
+  };
+
+  return (
+    <div className="pe-font-row">
+      <span className="pe-row__label">{label}</span>
+      <div className="pe-font-row__ctrl">
+        <button type="button" className="pe-font-step" onClick={() => step(-1)} disabled={value === 1}>−</button>
+        <input
+          type="number"
+          className="pe-font-input"
+          min={1} max={120}
+          value={draft}
+          placeholder="auto"
+          aria-label={`ขนาดฟ้อนต์ ${label}`}
+          onChange={e => setDraft(e.target.value)}
+          onBlur={e => commit(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') commit((e.target as HTMLInputElement).value); }}
+        />
+        <button type="button" className="pe-font-step" onClick={() => step(1)} disabled={value === 120}>+</button>
+        <span className="pe-font-row__unit">{isAuto ? 'auto' : 'px'}</span>
+        {!isAuto && (
+          <button type="button" className="pe-font-row__reset" title="คืนอัตโนมัติ"
+            onClick={() => { onChange(0); setDraft(''); }}>↺</button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Color swatch → native color picker + hex input ────────────────
+function ColorSwatch({ value, onChange, label }: { value: string; onChange: (v: string) => void; label: string }) {
+  const ref = useRef<HTMLInputElement>(null);
+  const [draft, setDraft] = useState(value);
+
+  // Keep draft in sync when value changes externally
+  useEffect(() => { setDraft(value); }, [value]);
+
+  const commit = (raw: string) => {
+    const hex = raw.trim();
+    // Accept shorthand (#abc → #aabbcc) or full 6-digit hex
+    const short = /^#?([0-9a-f]{3})$/i.exec(hex);
+    const full  = /^#?([0-9a-f]{6})$/i.exec(hex);
+    if (short) {
+      const expanded = '#' + [...short[1]].map(c => c + c).join('');
+      onChange(expanded); setDraft(expanded);
+    } else if (full) {
+      const canonical = '#' + full[1].toLowerCase();
+      onChange(canonical); setDraft(canonical);
+    } else {
+      // Revert draft to last valid value
+      setDraft(value);
+    }
+  };
+
+  return (
+    <div className="pe-color-field">
+      <button type="button" className="pe-color-swatch" title={label} aria-label={label}
+        style={{ background: value }} onClick={() => ref.current?.click()}>
+        <input ref={ref} type="color" value={value} onChange={e => { onChange(e.target.value); setDraft(e.target.value); }}
+          style={{ position: 'absolute', opacity: 0, width: 0, height: 0, pointerEvents: 'none' }} tabIndex={-1} />
+      </button>
+      <input
+        type="text"
+        className="pe-color-input"
+        value={draft}
+        aria-label={`${label} hex`}
+        spellCheck={false}
+        maxLength={7}
+        onChange={e => setDraft(e.target.value)}
+        onBlur={e => commit(e.target.value)}
+        onKeyDown={e => { if (e.key === 'Enter') commit((e.target as HTMLInputElement).value); }}
+      />
+    </div>
+  );
+}
+
+// ── bg + fg swatch pair ────────────────────────────────────────────
+function ColorPair({ bg, fg, onBg, onFg }: { bg: string; fg: string; onBg: (v: string) => void; onFg: (v: string) => void }) {
+  return (
+    <div className="pe-color-pair">
+      <ColorSwatch value={bg} onChange={onBg} label="สีพื้นหลัง" />
+      <span className="pe-color-pair__preview" style={{ background: bg, color: fg }}>ตย.</span>
+      <ColorSwatch value={fg} onChange={onFg} label="สีตัวอักษร" />
+    </div>
+  );
+}
+
+// ── Main modal ─────────────────────────────────────────────────────
 export function PosterExportModal({ open, onClose, items, storeName, storeId, unit }: Props) {
-  const storageKey = `store-poster-logo:${storeId}`;
+  const logoKey   = `store-poster-logo:${storeId}`;
+  const designKey = `store-poster-design:${storeId}`;
+
   const [exportLogo, setExportLogo] = useState('/avatars/store-duck.jpeg');
-  const [imageBusy, setImageBusy] = useState(false);
+  const [imageBusy, setImageBusy]   = useState(false);
   const [imageError, setImageError] = useState('');
 
   useEffect(() => {
-    try { setExportLogo(localStorage.getItem(storageKey) || '/avatars/store-duck.jpeg'); }
+    try { setExportLogo(localStorage.getItem(logoKey) || '/avatars/store-duck.jpeg'); }
     catch { setExportLogo('/avatars/store-duck.jpeg'); }
-  }, [storageKey]);
+  }, [logoKey]);
 
   const changeExportLogo = async (file?: File) => {
     if (!file) return;
@@ -45,35 +222,47 @@ export function PosterExportModal({ open, onClose, items, storeName, storeId, un
         reader.readAsDataURL(blob);
       });
       setExportLogo(data);
-      try { localStorage.setItem(storageKey, data); }
+      try { localStorage.setItem(logoKey, data); }
       catch { setImageError('ใช้รูปนี้ได้ในครั้งนี้ แต่บันทึกไว้ในเบราว์เซอร์ไม่ได้'); }
     } catch { setImageError('อ่านรูปไม่ได้ กรุณาเลือกรูปใหม่'); }
     finally { setImageBusy(false); }
   };
 
-  const [footer, setFooter] = useState('FB: เป็ด ก๊าบ กั๊บ ก๊าบบ');
-  const [perPage, setPerPage] = useState<4 | 9 | 16>(4);
+  // ── Design state ──────────────────────────────────────────────────
+  const [design, setDesignRaw] = useState<DesignSettings>(() => loadDesign(designKey));
+
+  const setDesign = (patch: Partial<DesignSettings>) => {
+    setDesignRaw(prev => {
+      const next = { ...prev, ...patch };
+      saveDesign(designKey, next);
+      return next;
+    });
+  };
+
+  const {
+    footer, perPage, posterStyle, showStock, textAlign, imgSize, imgPosition,
+    pillPosition, showBahtSymbol, priceColor, pillBg, pillFg,
+    nameFontSize, priceFontSize, stockFontSize,
+  } = design;
   const cols = Math.sqrt(perPage);
-  const [advanced, setAdvanced] = useState(false);
+
+  const resetLayout = () => { setDesignRaw(DESIGN_DEFAULTS); saveDesign(designKey, DESIGN_DEFAULTS); };
+
+  // ── Picker ────────────────────────────────────────────────────────
   const [generatedKey, setGeneratedKey] = useState('');
-  const [posterStyle, setPosterStyle] = useState<PosterStyle>('card');
-  const [showStock, setShowStock] = useState(true);
-  const [textAlign, setTextAlign] = useState<'left' | 'center' | 'right'>('center');
-  const [imgSize, setImgSize] = useState<'small' | 'medium' | 'large'>('medium');
-  const [imgPosition, setImgPosition] = useState<'top' | 'center' | 'bottom'>('center');
-  const [imgRatio, setImgRatio] = useState<'1:1' | '4:5' | '3:4'>('1:1');
-  const [pillPosition, setPillPosition] = useState<'right' | 'left' | 'inline'>('right');
-  const [showBahtSymbol, setShowBahtSymbol] = useState(true);
-  const [pages, setPages] = useState<Page[]>([]);
-  const [busy, setBusy]   = useState(false);
-  const [error, setError] = useState('');
-  const [query, setQuery] = useState('');
+  const [pages, setPages]   = useState<Page[]>([]);
+  const [busy, setBusy]     = useState(false);
+  const [error, setError]   = useState('');
+  const [query, setQuery]   = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [pickerOpen, setPickerOpen] = useState(true);
   const [previewIdx, setPreviewIdx] = useState<number | null>(null);
 
   useEffect(() => {
-    if (open) { setSelected(new Set(items.map(i => i.name))); setQuery(''); setPickerOpen(true); }
+    if (open) {
+      setSelected(new Set(items.map(i => i.name)));
+      setQuery('');
+      setDesignRaw(loadDesign(designKey));
+    }
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const chosen  = useMemo(() => items.filter(i => selected.has(i.name)), [items, selected]);
@@ -87,25 +276,32 @@ export function PosterExportModal({ open, onClose, items, storeName, storeId, un
   const toggle     = (name: string) => setSelected(prev => { const n = new Set(prev); n.has(name) ? n.delete(name) : n.add(name); return n; });
   const setVisible = (on: boolean)  => setSelected(prev => { const n = new Set(prev); visible.forEach(i => on ? n.add(i.name) : n.delete(i.name)); return n; });
 
-  const renderKey = JSON.stringify([chosen, storeName, exportLogo, footer, unit, showStock, perPage, posterStyle, textAlign, imgSize, imgPosition, imgRatio, pillPosition, showBahtSymbol]);
-  const resetLayout = () => {
-    setPerPage(4); setPosterStyle('card'); setShowStock(true); setTextAlign('center');
-    setImgSize('medium'); setImgPosition('center'); setImgRatio('1:1'); setPillPosition('right'); setShowBahtSymbol(true);
-  };
+  const renderKey = JSON.stringify([
+    chosen, storeName, exportLogo, footer, unit, showStock, perPage, posterStyle,
+    textAlign, imgSize, imgPosition, pillPosition, showBahtSymbol,
+    priceColor, pillBg, pillFg, nameFontSize, priceFontSize, stockFontSize,
+  ]);
+
   useEffect(() => {
     if (!open || !chosen.length) { setPages([]); setBusy(false); return; }
     setBusy(true); setError(''); setPreviewIdx(null);
     let cancelled = false;
     const created: string[] = [];
     const timer = window.setTimeout(async () => {
-      setBusy(true); setError('');
       try {
-        const canvases = await renderStorePosters(chosen, { storeName, logo: exportLogo, footer, unit, showStock, cols, perPage, style: posterStyle, textAlign, imgSize, imgPosition, imgRatio, pillPosition, showBahtSymbol });
+        const canvases = await renderStorePosters(chosen, {
+          storeName, logo: exportLogo, footer, unit, showStock, cols, perPage,
+          style: posterStyle, textAlign, imgSize, imgPosition, pillPosition,
+          showBahtSymbol, priceColor, pillBg, pillFg,
+          nameFontSize: nameFontSize || undefined,
+          priceFontSize: priceFontSize || undefined,
+          stockFontSize: stockFontSize || undefined,
+        });
         const next: Page[] = [];
         for (const c of canvases) {
           const blob = await toBlob(c);
           if (cancelled) break;
-          const url  = URL.createObjectURL(blob);
+          const url = URL.createObjectURL(blob);
           created.push(url);
           next.push({ url, blob });
         }
@@ -115,10 +311,11 @@ export function PosterExportModal({ open, onClose, items, storeName, storeId, un
       } finally { if (!cancelled) setBusy(false); }
     }, 300);
     return () => { cancelled = true; clearTimeout(timer); created.forEach(u => URL.revokeObjectURL(u)); };
-  }, [open, chosen, storeName, exportLogo, footer, unit, showStock, cols, posterStyle, textAlign, imgSize, imgPosition, imgRatio, pillPosition, showBahtSymbol, perPage, renderKey]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, renderKey]);
 
-  const fileName   = (i: number) => `${storeName || 'store'}-พร้อมขาย${pages.length > 1 ? `-${i + 1}` : ''}.png`;
-  const download   = (i: number) => { if (!ready || !pages[i]) return; const a = document.createElement('a'); a.href = pages[i].url; a.download = fileName(i); a.click(); };
+  const fileName    = (i: number) => `${storeName || 'store'}-พร้อมขาย${pages.length > 1 ? `-${i + 1}` : ''}.png`;
+  const download    = (i: number) => { if (!ready || !pages[i]) return; const a = document.createElement('a'); a.href = pages[i].url; a.download = fileName(i); a.click(); };
   const downloadAll = async () => { for (let i = 0; i < pages.length; i++) { download(i); await new Promise(r => setTimeout(r, 300)); } };
   const files    = pages.map((p, i) => new File([p.blob], fileName(i), { type: 'image/png' }));
   const canShare = typeof navigator !== 'undefined' && !!navigator.canShare && files.length > 0 && navigator.canShare({ files });
@@ -130,16 +327,18 @@ export function PosterExportModal({ open, onClose, items, storeName, storeId, un
       open={open}
       onCancel={onClose}
       title="ส่งออกรูปสินค้าพร้อมขาย"
-      width="92vw"
-      style={{ top: 24, maxWidth: 1200 }}
+      width="min(96vw, 1120px)"
+      style={{ top: 16 }}
       className="shop-poster-modal"
-      styles={{ body: { overflowY: 'auto', maxHeight: 'calc(90vh - 110px)', padding: '4px 24px 8px' } }}
+      styles={{ body: { padding: '0 0 4px', overflow: 'hidden' } }}
       footer={
-        <div className="shop-poster__footer">
+        <div className="pe-footer">
           <span className="shop-muted">
-            {chosen.length ? `เลือก ${chosen.length} รายการ · ${Math.ceil(chosen.length / perPage)} รูป` : 'ยังไม่ได้เลือกสินค้า'}
+            {chosen.length
+              ? `เลือก ${chosen.length} รายการ · ${Math.ceil(chosen.length / perPage)} รูป`
+              : 'ยังไม่ได้เลือกสินค้า'}
           </span>
-          <div>
+          <div style={{ display: 'flex', gap: 8 }}>
             {canShare && <Button icon={<ShareAltOutlined />} disabled={!ready} onClick={() => void share()}>แชร์</Button>}
             <Button type="primary" icon={<DownloadOutlined />} disabled={!ready} onClick={() => void downloadAll()}>
               {busy || generatedKey !== renderKey ? 'กำลังสร้างภาพ…' : `ดาวน์โหลด ${pages.length} รูป`}
@@ -148,197 +347,173 @@ export function PosterExportModal({ open, onClose, items, storeName, storeId, un
         </div>
       }
     >
-      <div className="pm-wrap">
+      <div className="pe-layout">
 
-        {/* ── Row 1: settings bar ───────────────────────────── */}
-        <div className="pm-settings">
-          {/* logo */}
-          <div className="pm-logo-row">
-            <img className="pm-logo-img" src={exportLogo} alt="โลโก้" />
-            <label className="pm-logo-label">
-              <span>รูปสำหรับโพสต์</span><small>แยกจากโปรไฟล์ร้าน · จำไว้ในเบราว์เซอร์นี้</small>
+        {/* ── Col 1: picker ───────────────────────────────────── */}
+        <div className="pe-picker">
+          <div className="pe-picker__head">
+            <strong>สินค้า</strong>
+            <span className="shop-muted" style={{ fontSize: 12 }}>{chosen.length}/{items.length}</span>
+          </div>
+          <Input prefix={<SearchOutlined />} placeholder="ค้นหา" allowClear size="small"
+            value={query} onChange={e => setQuery(e.target.value)} style={{ margin: '6px 0' }} />
+          <div className="pe-picker__bulk">
+            <Checkbox checked={allVisibleOn} indeterminate={!allVisibleOn && someVisibleOn}
+              disabled={!visible.length} onChange={e => setVisible(e.target.checked)}>
+              {query ? 'ทั้งหมดที่ค้นเจอ' : 'เลือกทั้งหมด'}
+            </Checkbox>
+            {selected.size > 0 && <Button size="small" type="link" onClick={() => setSelected(new Set())}>ล้าง</Button>}
+          </div>
+          <ul className="pe-picker__list">
+            {visible.map(item => {
+              const on = selected.has(item.name);
+              return (
+                <li key={item.name} className={`pe-picker__row${on ? ' is-on' : ''}`} onClick={() => toggle(item.name)}>
+                  <Checkbox aria-label={item.name} checked={on} onClick={e => e.stopPropagation()} onChange={() => toggle(item.name)} />
+                  <span className="pe-picker__thumb">
+                    {item.image ? <img src={item.image} alt="" loading="lazy" /> : <InboxOutlined />}
+                  </span>
+                  <span className="pe-picker__meta">
+                    <span>{item.name}</span>
+                    <small>{money(item.price)} · {item.stock.toLocaleString('th-TH')} {unit}</small>
+                  </span>
+                </li>
+              );
+            })}
+            {!visible.length && <li className="pe-picker__empty">ไม่พบสินค้า</li>}
+          </ul>
+        </div>
+
+        {/* ── Col 2: settings ──────────────────────────────────── */}
+        <div className="pe-settings">
+
+          {/* Logo */}
+          <div className="pe-logo">
+            <label className="pe-logo__upload">
+              <img src={exportLogo} alt="โลโก้" className="pe-logo__img" />
+              <div className="pe-logo__overlay">{imageBusy ? '…' : '✎'}</div>
               <input type="file" accept="image/jpeg,image/png,image/webp" disabled={imageBusy}
                 onChange={e => { void changeExportLogo(e.target.files?.[0]); e.target.value = ''; }} />
             </label>
+            <div className="pe-logo__info">
+              <span>รูปโลโก้</span>
+              <small className="shop-muted">แยกจากโปรไฟล์ร้าน</small>
+            </div>
           </div>
+          {imageError && <Alert type="warning" showIcon message={imageError} style={{ fontSize: 12 }} />}
 
-          <div className="pm-divider" />
+          <Divider style={{ margin: '6px 0' }} />
 
-          <div className="pm-field">
-            <span className="pm-label">สินค้าต่อภาพ</span>
-            <Segmented aria-label="สินค้าต่อภาพ" value={perPage} onChange={v => setPerPage(Number(v) as 4 | 9 | 16)} options={[4, 9, 16]} />
-          </div>
-          <div className="pm-field pm-field--footer">
-            <label htmlFor="poster-footer">ข้อความติดต่อ</label>
-            <Input id="poster-footer" value={footer} onChange={e => setFooter(e.target.value)} maxLength={60} />
-          </div>
-          <Button aria-expanded={advanced} onClick={() => setAdvanced(v => !v)}>ปรับแต่งเพิ่มเติม</Button>
-        </div>
-        {advanced && <div className="pm-settings pm-advanced">
-          <Button onClick={resetLayout}>คืนค่าเริ่มต้น</Button>
-          {/* style */}
-          <div className="pm-field">
-            <span className="pm-label">สไตล์</span>
-            <Segmented aria-label="สไตล์ภาพ" value={posterStyle} onChange={v => setPosterStyle(v as PosterStyle)} options={STYLE_OPTIONS} size="small" />
-          </div>
+          <SettingRow label="ข้อความติดต่อ">
+            <Input value={footer} onChange={e => setDesign({ footer: e.target.value })}
+              maxLength={60} size="small" placeholder="เช่น FB: ชื่อเพจ" />
+          </SettingRow>
 
-          <div className="pm-divider" />
+          <SettingRow label="สินค้าต่อรูป">
+            <Segmented value={perPage} onChange={v => setDesign({ perPage: Number(v) as 4 | 9 | 16 })}
+              options={[{ value: 4, label: '4' }, { value: 9, label: '9' }, { value: 16, label: '16' }]} size="small" />
+          </SettingRow>
 
-          {/* stock toggle */}
-          <div className="pm-field pm-field--inline">
-            <span className="pm-label">คงเหลือ</span>
-            <Switch aria-label="แสดงจำนวนคงเหลือ" size="small" checked={showStock} onChange={setShowStock} />
-          </div>
+          <SettingRow label="สไตล์">
+            <Segmented value={posterStyle} onChange={v => setDesign({ posterStyle: v as PosterStyle })}
+              options={STYLE_OPTIONS} size="small" />
+          </SettingRow>
 
-          <div className="pm-divider" />
+          <Divider style={{ margin: '6px 0' }} />
 
-          {/* text align */}
-          <div className="pm-field">
-            <span className="pm-label">ตำแหน่งข้อความ</span>
-            <Segmented aria-label="ตำแหน่งข้อความ" size="small" value={textAlign} onChange={v => setTextAlign(v as typeof textAlign)}
+          <SettingRow label="ตำแหน่งข้อความ">
+            <Segmented size="small" value={textAlign} onChange={v => setDesign({ textAlign: v as typeof textAlign })}
               options={[{ value: 'left', label: 'ซ้าย' }, { value: 'center', label: 'กลาง' }, { value: 'right', label: 'ขวา' }]} />
-          </div>
+          </SettingRow>
 
-          <div className="pm-divider" />
+          <SettingRow label="ขนาดรูปสินค้า">
+            <Segmented size="small" value={imgSize} onChange={v => setDesign({ imgSize: v as typeof imgSize })}
+              options={[{ value: 'xs', label: 'XS' }, { value: 'small', label: 'S' }, { value: 'medium', label: 'M' }, { value: 'large', label: 'L' }]} />
+          </SettingRow>
 
-          {/* image size */}
-          <div className="pm-field">
-            <span className="pm-label">ขนาดรูป</span>
-            <Segmented aria-label="ขนาดรูป" size="small" value={imgSize} onChange={v => setImgSize(v as typeof imgSize)}
-              options={[{ value: 'small', label: 'S' }, { value: 'medium', label: 'M' }, { value: 'large', label: 'L' }]} />
-          </div>
-
-          <div className="pm-divider" />
-
-          {/* image ratio */}
-          <div className="pm-field">
-            <span className="pm-label">สัดส่วนกรอบรูป</span>
-            <Segmented aria-label="สัดส่วนรูป" size="small" value={imgRatio} onChange={v => setImgRatio(v as typeof imgRatio)}
-              options={[{ value: '1:1', label: '1:1' }, { value: '4:5', label: '4:5' }, { value: '3:4', label: '3:4' }]} />
-          </div>
-
-          <div className="pm-divider" />
-
-          {/* image position */}
-          <div className="pm-field">
-            <span className="pm-label">ตำแหน่งรูป</span>
-            <Segmented aria-label="ตำแหน่งรูป" size="small" value={imgPosition} onChange={v => setImgPosition(v as typeof imgPosition)}
+          <SettingRow label="ตำแหน่งรูป">
+            <Segmented size="small" value={imgPosition} onChange={v => setDesign({ imgPosition: v as typeof imgPosition })}
               options={[{ value: 'top', label: 'บน' }, { value: 'center', label: 'กลาง' }, { value: 'bottom', label: 'ล่าง' }]} />
-          </div>
+          </SettingRow>
 
-          <div className="pm-divider" />
-
-          {/* pill position */}
-          <div className="pm-field">
-            <span className="pm-label">แท็กกอง</span>
-            <Segmented aria-label="ตำแหน่งจำนวน" size="small" value={pillPosition} onChange={v => setPillPosition(v as typeof pillPosition)}
+          <SettingRow label="แท็กกอง">
+            <Segmented size="small" value={pillPosition} onChange={v => setDesign({ pillPosition: v as typeof pillPosition })}
               options={[{ value: 'left', label: 'ซ้าย' }, { value: 'right', label: 'ขวา' }, { value: 'inline', label: 'ข้างราคา' }]} />
+          </SettingRow>
+
+          <Divider style={{ margin: '6px 0' }} />
+
+          {/* Font sizes — hidden until rendering bug is fixed */}
+          {/* <FontSizeRow label="ชื่อสินค้า" value={nameFontSize}  onChange={v => setDesign({ nameFontSize: v })} />
+          <FontSizeRow label="ราคา"       value={priceFontSize} onChange={v => setDesign({ priceFontSize: v })} />
+          <FontSizeRow label="จำนวนกอง"   value={stockFontSize} onChange={v => setDesign({ stockFontSize: v })} />
+          <Divider style={{ margin: '6px 0' }} /> */}
+
+          {/* Colors */}
+          <SettingRow label="สีราคา">
+            <div className="pe-color-single">
+              <ColorSwatch value={priceColor} onChange={v => setDesign({ priceColor: v })} label="สีตัวเลขราคา" />
+              <span className="pe-color-preview" style={{ color: priceColor }}>฿999</span>
+            </div>
+          </SettingRow>
+
+          <SettingRow label="สีแท็กกอง">
+            <ColorPair bg={pillBg} fg={pillFg}
+              onBg={v => setDesign({ pillBg: v })}
+              onFg={v => setDesign({ pillFg: v })} />
+          </SettingRow>
+
+          <Divider style={{ margin: '6px 0' }} />
+
+          {/* Checkboxes — no more giant switch */}
+          <div className="pe-checks">
+            <ToggleRow label="แสดงจำนวนคงเหลือ" checked={showStock}      onChange={v => setDesign({ showStock: v })} />
+            <ToggleRow label="แสดงสัญลักษณ์ ฿"  checked={showBahtSymbol} onChange={v => setDesign({ showBahtSymbol: v })} />
           </div>
 
-          <div className="pm-divider" />
-
-          {/* baht symbol */}
-          <div className="pm-field pm-field--inline">
-            <span className="pm-label">แสดง ฿</span>
-            <Switch aria-label="แสดงสัญลักษณ์บาท" size="small" checked={showBahtSymbol} onChange={setShowBahtSymbol} />
-          </div>
-
-          <div className="pm-divider" />
-
-        </div>}
-        <p className="shop-muted" role="status" aria-live="polite">{busy ? 'กำลังสร้างภาพ…' : '1080 × 1350 px · แบ่งหลายภาพอัตโนมัติ'}</p>
-
-        {imageError && <Alert type="warning" showIcon message={imageError} style={{ marginBottom: 8 }} />}
-
-        {/* ── Row 2: picker (collapsible) + preview side-by-side ── */}
-        <div className="pm-body">
-
-          {/* picker panel */}
-          <div className={`pm-picker${pickerOpen ? '' : ' pm-picker--closed'}`}>
-            <button type="button" aria-expanded={pickerOpen} className="pm-picker__head" onClick={() => setPickerOpen(v => !v)}>
-              <strong>สินค้า</strong>
-              <span className="shop-muted">{chosen.length}/{items.length}</span>
-              <span className="pm-chevron">{pickerOpen ? '▲' : '▼'}</span>
-            </button>
-            {pickerOpen && <>
-              <Input prefix={<SearchOutlined />} placeholder="ค้นหา" allowClear size="small"
-                value={query} onChange={e => setQuery(e.target.value)} style={{ margin: '6px 0' }} />
-              <div className="pm-picker__bulk">
-                <Checkbox checked={allVisibleOn} indeterminate={!allVisibleOn && someVisibleOn}
-                  disabled={!visible.length} onChange={e => setVisible(e.target.checked)}>
-                  {query ? 'เลือกทั้งหมดที่ค้นเจอ' : 'เลือกทั้งหมด'}
-                </Checkbox>
-                {selected.size > 0 && <Button size="small" type="link" onClick={() => setSelected(new Set())}>ล้าง</Button>}
-              </div>
-              <ul className="pm-picker__list">
-                {visible.map(item => {
-                  const on = selected.has(item.name);
-                  return (
-                    <li key={item.name}
-                      className={`pm-picker__row${on ? ' is-on' : ''}`}
-                      onClick={() => toggle(item.name)}>
-                      <Checkbox aria-label={item.name} checked={on} onClick={e => e.stopPropagation()} onChange={() => toggle(item.name)} />
-                      <span className="pm-picker__thumb">
-                        {item.image ? <img src={item.image} alt="" loading="lazy" /> : <InboxOutlined />}
-                      </span>
-                      <span className="pm-picker__meta">
-                        <span>{item.name}</span>
-                        <small>{money(item.price)} · {item.stock.toLocaleString('th-TH')} {unit}</small>
-                      </span>
-                    </li>
-                  );
-                })}
-                {!visible.length && <li className="pm-picker__empty">ไม่พบสินค้า</li>}
-              </ul>
-            </>}
-          </div>
-
-          {/* preview panel */}
-          <div className="pm-preview">
-            {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 8 }} />}
-            {!chosen.length
-              ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="เลือกสินค้าทางซ้ายอย่างน้อย 1 รายการ" style={{ padding: '48px 0' }} />
-              : busy && !pages.length
-                ? <div className="shop-center"><Spin /></div>
-                : <div className={`pm-preview__pages${busy ? ' is-busy' : ''}`}>
-                    {pages.map((p, i) => (
-                      <figure key={p.url} className="pm-preview__figure">
-                        <div className="pm-preview__img-wrap">
-                          <img src={p.url} alt={`รูปที่ ${i + 1}`} />
-                          <button
-                            className="pm-preview__expand"
-                            onClick={() => setPreviewIdx(i)}
-                            aria-label="ดูขนาดเต็ม"
-                          >
-                            <ExpandOutlined />
-                          </button>
-                        </div>
-                        <figcaption>
-                          <span className="shop-muted" style={{ fontSize: 12 }}>รูปที่ {i + 1}</span>
-                          <div style={{ display: 'flex', gap: 4 }}>
-                            <Button size="small" icon={<ExpandOutlined />} onClick={() => setPreviewIdx(i)}>ดู</Button>
-                            <Button disabled={!ready} size="small" type="primary" icon={<DownloadOutlined />} onClick={() => download(i)}>บันทึก</Button>
-                          </div>
-                        </figcaption>
-                      </figure>
-                    ))}
-                  </div>}
-          </div>
-
+          <Button size="small" onClick={resetLayout} style={{ marginTop: 8, width: '100%' }}>คืนค่าเริ่มต้น</Button>
+          <p className="pe-note shop-muted">1080 × 1350 px · บันทึกอัตโนมัติ</p>
         </div>
+
+        {/* ── Col 3: preview ───────────────────────────────────── */}
+        <div className="pe-preview">
+          {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 8 }} />}
+          {!chosen.length
+            ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="เลือกสินค้าทางซ้ายอย่างน้อย 1 รายการ" style={{ padding: '48px 0' }} />
+            : busy && !pages.length
+              ? <div className="shop-center"><Spin /></div>
+              : <div className={`pe-pages${busy ? ' is-busy' : ''}`}>
+                  {pages.map((p, i) => (
+                    <figure key={p.url} className="pe-page-fig">
+                      <div className="pe-page-img">
+                        <img src={p.url} alt={`รูปที่ ${i + 1}`} />
+                        <button className="pe-page-expand" onClick={() => setPreviewIdx(i)} aria-label="ดูขนาดเต็ม">
+                          <ExpandOutlined />
+                        </button>
+                      </div>
+                      <figcaption className="pe-page-cap">
+                        <span className="shop-muted" style={{ fontSize: 11 }}>รูปที่ {i + 1}</span>
+                        <Button disabled={!ready} size="small" type="primary" icon={<DownloadOutlined />} onClick={() => download(i)}>บันทึก</Button>
+                      </figcaption>
+                    </figure>
+                  ))}
+                </div>}
+        </div>
+
       </div>
 
-      {/* Full-size preview modal */}
+      {/* Full-size preview */}
       <Modal
         open={previewIdx !== null}
         onCancel={() => setPreviewIdx(null)}
         footer={previewIdx !== null ? (
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
             {canShare && <Button icon={<ShareAltOutlined />} onClick={() => void share()}>แชร์</Button>}
-            <Button disabled={!ready} type="primary" icon={<DownloadOutlined />} onClick={() => { if (previewIdx !== null) download(previewIdx); }}>บันทึกรูป</Button>
+            <Button disabled={!ready} type="primary" icon={<DownloadOutlined />}
+              onClick={() => { if (previewIdx !== null) download(previewIdx); }}>บันทึกรูป</Button>
           </div>
         ) : null}
-        width="min(90vw, 800px)"
+        width="min(90vw, 720px)"
         style={{ top: 16 }}
         title={previewIdx !== null && pages.length > 1 ? `รูปที่ ${previewIdx + 1}` : 'พรีวิวรูป'}
         styles={{ body: { padding: 0, overflow: 'hidden', borderRadius: 8 } }}

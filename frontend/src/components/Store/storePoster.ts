@@ -13,8 +13,8 @@ export type PosterOptions = {
   style?: PosterStyle;
   // Layout customization
   textAlign?: 'left' | 'center' | 'right';
-  imgSize?: 'small' | 'medium' | 'large';   // 60% / 75% / 90% of cell
-  imgRatio?: '1:1' | '4:5' | '3:4';  // image zone aspect ratio — square / portrait / tall
+  imgSize?: 'xs' | 'small' | 'medium' | 'large';
+  imgRatio?: '1:1' | '4:5' | '3:4';
   priceDecimal?: 0 | 2;
   pillPosition?: 'right' | 'left' | 'inline';
   showBahtSymbol?: boolean;
@@ -24,6 +24,13 @@ export type PosterOptions = {
   priceColor?: string;
   cardColor?: string;       // card fill
   cardStroke?: string;      // card border color
+  // Stock pill custom colors
+  pillBg?: string;          // pill background, default #FACC15
+  pillFg?: string;          // pill text color, default #713F12
+  // Per-field font size override (0 = auto from layout)
+  nameFontSize?: number;    // 1–40
+  priceFontSize?: number;   // 1–40
+  stockFontSize?: number;   // 1–40
 };
 
 export type PosterStyle = 'card' | 'soft' | 'minimal';
@@ -64,16 +71,6 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, width: number, maxLin
   return lines.map(l => { let s = l; while (s.length > 1 && ctx.measureText(s).width > width) s = s.slice(0, -2) + '…'; return s; });
 }
 
-function drawContain(ctx: CanvasRenderingContext2D, img: HTMLImageElement, x: number, y: number, size: number) {
-  const scale = Math.min(1, size / img.width, size / img.height);
-  const w = img.width * scale, h = img.height * scale;
-  ctx.save();
-  ctx.imageSmoothingEnabled = scale < 2;
-  ctx.imageSmoothingQuality = 'high';
-  // Center both axes
-  ctx.drawImage(img, x + (size - w) / 2, y + (size - h) / 2, w, h);
-  ctx.restore();
-}
 
 type Theme = {
   bg: (ctx: CanvasRenderingContext2D, w: number, h: number) => void;
@@ -105,26 +102,45 @@ const THEMES: Record<PosterStyle, Theme> = {
 
 export async function renderStorePosters(items: PosterItem[], opts: PosterOptions): Promise<HTMLCanvasElement[]> {
   if (!items.length) throw new Error('ไม่มีสินค้าพร้อมขายให้ส่งออก');
-  await document.fonts?.ready;
+  // Load fonts and all images in parallel — don't await serially
   const urls = [...new Set(items.map(i => i.image).filter((u): u is string => !!u))];
-  const images = new Map(await Promise.all(urls.map(async u => [u, await loadImage(u)] as const)));
+  const [, ...loadedImgs] = await Promise.all([
+    document.fonts?.ready,
+    ...urls.map(u => loadImage(u)),
+  ]);
+  const images = new Map(urls.map((u, i) => [u, loadedImgs[i] as HTMLImageElement | null]));
   const logo = await loadImage(opts.logo || '/avatars/store-duck.jpeg');
   const theme = THEMES[opts.style ?? 'card'];
   const perPage = opts.perPage ?? 4;
   const cols = Math.max(1, Math.min(Math.sqrt(perPage), Math.floor(opts.cols) || 2));
   const rows = Math.ceil(perPage / cols);
-  const W = 1080, H = 1350, pad = 48, gap = 24, headH = 128, gridTop = 168;
+  const W = 1080, H = 1350, pad = 32, gap = 16, headH = 128, gridTop = 160;
   const rowH = (H - gridTop - 96 - gap * (rows - 1)) / rows;
   const columnW = (W - pad * 2 - gap * (cols - 1)) / cols;
   const scale = Math.max(0.6, Math.min(1.6, opts.fontScale ?? 1));
-  const nameF = Math.round((cols === 2 ? 32 : cols === 3 ? 26 : 22) * scale);
-  const priceF = Math.round((cols === 2 ? 48 : cols === 3 ? 36 : 28) * scale);
-  const stockF = Math.round((cols === 2 ? 28 : 22) * scale);
-  const infoH = nameF * 2.7 + priceF * 1.3 + 32;
-  const ratio = opts.imgRatio === '4:5' ? 1.25 : opts.imgRatio === '3:4' ? 4 / 3 : 1;
-  const cardW = Math.min(columnW, Math.max(48, (rowH - infoH) / ratio));
-  const imageH = cardW * ratio;
-  const cardH = imageH + infoH;
+  // Card = full column width × full row height.
+  const cardW = columnW;
+  const cardH = rowH;
+
+  // Font sizes drive the card split — compute them first.
+  // Auto sizes assume 38% text zone as baseline.
+  const _autoInfoH = Math.round(cardH * 0.38);
+  const autoNameF  = Math.min(Math.max(14, Math.round(_autoInfoH * 0.22 * scale)), cols === 2 ? 36 : cols === 3 ? 30 : 24);
+  const autoPriceF = Math.min(Math.round(_autoInfoH * 0.30 * scale), cols === 2 ? 52 : cols === 3 ? 40 : 32);
+  const autoStockF = Math.round(autoPriceF * 0.62);
+
+  const nameF  = opts.nameFontSize  ? Math.max(1, Math.min(120, opts.nameFontSize))  : autoNameF;
+  const priceF = opts.priceFontSize ? Math.max(1, Math.min(120, opts.priceFontSize)) : autoPriceF;
+  const stockF = opts.stockFontSize ? Math.max(1, Math.min(120, opts.stockFontSize)) : autoStockF;
+
+  // Measure the actual text block height and split card accordingly.
+  // infoH = text block + 24px breathing room, minimum 28% of card height.
+  const _nameBlockH = 2 * nameF * 1.3;  // 2 lines max
+  const _sh         = opts.showStock ? stockF + 16 : 0;
+  const _priceRowH  = Math.max(priceF * 1.2, _sh);
+  const _textBlockH = _nameBlockH + 10 + _priceRowH;
+  const infoH  = Math.max(_textBlockH + 24, Math.round(cardH * 0.28));
+  const imageH = cardH - infoH;
   const pageCount = Math.ceil(items.length / perPage);
   return Array.from({ length: pageCount }, (_, pageIndex) => {
     const canvas = document.createElement('canvas'); canvas.width = W; canvas.height = H;
@@ -152,7 +168,7 @@ export async function renderStorePosters(items: PosterItem[], opts: PosterOption
     const page = items.slice(pageIndex * perPage, (pageIndex + 1) * perPage);
     page.forEach((item, i) => {
       const row = Math.floor(i / cols), col = i % cols;
-      const x = pad + col * (columnW + gap) + (columnW - cardW) / 2;
+      const x = pad + col * (cardW + gap);
       const y = gridTop + row * (rowH + gap);
       const radius = Math.min(16, cardW * .08);
       ctx.fillStyle = opts.cardColor ?? theme.card?.fill ?? '#fff';
@@ -161,24 +177,34 @@ export async function renderStorePosters(items: PosterItem[], opts: PosterOption
       ctx.stroke();
       const image = item.image ? images.get(item.image) : null;
       if (image) {
-        const inset = Math.min(cardW, imageH) * (opts.imgSize === 'small' ? .25 : opts.imgSize === 'large' ? .08 : .15);
-        const size = Math.min(cardW, imageH) - inset * 2;
-        const iy = opts.imgPosition === 'top' ? y + inset : opts.imgPosition === 'bottom' ? y + imageH - inset - size : y + (imageH - size) / 2;
-        drawContain(ctx, image, x + (cardW - size) / 2, iy, size);
+        // inset: fraction of the shorter edge so the image has breathing room inside the card
+        const insetFrac = opts.imgSize === 'xs' ? 0.22 : opts.imgSize === 'small' ? 0.14 : opts.imgSize === 'large' ? 0.03 : 0.07;
+        const insetX = cardW * insetFrac;
+        const insetY = imageH * insetFrac;
+        const zoneW = cardW - insetX * 2;
+        const zoneH = imageH - insetY * 2;
+        // Contain the image inside the zone (like CSS object-fit: contain)
+        const imgScale = Math.min(zoneW / image.width, zoneH / image.height);
+        const dw = image.width * imgScale, dh = image.height * imgScale;
+        const dx = x + (cardW - dw) / 2;
+        const dyBase = y + insetY + (zoneH - dh) / 2;
+        const dy = opts.imgPosition === 'top' ? y + insetY : opts.imgPosition === 'bottom' ? y + imageH - insetY - dh : dyBase;
+        ctx.save();
+        ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(image, dx, dy, dw, dh);
+        ctx.restore();
       }
       const inner = Math.min(16, cardW * .06), width = cardW - inner * 2;
       ctx.font = `600 ${nameF}px ${FONT}`;
       let actualNameF = nameF;
-      // Shrink long names before wrapping, preserving the full product name.
-      while (actualNameF > 12 && ctx.measureText(item.name).width > width * 1.75) {
-        actualNameF--; ctx.font = `600 ${actualNameF}px ${FONT}`;
+      // Only auto-shrink when font size is in auto mode (no manual override)
+      if (!opts.nameFontSize) {
+        while (actualNameF > 12 && ctx.measureText(item.name).width > width * 1.75) {
+          actualNameF--; ctx.font = `600 ${actualNameF}px ${FONT}`;
+        }
       }
       const lines = wrap(ctx, item.name, width, 2);
-      ctx.fillStyle = opts.nameColor ?? theme.name;
-      const align = opts.textAlign ?? 'center'; ctx.textAlign = align; ctx.textBaseline = 'top';
-      const tx = align === 'left' ? x + inner : align === 'right' ? x + cardW - inner : x + cardW / 2;
-      lines.forEach((line, j) => ctx.fillText(line, tx, y + imageH + 8 + j * actualNameF * 1.35, width));
-      const baseline = y + cardH - 16 - priceF * .65;
+      // Pre-calculate pill height so priceRowH can accommodate it
       const label = `${num(item.stock)} ${opts.unit}`;
       const pillLeft = opts.pillPosition === 'left';
       const stockWidth = opts.showStock ? width * .44 : 0;
@@ -186,19 +212,47 @@ export async function renderStorePosters(items: PosterItem[], opts: PosterOption
       let pf = priceF;
       const text = `${opts.showBahtSymbol === false ? '' : '฿'}${new Intl.NumberFormat('th-TH', { minimumFractionDigits: opts.priceDecimal ?? 0, maximumFractionDigits: opts.priceDecimal ?? 2 }).format(item.price)}`;
       ctx.font = `700 ${pf}px ${FONT}`;
-      while (pf > 12 && ctx.measureText(text).width > priceWidth) { pf--; ctx.font = `700 ${pf}px ${FONT}`; }
-      ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillStyle = opts.priceColor ?? theme.price;
+      // Only auto-shrink price when not manually overridden
+      if (!opts.priceFontSize) {
+        while (pf > 12 && ctx.measureText(text).width > priceWidth) { pf--; ctx.font = `700 ${pf}px ${FONT}`; }
+      }
+      let sf = opts.showStock ? (opts.stockFontSize ? stockF : Math.min(stockF, pf * .78)) : 0;
+      if (opts.showStock && !opts.stockFontSize) {
+        ctx.font = `700 ${sf}px ${FONT}`;
+        while (sf > 10 && ctx.measureText(label).width + 16 > stockWidth) { sf--; ctx.font = `700 ${sf}px ${FONT}`; }
+      }
+      const sh = opts.showStock ? sf + 16 : 0;
+      // Row height must fit both price text and pill
+      const priceRowH = Math.max(pf * 1.2, sh);
+      const nameBlockH = lines.length * actualNameF * 1.3;
+      const textBlockH = nameBlockH + 10 + priceRowH;
+      // Clamp: if text block exceeds infoH, center it anyway (content overflows visibly)
+      const textTop = y + imageH + Math.max(0, (infoH - textBlockH) / 2);
+      ctx.fillStyle = opts.nameColor ?? theme.name;
+      const align = opts.textAlign ?? 'center'; ctx.textAlign = align; ctx.textBaseline = 'top';
+      const tx = align === 'left' ? x + inner : align === 'right' ? x + cardW - inner : x + cardW / 2;
+      lines.forEach((line, j) => ctx.fillText(line, tx, textTop + j * actualNameF * 1.3, width));
+      // Baseline = vertical center of price row
+      const baseline = textTop + nameBlockH + 10 + priceRowH / 2;
       const px = x + inner + (pillLeft && opts.showStock ? stockWidth + 8 : 0);
+      ctx.font = `700 ${pf}px ${FONT}`;
+      ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillStyle = opts.priceColor ?? theme.price;
       ctx.fillText(text, px, baseline, priceWidth);
       const measuredPriceWidth = ctx.measureText(text).width;
       if (opts.showStock) {
-        let sf = Math.min(stockF, pf * .78); ctx.font = `700 ${sf}px ${FONT}`;
-        while (sf > 10 && ctx.measureText(label).width + 16 > stockWidth) { sf--; ctx.font = `700 ${sf}px ${FONT}`; }
-        const sw = Math.min(stockWidth, ctx.measureText(label).width + 16), sh = sf + 16;
+        ctx.font = `700 ${sf}px ${FONT}`;
+        const sw = Math.min(stockWidth, ctx.measureText(label).width + 16);
         const sx = pillLeft ? x + inner : opts.pillPosition === 'inline' ? px + Math.min(priceWidth, measuredPriceWidth) + 8 : x + cardW - inner - sw;
-        ctx.fillStyle = '#FACC15'; ctx.beginPath(); ctx.roundRect(Math.min(sx, x + cardW - inner - sw), baseline - sh / 2, sw, sh, sh / 2); ctx.fill();
-        ctx.textAlign = 'center'; ctx.fillStyle = '#713F12';
-        ctx.fillText(label, Math.min(sx, x + cardW - inner - sw) + sw / 2, baseline, sw - 12);
+        const pillX = Math.min(sx, x + cardW - inner - sw);
+        ctx.fillStyle = opts.pillBg ?? '#FACC15';
+        ctx.beginPath(); ctx.roundRect(pillX, baseline - sh / 2, sw, sh, sh / 2); ctx.fill();
+        // Use actual glyph bounds to find true visual center — Thai script sits
+        // higher than its mathematical middle, so we nudge the draw point down.
+        ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'center'; ctx.fillStyle = opts.pillFg ?? '#713F12';
+        const m = ctx.measureText(label);
+        const glyphH = m.actualBoundingBoxAscent + m.actualBoundingBoxDescent;
+        const textY = baseline - glyphH / 2 + m.actualBoundingBoxAscent;
+        ctx.fillText(label, pillX + sw / 2, textY);
       }
       ctx.textAlign = 'left';
     });
