@@ -247,7 +247,7 @@ export async function renderStorePosters(items: PosterItem[], opts: PosterOption
     }
     ctx.fillText(numText, px + bahtW, midPriceY, availW);
 
-    // Stock pill
+    // Stock pill — vertically centered with the price number
     if (opts.showStock) {
       const label = `${num(item.stock)} ${opts.unit}`;
       let sf = stockF0;
@@ -255,14 +255,21 @@ export async function renderStorePosters(items: PosterItem[], opts: PosterOption
       while (sf > 13 && ctx.measureText(label).width + sf * 0.9 > stockW) {
         sf -= 1; ctx.font = `700 ${sf}px ${FONT}`;
       }
-      const pillH = Math.round(sf * 1.65);
-      const pillW = Math.min(stockW, ctx.measureText(label).width + Math.round(sf * 0.9));
+      const pillH = Math.round(sf * 2.0);  // taller pill for Thai font
+      const pillW = Math.min(stockW, ctx.measureText(label).width + Math.round(sf * 1.2));
       const pillX = pRight - pillW;
-      const pillY = midPriceY - pillH / 2;
+      const pillCenterY = midPriceY;  // align to price row center
+      const pillY = pillCenterY - pillH / 2;
       ctx.fillStyle = T.stock.bg ?? '#F59E0B';
       ctx.beginPath(); ctx.roundRect(pillX, pillY, pillW, pillH, pillH / 2); ctx.fill();
-      ctx.fillStyle = T.stock.fg; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(label, pillX + pillW / 2, pillY + pillH / 2, pillW - Math.round(sf * 0.8));
+      // Draw text: use alphabetic baseline offset inside pill for optical centering
+      ctx.fillStyle = T.stock.fg;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      const metrics = ctx.measureText(label);
+      const textH = metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent;
+      const textY = pillY + (pillH + textH) / 2 - metrics.actualBoundingBoxDescent;
+      ctx.fillText(label, pillX + pillW / 2, textY, pillW - Math.round(sf * 0.6));
     }
 
     ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
