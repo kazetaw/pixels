@@ -213,7 +213,7 @@ function SellModal({ product, storeId, imgSrc, onClose, onSold }: { product: Sto
   };
 
   return (
-    <Modal open={!!product} title="บันทึกการขาย" width={400} okText={valid ? `ขาย · ${fmtMoney((product?.price ?? 0) * (qty ?? 0))}` : 'ยืนยันขาย'} cancelText="ยกเลิก"
+    <Modal open={!!product} title="บันทึกการขาย" width={400} okText={valid ? `ยืนยันขาย · ${fmtMoney((product?.price ?? 0) * (qty ?? 0))}` : 'ยืนยันขาย'} cancelText="ยกเลิก"
       onOk={() => void handleSell()} onCancel={() => { if (!saving) onClose(); }} closable={!saving} mask={{ closable: !saving }} confirmLoading={saving}
       okButtonProps={{ disabled: !valid }}>
       {product && (
@@ -524,7 +524,7 @@ function StoreApp() {
       render: (v: number) => v === 0 ? <Tag color="error" variant="filled">หมด</Tag> : <span className="shop-num">{fmt(v)}</span> },
     { title: 'ราคา', dataIndex: 'price', align: 'right', width: 110, sorter: (a, b) => a.price - b.price, render: (v: number) => <span className="shop-num">{fmtMoney(v)}</span> },
     { title: '', key: 'act', align: 'right', width: 120, render: (_, p) => <div className="shop-row-actions">
-      <Button size="small" type="primary" disabled={p.stock === 0} onClick={() => setSellProduct(p)}>ขาย</Button>
+      <Button size="small" type="primary" disabled={p.stock === 0} onClick={() => setSellProduct(p)}>บันทึกขาย</Button>
       <Dropdown menu={moreMenu(p)} trigger={['click']} placement="bottomRight"><Button size="small" type="text" icon={<MoreOutlined />} aria-label={`ตัวเลือก ${p.name}`} /></Dropdown>
     </div> },
   ];
@@ -559,7 +559,7 @@ function StoreApp() {
   if (!session) return <StoreGate onEntered={(id, name, logo) => saveSession({ storeId: id, storeName: name, logo })} />;
 
   const heading: Record<Tab, [string, string]> = {
-    overview: ['หน้าร้าน', 'เลือกสินค้าแล้วกดขาย'],
+    overview: ['หน้าร้าน', 'เลือกสินค้าแล้วกดบันทึกขาย'],
     restock: ['เติมสต็อก', 'กรอกจำนวนที่รับเพิ่ม ตรวจยอดหลังเติม แล้วบันทึกพร้อมกันได้หลายรายการ'],
     sales: ['ประวัติขาย', 'รายการขายทั้งหมดของร้าน'],
     accounts: ['สมุดบัญชีสต็อก', 'เมลไหน · ตัวไหน · เก็บอะไร'],
@@ -640,12 +640,12 @@ function StoreApp() {
               </div>
             </div>
             {occupations.length > 0 && (
-              <div className="shop-occ" role="group" aria-label="กรองตามอาชีพ">
+              <details className="shop-filters"><summary>ตัวกรองอาชีพ{occFilter !== 'all' ? ` · ${occFilter}` : ''}</summary><div className="shop-occ" role="group" aria-label="กรองตามอาชีพ">
                 {[['all', 'ทุกอาชีพ'] as const, ...occupations.map(o => [o, o] as const)].map(([key, label]) => {
                   const count = products.filter(p => matchOcc(p, key)).length;
                   return <Tag.CheckableTag key={key} checked={occFilter === key} onChange={() => setOccFilter(key)}>{label} <span>{count}</span></Tag.CheckableTag>;
                 })}
-              </div>
+              </div></details>
             )}
 
             {loading && !products.length ? <div className="shop-center"><Spin /></div>
@@ -674,7 +674,7 @@ function StoreApp() {
                         <div className="shop-card__actions">
                           {empty
                             ? <Button size="small" block color="primary" variant="outlined" onClick={() => goRestock(p)} icon={<PlusOutlined />}>เติมสต็อก</Button>
-                            : <Button size="small" block type="primary" icon={<ShoppingCartOutlined />} onClick={() => setSellProduct(p)}>ขาย</Button>}
+                            : <Button size="small" block type="primary" icon={<ShoppingCartOutlined />} onClick={() => setSellProduct(p)}>บันทึกขาย</Button>}
                         </div>
                       </article>
                     );

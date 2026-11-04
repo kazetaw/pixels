@@ -1,14 +1,29 @@
-// Renders "ready to sell" posters as a single tall PNG for social posts, straight to canvas.
+// Renders paginated 1080×1350 product posters with contained images and separate details.
 
 export type PosterItem = { name: string; price: number; stock: number; image?: string | null };
 export type PosterOptions = {
   storeName: string;
   logo?: string | null;
-  footer: string;         // e.g. "สนใจทักแชทได้เลย"
-  unit: string;           // e.g. "กอง"
+  footer: string;
+  unit: string;
   showStock: boolean;
-  cols: number;           // 1–5 columns per row; rows auto-expand
+  cols: number;
+  perPage?: 4 | 9 | 16;
+  imgPosition?: 'top' | 'center' | 'bottom';
   style?: PosterStyle;
+  // Layout customization
+  textAlign?: 'left' | 'center' | 'right';
+  imgSize?: 'small' | 'medium' | 'large';   // 60% / 75% / 90% of cell
+  imgRatio?: '1:1' | '4:5' | '3:4';  // image zone aspect ratio — square / portrait / tall
+  priceDecimal?: 0 | 2;
+  pillPosition?: 'right' | 'left' | 'inline';
+  showBahtSymbol?: boolean;
+  // Style overrides
+  fontScale?: number;       // 0.6–1.6, default 1
+  nameColor?: string;       // hex, default from theme
+  priceColor?: string;
+  cardColor?: string;       // card fill
+  cardStroke?: string;      // card border color
 };
 
 export type PosterStyle = 'card' | 'soft' | 'minimal';
@@ -93,187 +108,103 @@ export async function renderStorePosters(items: PosterItem[], opts: PosterOption
   await document.fonts?.ready;
   const urls = [...new Set(items.map(i => i.image).filter((u): u is string => !!u))];
   const images = new Map(await Promise.all(urls.map(async u => [u, await loadImage(u)] as const)));
-  const T = THEMES[opts.style ?? 'card'];
   const logo = await loadImage(opts.logo || '/avatars/store-duck.jpeg');
-
-  const W = 1080;
-  const pad = 48;
-  const cols = Math.max(1, Math.min(10, opts.cols));
-  const n = items.length;
-  const rows = Math.max(1, Math.ceil(n / cols));
-  const gap = cols >= 5 ? 12 : cols >= 4 ? 16 : cols === 3 ? 20 : cols === 2 ? 28 : 0;
-  const cellW = (W - pad * 2 - gap * (cols - 1)) / cols;
-  const radius = Math.min(T.card ? T.card.radius : 0, cellW * 0.08);
-
-  const nameF = Math.round(Math.max(20, Math.min(34, cellW * 0.095)));
-  const priceF = Math.round(Math.max(28, Math.min(52, cellW * 0.14)));
-  const stockF0 = Math.round(Math.max(16, Math.min(24, cellW * 0.075)));
-  const infoBarH = Math.round(nameF * 1.4 + priceF * 1.7 + 24);
-  const cellH = cellW + infoBarH;
-
-  // Header
-  const headH = 148;
-  const gridTop = headH + 8 + 32;
-
-  // Footer
-  const foot = opts.footer.trim();
-  const footH = foot ? 96 : 40;
-
-  // Total canvas height = header + grid + footer
-  const gridH = rows * cellH + (rows - 1) * gap;
-  const H = gridTop + gridH + 32 + footH;
-
-  const canvas = document.createElement('canvas');
-  canvas.width = W; canvas.height = H;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('เบราว์เซอร์ไม่รองรับการสร้างรูป');
-
-  // Background — tile the theme bg over full height
-  T.bg(ctx, W, H);
-  ctx.textBaseline = 'alphabetic';
-
-  // Header band: logo + store name + tagline
-  const band = ctx.createLinearGradient(0, 0, W, 0);
-  band.addColorStop(0, '#0369A1'); band.addColorStop(1, '#0EA5E9');
-  ctx.fillStyle = band; ctx.fillRect(0, 0, W, headH);
-  ctx.fillStyle = '#FACC15'; ctx.fillRect(0, headH, W, 8);
-  if (logo) {
-    const av = 96, ax = 40, ay = 17;
-    ctx.save();
-    ctx.fillStyle = '#FFFFFF'; ctx.beginPath(); ctx.arc(ax + av / 2, ay + av / 2, av / 2 + 4, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(ax + av / 2, ay + av / 2, av / 2, 0, Math.PI * 2); ctx.clip();
-    if (!opts.logo || opts.logo === '/avatars/store-duck.jpeg') {
-      ctx.drawImage(logo, logo.width * 0.23, logo.height * 0.20, logo.width * 0.53, logo.height * 0.565, ax, ay, av, av);
-    } else {
-      const scale = Math.max(av / logo.width, av / logo.height);
-      ctx.drawImage(logo, ax + (av - logo.width * scale) / 2, ay + (av - logo.height * scale) / 2, logo.width * scale, logo.height * scale);
-    }
-    ctx.restore();
-  }
-  const nx = logo ? 160 : 48, nRight = W - 48;
-  ctx.textAlign = 'left'; ctx.fillStyle = '#FFFFFF'; ctx.font = `700 46px ${FONT}`;
-  ctx.fillText(wrap(ctx, opts.storeName, nRight - nx, 1)[0] ?? '', nx, 70);
-  ctx.fillStyle = 'rgba(224,242,254,0.55)'; ctx.font = `300 20px ${FONT}`;
-  ctx.fillText('Ped Kab Kub Kabb', nx, 102);
-
-  // Footer
-  if (foot) {
-    ctx.fillStyle = '#0369A1'; ctx.font = `600 30px ${FONT}`;
-    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
-    ctx.fillText(wrap(ctx, foot, W - pad * 2, 1)[0] ?? '', W - pad, H - footH / 2 + 5);
-    ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
-  }
-
-  // Grid — all items in one pass, rows grow downward
-  const startY = gridTop;
-
-  items.forEach((item, i) => {
-    const r = Math.floor(i / cols), c = i % cols;
-    const x = pad + c * (cellW + gap);
-    const y = startY + r * (cellH + gap);
-
-    // Card background
-    if (T.card) {
-      ctx.save();
-      if (T.card.shadow) { ctx.shadowColor = T.card.shadow; ctx.shadowBlur = 24; ctx.shadowOffsetY = 6; }
-      ctx.fillStyle = T.card.fill;
-      ctx.beginPath(); ctx.roundRect(x, y, cellW, cellH, radius); ctx.fill();
-      ctx.restore();
-      if (T.card.stroke) {
-        ctx.strokeStyle = T.card.stroke; ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.roundRect(x + 0.75, y + 0.75, cellW - 1.5, cellH - 1.5, radius); ctx.stroke();
+  const theme = THEMES[opts.style ?? 'card'];
+  const perPage = opts.perPage ?? 4;
+  const cols = Math.max(1, Math.min(Math.sqrt(perPage), Math.floor(opts.cols) || 2));
+  const rows = Math.ceil(perPage / cols);
+  const W = 1080, H = 1350, pad = 48, gap = 24, headH = 128, gridTop = 168;
+  const rowH = (H - gridTop - 96 - gap * (rows - 1)) / rows;
+  const columnW = (W - pad * 2 - gap * (cols - 1)) / cols;
+  const scale = Math.max(0.6, Math.min(1.6, opts.fontScale ?? 1));
+  const nameF = Math.round((cols === 2 ? 32 : cols === 3 ? 26 : 22) * scale);
+  const priceF = Math.round((cols === 2 ? 48 : cols === 3 ? 36 : 28) * scale);
+  const stockF = Math.round((cols === 2 ? 28 : 22) * scale);
+  const infoH = nameF * 2.7 + priceF * 1.3 + 32;
+  const ratio = opts.imgRatio === '4:5' ? 1.25 : opts.imgRatio === '3:4' ? 4 / 3 : 1;
+  const cardW = Math.min(columnW, Math.max(48, (rowH - infoH) / ratio));
+  const imageH = cardW * ratio;
+  const cardH = imageH + infoH;
+  const pageCount = Math.ceil(items.length / perPage);
+  return Array.from({ length: pageCount }, (_, pageIndex) => {
+    const canvas = document.createElement('canvas'); canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('เบราว์เซอร์ไม่รองรับการสร้างรูป');
+    theme.bg(ctx, W, H);
+    ctx.fillStyle = '#0369A1'; ctx.fillRect(0, 0, W, headH);
+    ctx.fillStyle = '#FACC15'; ctx.fillRect(0, headH, W, 8);
+    if (logo) {
+      const av = 96, ax = pad, ay = 16;
+      ctx.save(); ctx.beginPath(); ctx.arc(ax + av / 2, ay + av / 2, av / 2, 0, Math.PI * 2); ctx.clip();
+      ctx.fillStyle = '#fff'; ctx.fillRect(ax, ay, av, av);
+      if (!opts.logo || opts.logo === '/avatars/store-duck.jpeg') {
+        ctx.drawImage(logo, logo.width * .23, logo.height * .20, logo.width * .53, logo.height * .565, ax, ay, av, av);
+      } else {
+        const sc = Math.max(av / logo.width, av / logo.height);
+        ctx.drawImage(logo, ax + (av - logo.width * sc) / 2, ay + (av - logo.height * sc) / 2, logo.width * sc, logo.height * sc);
       }
-    }
-
-    // Image zone
-    const imgSize = cellW;
-    ctx.save();
-    ctx.beginPath();
-    if (radius > 0) { ctx.roundRect(x, y, imgSize, imgSize, [radius, radius, 0, 0]); }
-    else { ctx.rect(x, y, imgSize, imgSize); }
-    ctx.clip();
-    ctx.fillStyle = T.card ? T.card.fill : '#FFFFFF';
-    ctx.fillRect(x, y, imgSize, imgSize);
-    const img = item.image ? images.get(item.image) : null;
-    if (img) {
-      const imgPad = Math.round(imgSize * 0.18);
-      drawContain(ctx, img, x + imgPad, y + imgPad, imgSize - imgPad * 2);
-    }
-    ctx.restore();
-
-    // Info bar
-    const infoY = y + imgSize;
-    const infoX = x;
-    if (T.card) {
-      ctx.save();
-      ctx.beginPath();
-      ctx.roundRect(infoX, infoY, cellW, infoBarH, [0, 0, radius, radius]);
-      ctx.fillStyle = T.card.fill;
-      ctx.fill();
       ctx.restore();
     }
-
-    const px = infoX + Math.round(cellW * 0.07);
-    const pRight = infoX + cellW - Math.round(cellW * 0.07);
-    const pWidth = pRight - px;
-
-    // Product name
-    const nameY = infoY + Math.round(nameF * 1.15) + 8;
-    ctx.font = `600 ${nameF}px ${FONT}`;
-    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = T.name;
-    const nameLines = wrap(ctx, item.name, pWidth, 1);
-    ctx.fillText(nameLines[0] ?? '', px, nameY, pWidth);
-
-    // Price row
-    const priceRowY = nameY + Math.round(priceF * 1.45) + 4;
-    const midPriceY = priceRowY - priceF * 0.5;
-    const numText = new Intl.NumberFormat('th-TH', { maximumFractionDigits: 2 }).format(item.price);
-    const bahtF = Math.round(priceF * 0.62);
-    const bahtSymbol = '฿';
-
-    ctx.textBaseline = 'middle';
-    ctx.font = `700 ${bahtF}px ${FONT}`;
-    ctx.fillStyle = T.price;
-    ctx.textAlign = 'left';
-    const bahtW = ctx.measureText(bahtSymbol).width + 3;
-    ctx.fillText(bahtSymbol, px, midPriceY + Math.round(priceF * 0.08));
-
-    ctx.font = `800 ${priceF}px ${FONT}`;
-    let pf = priceF;
-    const stockW = opts.showStock ? pWidth * 0.46 : 0;
-    const availW = pWidth - bahtW - stockW - (opts.showStock ? 12 : 0);
-    while (pf > 18 && ctx.measureText(numText).width > availW) {
-      pf -= 1; ctx.font = `800 ${pf}px ${FONT}`;
-    }
-    ctx.fillText(numText, px + bahtW, midPriceY, availW);
-
-    // Stock pill — vertically centered with the price number
-    if (opts.showStock) {
+    const nx = logo ? 168 : pad;
+    ctx.fillStyle = '#fff'; ctx.font = `700 40px ${FONT}`; ctx.textBaseline = 'middle';
+    ctx.fillText(wrap(ctx, opts.storeName, W - nx - pad, 1)[0] ?? '', nx, 48);
+    ctx.font = `500 24px ${FONT}`; ctx.fillText('สินค้าพร้อมขาย', nx, 88);
+    const page = items.slice(pageIndex * perPage, (pageIndex + 1) * perPage);
+    page.forEach((item, i) => {
+      const row = Math.floor(i / cols), col = i % cols;
+      const x = pad + col * (columnW + gap) + (columnW - cardW) / 2;
+      const y = gridTop + row * (rowH + gap);
+      const radius = Math.min(16, cardW * .08);
+      ctx.fillStyle = opts.cardColor ?? theme.card?.fill ?? '#fff';
+      ctx.beginPath(); ctx.roundRect(x, y, cardW, cardH, radius); ctx.fill();
+      ctx.strokeStyle = opts.cardStroke ?? theme.card?.stroke ?? '#D6E4EF'; ctx.lineWidth = 1;
+      ctx.stroke();
+      const image = item.image ? images.get(item.image) : null;
+      if (image) {
+        const inset = Math.min(cardW, imageH) * (opts.imgSize === 'small' ? .25 : opts.imgSize === 'large' ? .08 : .15);
+        const size = Math.min(cardW, imageH) - inset * 2;
+        const iy = opts.imgPosition === 'top' ? y + inset : opts.imgPosition === 'bottom' ? y + imageH - inset - size : y + (imageH - size) / 2;
+        drawContain(ctx, image, x + (cardW - size) / 2, iy, size);
+      }
+      const inner = Math.min(16, cardW * .06), width = cardW - inner * 2;
+      ctx.font = `600 ${nameF}px ${FONT}`;
+      let actualNameF = nameF;
+      // Shrink long names before wrapping, preserving the full product name.
+      while (actualNameF > 12 && ctx.measureText(item.name).width > width * 1.75) {
+        actualNameF--; ctx.font = `600 ${actualNameF}px ${FONT}`;
+      }
+      const lines = wrap(ctx, item.name, width, 2);
+      ctx.fillStyle = opts.nameColor ?? theme.name;
+      const align = opts.textAlign ?? 'center'; ctx.textAlign = align; ctx.textBaseline = 'top';
+      const tx = align === 'left' ? x + inner : align === 'right' ? x + cardW - inner : x + cardW / 2;
+      lines.forEach((line, j) => ctx.fillText(line, tx, y + imageH + 8 + j * actualNameF * 1.35, width));
+      const baseline = y + cardH - 16 - priceF * .65;
       const label = `${num(item.stock)} ${opts.unit}`;
-      let sf = stockF0;
-      ctx.font = `700 ${sf}px ${FONT}`;
-      while (sf > 13 && ctx.measureText(label).width + sf * 0.9 > stockW) {
-        sf -= 1; ctx.font = `700 ${sf}px ${FONT}`;
+      const pillLeft = opts.pillPosition === 'left';
+      const stockWidth = opts.showStock ? width * .44 : 0;
+      const priceWidth = width - stockWidth - (opts.showStock ? 8 : 0);
+      let pf = priceF;
+      const text = `${opts.showBahtSymbol === false ? '' : '฿'}${new Intl.NumberFormat('th-TH', { minimumFractionDigits: opts.priceDecimal ?? 0, maximumFractionDigits: opts.priceDecimal ?? 2 }).format(item.price)}`;
+      ctx.font = `700 ${pf}px ${FONT}`;
+      while (pf > 12 && ctx.measureText(text).width > priceWidth) { pf--; ctx.font = `700 ${pf}px ${FONT}`; }
+      ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillStyle = opts.priceColor ?? theme.price;
+      const px = x + inner + (pillLeft && opts.showStock ? stockWidth + 8 : 0);
+      ctx.fillText(text, px, baseline, priceWidth);
+      const measuredPriceWidth = ctx.measureText(text).width;
+      if (opts.showStock) {
+        let sf = Math.min(stockF, pf * .78); ctx.font = `700 ${sf}px ${FONT}`;
+        while (sf > 10 && ctx.measureText(label).width + 16 > stockWidth) { sf--; ctx.font = `700 ${sf}px ${FONT}`; }
+        const sw = Math.min(stockWidth, ctx.measureText(label).width + 16), sh = sf + 16;
+        const sx = pillLeft ? x + inner : opts.pillPosition === 'inline' ? px + Math.min(priceWidth, measuredPriceWidth) + 8 : x + cardW - inner - sw;
+        ctx.fillStyle = '#FACC15'; ctx.beginPath(); ctx.roundRect(Math.min(sx, x + cardW - inner - sw), baseline - sh / 2, sw, sh, sh / 2); ctx.fill();
+        ctx.textAlign = 'center'; ctx.fillStyle = '#713F12';
+        ctx.fillText(label, Math.min(sx, x + cardW - inner - sw) + sw / 2, baseline, sw - 12);
       }
-      const pillH = Math.round(sf * 2.0);  // taller pill for Thai font
-      const pillW = Math.min(stockW, ctx.measureText(label).width + Math.round(sf * 1.2));
-      const pillX = pRight - pillW;
-      const pillCenterY = midPriceY;  // align to price row center
-      const pillY = pillCenterY - pillH / 2;
-      ctx.fillStyle = T.stock.bg ?? '#F59E0B';
-      ctx.beginPath(); ctx.roundRect(pillX, pillY, pillW, pillH, pillH / 2); ctx.fill();
-      // Draw text: use alphabetic baseline offset inside pill for optical centering
-      ctx.fillStyle = T.stock.fg;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      const metrics = ctx.measureText(label);
-      const textH = metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent;
-      const textY = pillY + (pillH + textH) / 2 - metrics.actualBoundingBoxDescent;
-      ctx.fillText(label, pillX + pillW / 2, textY, pillW - Math.round(sf * 0.6));
-    }
-
-    ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
+      ctx.textAlign = 'left';
+    });
+    ctx.textBaseline = 'middle'; ctx.fillStyle = '#0369A1'; ctx.font = `600 26px ${FONT}`;
+    ctx.fillText(wrap(ctx, opts.footer.trim(), W - pad * 2 - 100, 1)[0] ?? '', pad, H - 40);
+    ctx.textAlign = 'right'; ctx.font = `500 20px ${FONT}`; ctx.fillText(`${pageIndex + 1} / ${pageCount}`, W - pad, H - 40);
+    return canvas;
   });
-
-  return [canvas];
 }
