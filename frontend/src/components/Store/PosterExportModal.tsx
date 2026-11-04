@@ -86,53 +86,6 @@ function ToggleRow({ label, checked, onChange }: { label: string; checked: boole
   );
 }
 
-// ── Font size row: − input + ↺ ────────────────────────────────────
-function FontSizeRow({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
-  const isAuto = value === 0;
-  const [draft, setDraft] = useState(value === 0 ? '' : String(value));
-
-  useEffect(() => { setDraft(value === 0 ? '' : String(value)); }, [value]);
-
-  const clamp = (n: number) => Math.max(1, Math.min(120, n));
-
-  const commit = (raw: string) => {
-    const n = parseInt(raw, 10);
-    if (!raw.trim() || isNaN(n)) { onChange(0); setDraft(''); }
-    else { const c = clamp(n); onChange(c); setDraft(String(c)); }
-  };
-
-  const step = (dir: 1 | -1) => {
-    const cur = value || 20; // default starting point when auto
-    const next = clamp(cur + dir);
-    onChange(next); setDraft(String(next));
-  };
-
-  return (
-    <div className="pe-font-row">
-      <span className="pe-row__label">{label}</span>
-      <div className="pe-font-row__ctrl">
-        <button type="button" className="pe-font-step" onClick={() => step(-1)} disabled={value === 1}>−</button>
-        <input
-          type="number"
-          className="pe-font-input"
-          min={1} max={120}
-          value={draft}
-          placeholder="auto"
-          aria-label={`ขนาดฟ้อนต์ ${label}`}
-          onChange={e => setDraft(e.target.value)}
-          onBlur={e => commit(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') commit((e.target as HTMLInputElement).value); }}
-        />
-        <button type="button" className="pe-font-step" onClick={() => step(1)} disabled={value === 120}>+</button>
-        <span className="pe-font-row__unit">{isAuto ? 'auto' : 'px'}</span>
-        {!isAuto && (
-          <button type="button" className="pe-font-row__reset" title="คืนอัตโนมัติ"
-            onClick={() => { onChange(0); setDraft(''); }}>↺</button>
-        )}
-      </div>
-    </div>
-  );
-}
 
 // ── Color swatch → native color picker + hex input ────────────────
 function ColorSwatch({ value, onChange, label }: { value: string; onChange: (v: string) => void; label: string }) {
