@@ -125,7 +125,7 @@ export async function renderStorePosters(items: PosterItem[], opts: PosterOption
   // Font sizes drive the card split — compute them first.
   // Auto sizes assume 38% text zone as baseline.
   const _autoInfoH = Math.round(cardH * 0.38);
-  const autoNameF  = Math.min(Math.max(14, Math.round(_autoInfoH * 0.22 * scale)), cols === 2 ? 36 : cols === 3 ? 30 : 24);
+  const autoNameF  = Math.min(Math.max(4, Math.round(_autoInfoH * 0.17 * scale)), cols === 2 ? 28 : cols === 3 ? 24 : 20);
   const autoPriceF = Math.min(Math.round(_autoInfoH * 0.30 * scale), cols === 2 ? 52 : cols === 3 ? 40 : 32);
   const autoStockF = Math.round(autoPriceF * 0.62);
 
@@ -135,7 +135,7 @@ export async function renderStorePosters(items: PosterItem[], opts: PosterOption
 
   // Measure the actual text block height and split card accordingly.
   // infoH = text block + 24px breathing room, minimum 28% of card height.
-  const _nameBlockH = 2 * nameF * 1.3;  // 2 lines max
+  const _nameBlockH = 1 * nameF * 1.3;  // 1 line only
   const _sh         = opts.showStock ? stockF + 16 : 0;
   const _priceRowH  = Math.max(priceF * 1.2, _sh);
   const _textBlockH = _nameBlockH + 10 + _priceRowH;
@@ -195,15 +195,14 @@ export async function renderStorePosters(items: PosterItem[], opts: PosterOption
         ctx.restore();
       }
       const inner = Math.min(16, cardW * .06), width = cardW - inner * 2;
-      ctx.font = `600 ${nameF}px ${FONT}`;
+      // Find the largest font size that fits the name on one line
       let actualNameF = nameF;
-      // Only auto-shrink when font size is in auto mode (no manual override)
-      if (!opts.nameFontSize) {
-        while (actualNameF > 12 && ctx.measureText(item.name).width > width * 1.75) {
-          actualNameF--; ctx.font = `600 ${actualNameF}px ${FONT}`;
-        }
+      ctx.font = `600 ${actualNameF}px ${FONT}`;
+      while (actualNameF > 10 && ctx.measureText(item.name).width > width) {
+        actualNameF--;
+        ctx.font = `600 ${actualNameF}px ${FONT}`;
       }
-      const lines = wrap(ctx, item.name, width, 2);
+      const lines = wrap(ctx, item.name, width, 1);  // single line, truncates with …
       // Pre-calculate pill height so priceRowH can accommodate it
       const label = `${num(item.stock)} ${opts.unit}`;
       const pillLeft = opts.pillPosition === 'left';
