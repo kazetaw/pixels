@@ -262,7 +262,7 @@ export async function renderStorePosters(items: PosterItem[], opts: PosterOption
       ctx.fillStyle = T.stock.bg ?? '#F59E0B';
       ctx.beginPath(); ctx.roundRect(pillX, pillY, pillW, pillH, pillH / 2); ctx.fill();
       ctx.fillStyle = T.stock.fg; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(label, pillX + pillW / 2, midPriceY, pillW - Math.round(sf * 0.8));
+      ctx.fillText(label, pillX + pillW / 2, pillY + pillH / 2, pillW - Math.round(sf * 0.8));
     }
 
     ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
