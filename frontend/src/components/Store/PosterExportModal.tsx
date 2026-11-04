@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Button, Checkbox, Input, Modal, Segmented, Spin, Empty, Divider } from 'antd';
 import { DownloadOutlined, InboxOutlined, SearchOutlined, ShareAltOutlined, ExpandOutlined } from '@ant-design/icons';
 import { toPngBlob } from './profileImage';
-import { renderStorePosters, type PosterItem, type PosterStyle } from './storePoster';
+import { posterGeometry, renderStorePosters, type PosterItem, type PosterStyle } from './storePoster';
 
 type Props = { open: boolean; onClose: () => void; items: PosterItem[]; storeName: string; storeId: string; unit: string };
 type Page = { url: string; blob: Blob };
@@ -198,6 +198,7 @@ export function PosterExportModal({ open, onClose, items, storeName, storeId, un
     nameFontSize, priceFontSize, stockFontSize,
   } = design;
   const cols = Math.sqrt(perPage);
+  const geometry = posterGeometry(cols, cols, !!footer.trim());
 
   const resetLayout = () => { setDesignRaw(DESIGN_DEFAULTS); saveDesign(designKey, DESIGN_DEFAULTS); };
 
@@ -207,6 +208,8 @@ export function PosterExportModal({ open, onClose, items, storeName, storeId, un
   const [busy, setBusy]     = useState(false);
   const [error, setError]   = useState('');
   const [query, setQuery]   = useState('');
+  const [panel, setPanel] = useState('products');
+  const [announcement, setAnnouncement] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [previewIdx, setPreviewIdx] = useState<number | null>(null);
 
@@ -224,25 +227,71 @@ export function PosterExportModal({ open, onClose, items, storeName, storeId, un
     return q ? items.filter(i => i.name.toLowerCase().includes(q)) : items;
   }, [items, query]);
 
+  // ── Ordered items for poster (drag-reorderable) ───────────────────
+  // orderedNames tracks the full items list order (selected or not)
+  const [orderedNames, setOrderedNames] = useState<string[]>([]);
+
+  // Sync: keep existing order, append new items, drop deleted items
+  useEffect(() => {
+    setOrderedNames(prev => {
+      const allNames = new Set(items.map(i => i.name));
+      const kept  = prev.filter(n => allNames.has(n));
+      const added = items.map(i => i.name).filter(n => !kept.includes(n));
+      return [...kept, ...added];
+    });
+  }, [items]);
+
+  // orderedItems = all items in drag order; orderedChosen = only selected ones (for render)
+  const orderedItems = useMemo(
+    () => orderedNames.map(n => items.find(i => i.name === n)).filter(Boolean) as typeof items,
+    [orderedNames, items],
+  );
+  const orderedChosen = useMemo(
+    () => orderedItems.filter(i => selected.has(i.name)),
+    [orderedItems, selected],
+  );
+
+  // ── Drag state (preview grid) ─────────────────────────────────────
+  const dragIdx = useRef<number | null>(null);
+  const [dragOver, setDragOver] = useState<number | null>(null);
+
+  const handleDragStart = useCallback((idx: number) => { dragIdx.current = idx; }, []);
+  const handleDragEnter = useCallback((idx: number) => { setDragOver(idx); }, []);
+  const moveItem = useCallback((from: number, to: number) => {
+    setOrderedNames(prev => {
+      if (from === to || from < 0 || to < 0 || to >= prev.length) return prev;
+      const arr = [...prev];
+      const [moved] = arr.splice(from, 1);
+      arr.splice(to, 0, moved);
+      setAnnouncement(`ย้าย ${moved} แล้ว`);
+      return arr;
+    });
+  }, []);
+  const clearDrag = () => { dragIdx.current = null; setDragOver(null); };
+  const dropItem = (to: number) => {
+    if (dragIdx.current !== null) moveItem(dragIdx.current, to);
+    clearDrag();
+  };
+
   const allVisibleOn  = visible.length > 0 && visible.every(i => selected.has(i.name));
   const someVisibleOn = visible.some(i => selected.has(i.name));
   const toggle     = (name: string) => setSelected(prev => { const n = new Set(prev); n.has(name) ? n.delete(name) : n.add(name); return n; });
   const setVisible = (on: boolean)  => setSelected(prev => { const n = new Set(prev); visible.forEach(i => on ? n.add(i.name) : n.delete(i.name)); return n; });
 
   const renderKey = JSON.stringify([
-    chosen, storeName, exportLogo, footer, unit, showStock, perPage, posterStyle,
+    orderedChosen, storeName, exportLogo, footer, unit, showStock, perPage, posterStyle,
     textAlign, imgSize, imgPosition, pillPosition, showBahtSymbol,
     priceColor, pillBg, pillFg, nameFontSize, priceFontSize, stockFontSize,
   ]);
 
   useEffect(() => {
-    if (!open || !chosen.length) { setPages([]); setBusy(false); return; }
+    if (!open || !orderedChosen.length) { setPages([]); setBusy(false); return; }
     setBusy(true); setError(''); setPreviewIdx(null);
     let cancelled = false;
     const created: string[] = [];
     const timer = window.setTimeout(async () => {
       try {
-        const canvases = await renderStorePosters(chosen, {
+        const canvases = await renderStorePosters(orderedChosen, {
           storeName, logo: exportLogo, footer, unit, showStock, cols, perPage,
           style: posterStyle, textAlign, imgSize, imgPosition, pillPosition,
           showBahtSymbol, priceColor, pillBg, pillFg,
@@ -273,28 +322,28 @@ export function PosterExportModal({ open, onClose, items, storeName, storeId, un
   const files    = pages.map((p, i) => new File([p.blob], fileName(i), { type: 'image/png' }));
   const canShare = typeof navigator !== 'undefined' && !!navigator.canShare && files.length > 0 && navigator.canShare({ files });
   const share    = async () => { if (!ready) return; try { await navigator.share({ files, title: storeName }); } catch { /* cancelled */ } };
-  const ready    = generatedKey === renderKey && !error && !busy && !imageBusy && pages.length > 0 && chosen.length > 0;
+  const ready    = generatedKey === renderKey && !error && !busy && !imageBusy && pages.length > 0 && orderedChosen.length > 0;
 
   return (
     <Modal
       open={open}
       onCancel={onClose}
-      title="ส่งออกรูปสินค้าพร้อมขาย"
-      width="min(96vw, 1120px)"
+      title={<div className="pe-heading">สร้างรูปสินค้าพร้อมขาย<small>เลือกสินค้า จัดวาง แล้วดาวน์โหลดไปโพสต์ได้เลย</small></div>}
+      width="min(96vw, 1080px)"
       style={{ top: 16 }}
       className="shop-poster-modal"
       styles={{ body: { padding: '0 0 4px', overflow: 'hidden' } }}
       footer={
         <div className="pe-footer">
           <span className="shop-muted">
-            {chosen.length
-              ? `เลือก ${chosen.length} รายการ · ${Math.ceil(chosen.length / perPage)} รูป`
+            {orderedChosen.length
+              ? `เลือก ${orderedChosen.length} รายการ · ${Math.ceil(orderedChosen.length / perPage)} รูป`
               : 'ยังไม่ได้เลือกสินค้า'}
           </span>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div className="pe-footer-actions">
             {canShare && <Button icon={<ShareAltOutlined />} disabled={!ready} onClick={() => void share()}>แชร์</Button>}
-            <Button type="primary" icon={<DownloadOutlined />} disabled={!ready} onClick={() => void downloadAll()}>
-              {busy || generatedKey !== renderKey ? 'กำลังสร้างภาพ…' : `ดาวน์โหลด ${pages.length} รูป`}
+            <Button type="primary" icon={<DownloadOutlined />} loading={busy} disabled={!ready} onClick={() => void downloadAll()}>
+              ดาวน์โหลด{orderedChosen.length ? ` ${Math.ceil(orderedChosen.length / perPage)} รูป` : ''}
             </Button>
           </div>
         </div>
@@ -302,13 +351,15 @@ export function PosterExportModal({ open, onClose, items, storeName, storeId, un
     >
       <div className="pe-layout">
 
-        {/* ── Col 1: picker ───────────────────────────────────── */}
-        <div className="pe-picker">
+        <aside className="pe-sidebar">
+          <Segmented block className="pe-panel-tabs" aria-label="เครื่องมือสร้างรูป" value={panel} onChange={v => setPanel(String(v))}
+            options={[{ label: 'เลือกสินค้า', value: 'products' }, { label: 'ปรับแต่ง', value: 'design' }]} />
+        <div className="pe-picker" hidden={panel !== 'products'}>
           <div className="pe-picker__head">
             <strong>สินค้า</strong>
             <span className="shop-muted" style={{ fontSize: 12 }}>{chosen.length}/{items.length}</span>
           </div>
-          <Input prefix={<SearchOutlined />} placeholder="ค้นหา" allowClear size="small"
+          <Input prefix={<SearchOutlined />} aria-label="ค้นหาสินค้า" placeholder="ค้นหาชื่อสินค้า…" allowClear size="small"
             value={query} onChange={e => setQuery(e.target.value)} style={{ margin: '6px 0' }} />
           <div className="pe-picker__bulk">
             <Checkbox checked={allVisibleOn} indeterminate={!allVisibleOn && someVisibleOn}
@@ -318,13 +369,30 @@ export function PosterExportModal({ open, onClose, items, storeName, storeId, un
             {selected.size > 0 && <Button size="small" type="link" onClick={() => setSelected(new Set())}>ล้าง</Button>}
           </div>
           <ul className="pe-picker__list">
-            {visible.map(item => {
+            {orderedItems.filter(item => visible.some(match => match.name === item.name)).map(item => {
               const on = selected.has(item.name);
+              const globalIdx = orderedNames.indexOf(item.name);
+              const isOver = dragOver === globalIdx;
               return (
-                <li key={item.name} className={`pe-picker__row${on ? ' is-on' : ''}`} onClick={() => toggle(item.name)}>
+                <li
+                  key={item.name}
+                  className={`pe-picker__row${on ? ' is-on' : ''}${isOver ? ' is-drag-over' : ''}`}
+                  onClick={() => toggle(item.name)}
+                  draggable
+                  onDragStart={e => {
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', item.name);
+                    handleDragStart(globalIdx);
+                  }}
+                  onDragEnter={e => { e.preventDefault(); handleDragEnter(globalIdx); }}
+                  onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
+                  onDrop={e => { e.preventDefault(); dropItem(globalIdx); }}
+                  onDragEnd={clearDrag}
+                >
+                  <span className="pe-drag-handle" aria-hidden="true" title="ลากเพื่อจัดลำดับ" onClick={e => e.stopPropagation()}>⠿</span>
                   <Checkbox aria-label={item.name} checked={on} onClick={e => e.stopPropagation()} onChange={() => toggle(item.name)} />
                   <span className="pe-picker__thumb">
-                    {item.image ? <img src={item.image} alt="" loading="lazy" /> : <InboxOutlined />}
+                    {item.image ? <img src={item.image} alt="" loading="lazy" draggable={false} /> : <InboxOutlined />}
                   </span>
                   <span className="pe-picker__meta">
                     <span>{item.name}</span>
@@ -333,12 +401,12 @@ export function PosterExportModal({ open, onClose, items, storeName, storeId, un
                 </li>
               );
             })}
-            {!visible.length && <li className="pe-picker__empty">ไม่พบสินค้า</li>}
+            {!visible.length && query.trim() && <li className="pe-picker__empty">ไม่พบสินค้า</li>}
           </ul>
         </div>
 
         {/* ── Col 2: settings ──────────────────────────────────── */}
-        <div className="pe-settings">
+        <div className="pe-settings" hidden={panel !== 'design'}>
 
           {/* Logo */}
           <div className="pe-logo">
@@ -372,8 +440,8 @@ export function PosterExportModal({ open, onClose, items, storeName, storeId, un
               options={STYLE_OPTIONS} size="small" />
           </SettingRow>
 
-          <Divider style={{ margin: '6px 0' }} />
-
+          <details className="pe-advanced">
+          <summary>ปรับแต่งเพิ่มเติม</summary>
           <SettingRow label="ตำแหน่งข้อความ">
             <Segmented size="small" value={textAlign} onChange={v => setDesign({ textAlign: v as typeof textAlign })}
               options={[{ value: 'left', label: 'ซ้าย' }, { value: 'center', label: 'กลาง' }, { value: 'right', label: 'ขวา' }]} />
@@ -424,30 +492,51 @@ export function PosterExportModal({ open, onClose, items, storeName, storeId, un
             <ToggleRow label="แสดงสัญลักษณ์ ฿"  checked={showBahtSymbol} onChange={v => setDesign({ showBahtSymbol: v })} />
           </div>
 
+          </details>
           <Button size="small" onClick={resetLayout} style={{ marginTop: 8, width: '100%' }}>คืนค่าเริ่มต้น</Button>
-          <p className="pe-note shop-muted">1080 × 1350 px · บันทึกอัตโนมัติ</p>
+          <p className="pe-note shop-muted">{geometry.width} × {geometry.height} px · บันทึกอัตโนมัติ</p>
         </div>
 
-        {/* ── Col 3: preview ───────────────────────────────────── */}
+        </aside>
         <div className="pe-preview">
+          <span className="pe-sr-only" role="status">{announcement}</span>
           {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 8 }} />}
-          {!chosen.length
-            ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="เลือกสินค้าทางซ้ายอย่างน้อย 1 รายการ" style={{ padding: '48px 0' }} />
+          {!orderedChosen.length
+            ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="ยังไม่ได้เลือกสินค้า" style={{ padding: '48px 0' }} />
             : busy && !pages.length
               ? <div className="shop-center"><Spin /></div>
-              : <div className={`pe-pages${busy ? ' is-busy' : ''}`}>
+              : <div className={`pe-pages${pages.length === 1 ? ' pe-pages--single' : ''}${busy ? ' is-busy' : ''}`}>
                   {pages.map((p, i) => (
-                    <figure key={p.url} className="pe-page-fig">
+                    <figure key={i} className="pe-page-fig">
                       <div className="pe-page-img">
                         <img src={p.url} alt={`รูปที่ ${i + 1}`} />
+                        {ready && <div className="pe-reorder-grid" style={{ left: `${geometry.gridLeft / geometry.width * 100}%`, right: `${geometry.gridLeft / geometry.width * 100}%`, top: `${geometry.gridTop / geometry.height * 100}%`, bottom: 'auto', height: `${geometry.gridHeight / geometry.height * 100}%`, gridTemplateColumns: `repeat(${cols}, 1fr)`, gridTemplateRows: `repeat(${cols}, 1fr)` }}>
+                          {orderedChosen.slice(i * perPage, (i + 1) * perPage).map((item, localIdx) => {
+                            const idx = orderedNames.indexOf(item.name);
+                            const selectedIdx = i * perPage + localIdx;
+                            return <button key={item.name} type="button" draggable
+                              className={`pe-reorder-cell${dragOver === idx ? ' is-over' : ''}`}
+                              aria-label={`${item.name} ลำดับ ${selectedIdx + 1} ใช้ปุ่มลูกศรเพื่อย้าย`}
+                              onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', item.name); handleDragStart(idx); }}
+                              onDragEnter={() => handleDragEnter(idx)} onDragOver={e => e.preventDefault()}
+                              onDrop={e => { e.preventDefault(); dropItem(idx); }} onDragEnd={clearDrag}
+                              onKeyDown={e => {
+                                const offset = ({ ArrowLeft: -1, ArrowRight: 1, ArrowUp: -cols, ArrowDown: cols } as Record<string, number>)[e.key];
+                                if (offset === undefined) return;
+                                e.preventDefault();
+                                const target = orderedChosen[selectedIdx + offset];
+                                if (target) moveItem(idx, orderedNames.indexOf(target.name));
+                              }} />;
+                          })}
+                        </div>}
+                        <button type="button" className="pe-page-expand pe-page-download" disabled={!ready}
+                          onClick={() => download(i)} aria-label={`ดาวน์โหลดรูปที่ ${i + 1}`} title="ดาวน์โหลดรูปนี้">
+                          <DownloadOutlined />
+                        </button>
                         <button className="pe-page-expand" onClick={() => setPreviewIdx(i)} aria-label="ดูขนาดเต็ม">
                           <ExpandOutlined />
                         </button>
                       </div>
-                      <figcaption className="pe-page-cap">
-                        <span className="shop-muted" style={{ fontSize: 11 }}>รูปที่ {i + 1}</span>
-                        <Button disabled={!ready} size="small" type="primary" icon={<DownloadOutlined />} onClick={() => download(i)}>บันทึก</Button>
-                      </figcaption>
                     </figure>
                   ))}
                 </div>}

@@ -1,4 +1,4 @@
-// Renders paginated 1080×1350 product posters with contained images and separate details.
+// Renders square posters with square product cards centered below the store header.
 
 export type PosterItem = { name: string; price: number; stock: number; image?: string | null };
 export type PosterOptions = {
@@ -34,6 +34,20 @@ export type PosterOptions = {
 };
 
 export type PosterStyle = 'card' | 'soft' | 'minimal';
+
+export function posterGeometry(cols: number, rows: number, hasFooter: boolean) {
+  const width = 1080, height = 1080, padding = 48, gap = 16, headerHeight = 110;
+  const contentTop = headerHeight + 8;
+  const contentBottom = height - (hasFooter ? 64 : 0);
+  const cardSize = Math.min(
+    (width - padding * 2 - gap * (cols - 1)) / cols,
+    (contentBottom - contentTop - padding * 2 - gap * (rows - 1)) / rows,
+  );
+  const gridHeight = rows * cardSize + gap * (rows - 1);
+  const gridLeft = (width - (cols * cardSize + gap * (cols - 1))) / 2;
+  const gridTop = contentTop + (contentBottom - contentTop - gridHeight) / 2;
+  return { width, height, padding, gap, headerHeight, gridTop, gridLeft, cardSize, gridHeight };
+}
 
 const FONT = "'IBM Plex Sans Thai', 'Noto Sans Thai', Tahoma, sans-serif";
 
@@ -114,13 +128,11 @@ export async function renderStorePosters(items: PosterItem[], opts: PosterOption
   const perPage = opts.perPage ?? 4;
   const cols = Math.max(1, Math.min(Math.sqrt(perPage), Math.floor(opts.cols) || 2));
   const rows = Math.ceil(perPage / cols);
-  const W = 1080, H = 1350, pad = 32, gap = 16, headH = 128, gridTop = 160;
-  const rowH = (H - gridTop - 96 - gap * (rows - 1)) / rows;
-  const columnW = (W - pad * 2 - gap * (cols - 1)) / cols;
+  const geometry = posterGeometry(cols, rows, !!opts.footer.trim());
+  const { width: W, height: H, padding: pad, gap, headerHeight: headH, gridTop, cardSize: cardW } = geometry;
   const scale = Math.max(0.6, Math.min(1.6, opts.fontScale ?? 1));
-  // Card = full column width × full row height.
-  const cardW = columnW;
-  const cardH = rowH;
+  const cardH = cardW;
+  const gridLeft = geometry.gridLeft;
 
   // Font sizes drive the card split — compute them first.
   // Auto sizes assume 38% text zone as baseline.
@@ -150,7 +162,7 @@ export async function renderStorePosters(items: PosterItem[], opts: PosterOption
     ctx.fillStyle = '#0369A1'; ctx.fillRect(0, 0, W, headH);
     ctx.fillStyle = '#FACC15'; ctx.fillRect(0, headH, W, 8);
     if (logo) {
-      const av = 96, ax = pad, ay = 16;
+      const av = 78, ax = pad, ay = (headH - av) / 2;
       ctx.save(); ctx.beginPath(); ctx.arc(ax + av / 2, ay + av / 2, av / 2, 0, Math.PI * 2); ctx.clip();
       ctx.fillStyle = '#fff'; ctx.fillRect(ax, ay, av, av);
       if (!opts.logo || opts.logo === '/avatars/store-duck.jpeg') {
@@ -161,15 +173,15 @@ export async function renderStorePosters(items: PosterItem[], opts: PosterOption
       }
       ctx.restore();
     }
-    const nx = logo ? 168 : pad;
+    const nx = logo ? pad + 78 + 24 : pad;
     ctx.fillStyle = '#fff'; ctx.font = `700 40px ${FONT}`; ctx.textBaseline = 'middle';
     ctx.fillText(wrap(ctx, opts.storeName, W - nx - pad, 1)[0] ?? '', nx, 48);
     ctx.font = `500 24px ${FONT}`; ctx.fillText('สินค้าพร้อมขาย', nx, 88);
     const page = items.slice(pageIndex * perPage, (pageIndex + 1) * perPage);
     page.forEach((item, i) => {
       const row = Math.floor(i / cols), col = i % cols;
-      const x = pad + col * (cardW + gap);
-      const y = gridTop + row * (rowH + gap);
+      const x = gridLeft + col * (cardW + gap);
+      const y = gridTop + row * (cardH + gap);
       const radius = Math.min(16, cardW * .08);
       ctx.fillStyle = opts.cardColor ?? theme.card?.fill ?? '#fff';
       ctx.beginPath(); ctx.roundRect(x, y, cardW, cardH, radius); ctx.fill();
@@ -256,8 +268,7 @@ export async function renderStorePosters(items: PosterItem[], opts: PosterOption
       ctx.textAlign = 'left';
     });
     ctx.textBaseline = 'middle'; ctx.fillStyle = '#0369A1'; ctx.font = `600 26px ${FONT}`;
-    ctx.fillText(wrap(ctx, opts.footer.trim(), W - pad * 2 - 100, 1)[0] ?? '', pad, H - 40);
-    ctx.textAlign = 'right'; ctx.font = `500 20px ${FONT}`; ctx.fillText(`${pageIndex + 1} / ${pageCount}`, W - pad, H - 40);
+    ctx.fillText(wrap(ctx, opts.footer.trim(), W - pad * 2, 1)[0] ?? '', pad, H - 40);
     return canvas;
   });
 }
