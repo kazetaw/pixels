@@ -195,6 +195,8 @@ function StoreGate({ onEntered }: { onEntered: (id: string, name: string, logo: 
 // ── Bill Modal ────────────────────────────────────────────────────────────────
 type BillLine = { product: StoreProduct; qty: number; image?: string | null };
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// @ts-ignore — reserved for future bill summary modal
 function BillModal({ open, storeId, products, getImg, onClose, onSaved, storeName, msgApi }:
   { open: boolean; storeId: string; products: StoreProduct[]; getImg: (p: StoreProduct) => string | null | undefined;
     onClose: () => void; onSaved: () => void; storeName: string; msgApi: ReturnType<typeof message.useMessage>[0] }) {
