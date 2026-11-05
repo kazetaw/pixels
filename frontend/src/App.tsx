@@ -27,6 +27,7 @@ import {
   ArrowLeftOutlined,
   ClockCircleOutlined,
   WalletOutlined,
+  CalculatorOutlined,
   AimOutlined,
   CloudOutlined,
   CloseCircleFilled,
@@ -59,10 +60,10 @@ import type { SaveStatus } from './hooks/useAppState';
 
 const { Sider, Content } = Layout;
 
-type MainView = 'crafting-guide' | 'machine-layout' | 'withdrawal-admin' | 'withdrawals' | 'assignments' | 'planner' | 'shared-planner' | 'production-flow' | 'data' | 'inventory' | 'floors' | 'targets' | 'budget' | 'organization' | 'contributor-returns';
+type MainView = 'crafting-guide' | 'machine-layout' | 'withdrawal-admin' | 'withdrawals' | 'assignments' | 'planner' | 'shared-planner' | 'production-flow' | 'data' | 'inventory' | 'floors' | 'targets' | 'budget' | 'organization' | 'contributor-returns' | 'calculator';
 
-const ADMIN_VIEWS: MainView[] = ['crafting-guide', 'machine-layout', 'planner', 'production-flow', 'assignments', 'shared-planner', 'data', 'inventory', 'floors', 'targets', 'budget', 'organization', 'contributor-returns'];
-const PUBLIC_VIEWS: MainView[] = ['floors'];
+const ADMIN_VIEWS: MainView[] = ['crafting-guide', 'machine-layout', 'planner', 'production-flow', 'assignments', 'shared-planner', 'data', 'inventory', 'floors', 'targets', 'budget', 'organization', 'contributor-returns', 'calculator'];
+const PUBLIC_VIEWS: MainView[] = ['floors', 'calculator'];
 const isAdminPath = () => window.location.pathname.replace(/\/+$/, '') === '/admin';
 function savedNavigation(admin: boolean): MainView {
   try {
@@ -119,6 +120,11 @@ const NAV_ITEMS = [
     key: 'contributor-returns',
     icon: <GiftOutlined />,
     label: 'จ่ายคืน',
+  },
+  {
+    key: 'calculator',
+    icon: <CalculatorOutlined />,
+    label: 'เครื่องคิดเลข',
   },
 ];
 
@@ -204,139 +210,58 @@ function SidebarActions({
 function Divide99Calculator() {
   const [number, setNumber] = useState('');
   const [mode, setMode] = useState<'divide' | 'multiply'>('divide');
-
-  const value = Number(number);
-
-  const result =
-    number === '' || Number.isNaN(value)
-      ? 0
-      : mode === 'divide'
-      ? value / 99
-      : value * 99;
-
-  const handleClear = () => {
-    setNumber('');
-  };
-
+  const value = Math.max(0, Math.floor(Number(number) || 0));
   const symbol = mode === 'divide' ? '÷' : '×';
-  const formulaText = number ? `${number} ${symbol} 99` : `0 ${symbol} 99`;
 
   return (
-    <div
-      style={{
-        margin: '20px 0 0',
-        padding: 14,
-        background: '#f8fafc',
-        border: '1px solid #e2e8f0',
-        borderRadius: 10,
-      }}
-    >
-      {/* Header */}
-      <div style={{ marginBottom: 10 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>
-          แปลงชิ้น ↔ กอง
-        </div>
-        <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
-          1 กอง = 99 ชิ้น
-        </div>
-      </div>
-
-      {/* Mode toggle */}
-      <div
-        style={{
-          display: 'flex',
-          marginBottom: 10,
-          borderRadius: 7,
-          overflow: 'hidden',
-          border: '1px solid #e2e8f0',
-        }}
-      >
-        {(['divide', 'multiply'] as const).map((m) => (
-          <button
-            key={m}
-            onClick={() => setMode(m)}
-            style={{
-              flex: 1,
-              padding: '10px 4px',
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: 'pointer',
-              border: 'none',
-              background: mode === m ? '#2563eb' : '#ffffff',
-              color: mode === m ? '#ffffff' : '#374151',
-              transition: 'background 0.15s, color 0.15s',
-            }}
-          >
-            {m === 'divide' ? 'ชิ้น → กอง' : 'กอง → ชิ้น'}
+    <div className="prod-calc">
+      <div className="prod-calc__header">
+        <span className="prod-calc__title">แปลงชิ้น ↔ กอง</span>
+        <div className="prod-calc__tabs" aria-label="ทิศทางแปลง">
+          <button className={mode === 'divide' ? 'active' : ''} aria-pressed={mode === 'divide'} onClick={() => setMode('divide')}>
+            ชิ้น → กอง
           </button>
-        ))}
-      </div>
-
-      {/* Input */}
-      <Input
-        type="number"
-        value={number}
-        onChange={(e) => setNumber(e.target.value === '' ? '' : String(Math.max(0, Math.floor(Number(e.target.value) || 0))))}
-        aria-label={mode === 'divide' ? 'จำนวนชิ้น' : 'จำนวนกอง'}
-        min={0}
-        placeholder={mode === 'divide' ? 'กรอกจำนวนชิ้น' : 'กรอกจำนวนกอง'}
-        size="large"
-        suffix={
-          number ? (
-            <CloseCircleFilled
-              onClick={handleClear}
-              style={{ color: '#94a3b8', cursor: 'pointer' }}
-            />
-          ) : null
-        }
-        style={{ fontSize: 18 }}
-      />
-
-      {/* Formula */}
-      <div
-        style={{
-          textAlign: 'center',
-          marginTop: 10,
-          fontSize: 12,
-          color: '#64748b',
-        }}
-      >
-        {formulaText}
-      </div>
-
-      {/* Result */}
-      <div
-        style={{
-          marginTop: 6,
-          padding: '10px 8px',
-          background: '#ffffff',
-          borderRadius: 8,
-          textAlign: 'center',
-          border: '1px solid #e2e8f0',
-        }}
-      >
-        <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>
-          คำตอบ
-        </div>
-        <div
-          style={{
-            fontSize: 24,
-            fontWeight: 700,
-            color: '#2563eb',
-            lineHeight: 1.2,
-            wordBreak: 'break-all',
-          }}
-        >
-          {mode === 'divide' ? `${Math.floor(value / 99).toLocaleString('th-TH')} กอง + ${(value % 99).toLocaleString('th-TH')} ชิ้น` : `${result.toLocaleString('th-TH')} ชิ้น`}
+          <button className={mode === 'multiply' ? 'active' : ''} aria-pressed={mode === 'multiply'} onClick={() => setMode('multiply')}>
+            กอง → ชิ้น
+          </button>
         </div>
       </div>
 
-      {/* Clear button */}
+      <div className="prod-calc__info" style={{ marginBottom: 4 }}>1 กอง = 99 ชิ้น</div>
+
+      <div className="prod-calc__row">
+        <span>{mode === 'divide' ? 'จำนวนชิ้น' : 'จำนวนกอง'}</span>
+        <Input
+          type="number" min={0} size="large"
+          value={number}
+          aria-label={mode === 'divide' ? 'จำนวนชิ้น' : 'จำนวนกอง'}
+          placeholder={mode === 'divide' ? 'กรอกจำนวนชิ้น' : 'กรอกจำนวนกอง'}
+          onChange={e => setNumber(e.target.value === '' ? '' : String(Math.max(0, Math.floor(Number(e.target.value) || 0))))}
+          suffix={number ? <CloseCircleFilled onClick={() => setNumber('')} style={{ color: '#94a3b8', cursor: 'pointer' }} /> : null}
+          style={{ fontSize: 18 }}
+        />
+      </div>
+
       {number && (
-        <Button size="small" onClick={handleClear} block style={{ marginTop: 8 }}>
-          ล้างค่า
-        </Button>
+        <div className="prod-calc__result" role="status" aria-live="polite">
+          <div className="prod-calc__result-stacks-row">
+            {mode === 'divide' ? (
+              <>
+                <span className="prod-calc__result-num">{Math.floor(value / 99).toLocaleString('th-TH')}</span>
+                <span className="prod-calc__result-unit">กอง</span>
+                {value % 99 > 0 && <span className="prod-calc__result-rem">+ {(value % 99).toLocaleString('th-TH')} ชิ้น</span>}
+              </>
+            ) : (
+              <>
+                <span className="prod-calc__result-num">{(value * 99).toLocaleString('th-TH')}</span>
+                <span className="prod-calc__result-unit">ชิ้น</span>
+              </>
+            )}
+          </div>
+          <span className="prod-calc__result-total">{number} {symbol} 99</span>
+        </div>
       )}
+      {!number && <p className="prod-calc__empty">กรอกตัวเลขเพื่อแปลงหน่วย</p>}
     </div>
   );
 }
@@ -390,14 +315,12 @@ function SidebarContent({
   setView,
   onNavClick,
   pendingWithdrawals = 0,
-  recipes = [],
 }: {
   isAdmin?: boolean;
   view: MainView;
   setView: (v: MainView) => void;
   onNavClick?: () => void;
   pendingWithdrawals?: number;
-  recipes?: import('./types').Recipe[];
 }) {
   // Build nav items with live badge on admin withdrawal view
   const navItems = NAV_ITEMS.filter(item => (isAdmin ? ADMIN_VIEWS : PUBLIC_VIEWS).includes(item.key as MainView)).map(item => {
@@ -476,12 +399,6 @@ function SidebarContent({
         }}
       />
 
-      {/* Calculator */}
-      <section className="sidebar-calculators" aria-label="เครื่องมือช่วยคำนวณ">
-        <h3>เครื่องมือช่วยคำนวณ</h3>
-        <ProductionCalculator recipes={recipes} />
-        <Divide99Calculator />
-      </section>
     </div>
   );
 }
@@ -722,7 +639,7 @@ export default function App() {
   const [adminPinDigits, setAdminPinDigits] = useState(['', '', '', '']);
   const [adminPinError, setAdminPinError] = useState(false);
   const adminPinRefs = useRef<(HTMLInputElement | null)[]>([]);
-  const ADMIN_PIN = '7774';
+  const ADMIN_PIN = '0220';
 
   const handleAdminPin = (index: number, value: string) => {
     const d = value.replace(/\D/g, '').slice(-1);
@@ -844,7 +761,6 @@ export default function App() {
     view,
     setView,
     pendingWithdrawals,
-    recipes,
   };
 
   if (bomOpen) {
@@ -1168,6 +1084,20 @@ export default function App() {
                 sub="สรุปของที่แต่ละคนเติมมา และบันทึกการส่งคืนให้ผู้เติม"
               />
               <ContributorReturns />
+            </div>
+          )}
+
+          {view === 'calculator' && (
+            <div className="page-content calc-page">
+              <PageHead title="เครื่องคิดเลข" sub="คำนวณการผลิตและแปลงหน่วยกอง" />
+              <div className="calc-page__grid">
+                <div className="calc-page__card">
+                  <ProductionCalculator recipes={recipes} />
+                </div>
+                <div className="calc-page__card">
+                  <Divide99Calculator />
+                </div>
+              </div>
             </div>
           )}
         </Content>

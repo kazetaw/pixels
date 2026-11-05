@@ -2063,3 +2063,33 @@ body {
   color: #0C1E33;
   margin-bottom: 12px;
 }
+
+/* ── Calculator page ──────────────────────────────────────────────────────── */
+.calc-page__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 24px;
+  align-items: start;
+  max-width: 800px;
+}
+
+.calc-page__card {
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  background: #fff;
+}
+
+/* Override prod-calc defaults when inside calc-page card */
+.calc-page__card .prod-calc {
+  margin: 0;
+  padding: 20px;
+  gap: 16px;
+  border: none;
+  border-radius: 0;
+  background: #fff;
+}
+.calc-page__card .prod-calc__title { font-size: 15px; }
+.calc-page__card .prod-calc__tabs button { padding: 8px 12px; font-size: 12px; }
+.calc-page__card .prod-calc__result { padding: 18px 12px; }
+.calc-page__card .prod-calc__result-num { font-size: 32px; }

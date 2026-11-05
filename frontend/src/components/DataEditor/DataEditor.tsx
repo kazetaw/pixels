@@ -32,7 +32,7 @@ export function DataEditor({ initialRecipes, initialMachines, initialStocks, ini
   const [summaryOpen, setSummaryOpen] = useState(false);
 
   // ── Budget PIN lock ────────────────────────────────────────────────────────
-  const BUDGET_PIN = '7774';
+  const BUDGET_PIN = '0220';
   const PIN_LENGTH = 4;
   const [budgetUnlocked, setBudgetUnlocked] = useState(() => Boolean(getBudgetSessionPin()));
   const [pinDigits, setPinDigits] = useState<string[]>(['', '', '', '']);

@@ -847,7 +847,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // ── /api/budgets ─────────────────────────────────────────────────────────────
   if (segments[0] === 'budgets') {
     if (segments[1] === 'verify-pin' && method === 'POST') {
-      if (req.body?.pin !== (process.env.BUDGET_PIN ?? '7774')) return res.status(403).json({ error: 'PIN ไม่ถูกต้อง' });
+      if (req.body?.pin !== (process.env.BUDGET_PIN ?? '0220')) return res.status(403).json({ error: 'PIN ไม่ถูกต้อง' });
       return res.json({ ok: true });
     }
     // GET /api/budgets — return budgets + last 100 purchases
@@ -859,7 +859,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     // PUT /api/budgets — upsert one budget limit
     if (method === 'PUT') {
-      if (req.body?.pin !== (process.env.BUDGET_PIN ?? '7774')) return res.status(403).json({ error: 'กรุณายืนยัน PIN ให้ถูกต้องก่อนบันทึก' });
+      if (req.body?.pin !== (process.env.BUDGET_PIN ?? '0220')) return res.status(403).json({ error: 'กรุณายืนยัน PIN ให้ถูกต้องก่อนบันทึก' });
       const body = req.body as { currency: 'THB' | 'G'; limit_amount: number };
       if (!body.currency || !['THB','G'].includes(body.currency))
         return res.status(400).json({ error: 'currency must be THB or G' });
@@ -875,7 +875,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // ── /api/purchases ────────────────────────────────────────────────────────────
   if (segments[0] === 'purchases') {
     if (segments[1] && method === 'PUT') {
-      if (req.body?.pin !== (process.env.BUDGET_PIN ?? '7774')) return res.status(403).json({ error: 'PIN ไม่ถูกต้อง' });
+      if (req.body?.pin !== (process.env.BUDGET_PIN ?? '0220')) return res.status(403).json({ error: 'PIN ไม่ถูกต้อง' });
       const { expected, changes } = req.body;
       if (!expected || !changes || typeof changes.item_id !== 'string'
         || !Number.isSafeInteger(changes.quantity) || changes.quantity <= 0 || changes.quantity > 2147483647
