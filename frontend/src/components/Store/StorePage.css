@@ -1353,3 +1353,85 @@
 .shop-poster-modal .pe-picker__row[draggable="true"] { cursor: grab; user-select: none; }
 .shop-poster-modal .pe-picker__row[draggable="true"]:active { cursor: grabbing; }
 .shop-poster-modal .pe-picker__row.is-drag-over { border-color: #0284c7; box-shadow: inset 0 2px 0 #0284c7; }
+
+/* ── Per-item sales summary ──────────────────────────────────────────── */
+.shop-item-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.shop-rank-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.shop-rank-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.shop-rank-pos {
+  font-size: 11px;
+  font-weight: 700;
+  color: #94A3B8;
+  width: 18px;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.shop-rank-row:nth-child(1) .shop-rank-pos { color: #F59E0B; font-size: 13px; }
+.shop-rank-row:nth-child(2) .shop-rank-pos { color: #9CA3AF; }
+.shop-rank-row:nth-child(3) .shop-rank-pos { color: #B45309; }
+
+.shop-rank-name {
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 0 0 90px;
+  min-width: 0;
+}
+
+.shop-rank-bar-wrap {
+  flex: 1;
+  height: 6px;
+  background: #E0F2FE;
+  border-radius: 3px;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.shop-rank-bar {
+  height: 100%;
+  background: #0284C7;
+  border-radius: 3px;
+  transition: width .3s;
+}
+
+.shop-rank-bar--rev {
+  background: #16A34A;
+}
+
+.shop-rank-val {
+  font-size: 12px;
+  font-weight: 600;
+  color: #0C1E33;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.shop-rank-val small {
+  font-size: 10px;
+  font-weight: 400;
+  color: #64748B;
+  margin-left: 2px;
+}

@@ -755,6 +755,59 @@ function StoreApp() {
                   </ul>}
               </section>
             </div>
+
+            {/* ── Per-item summary ── */}
+            {sales.length > 0 && (() => {
+              // Aggregate by item
+              type ItemStat = { item_id: string; name: string; image_url: string | null; qty: number; revenue: number; txn: number };
+              const map = new Map<string, ItemStat>();
+              for (const s of sales) {
+                const key = s.item_id;
+                const prev = map.get(key) ?? { item_id: s.item_id, name: s.item_name, image_url: s.image_url, qty: 0, revenue: 0, txn: 0 };
+                map.set(key, { ...prev, qty: prev.qty + Number(s.qty), revenue: prev.revenue + Number(s.total), txn: prev.txn + 1 });
+              }
+              const byQty = [...map.values()].sort((a, b) => b.qty - a.qty);
+              const byRev = [...map.values()].sort((a, b) => b.revenue - a.revenue);
+              const maxQty = byQty[0]?.qty ?? 1;
+              const maxRev = byRev[0]?.revenue ?? 1;
+              return (
+                <div className="shop-item-summary">
+                  <section className="shop-panel">
+                    <header><h2>ขายได้มากที่สุด</h2><span className="shop-muted">เรียงตามกอง</span></header>
+                    <ol className="shop-rank-list">
+                      {byQty.slice(0, 8).map((item, i) => (
+                        <li key={item.item_id} className="shop-rank-row">
+                          <span className="shop-rank-pos">{i + 1}</span>
+                          <ItemImg src={item.image_url ?? apiData?.stockImages[item.item_id]} name={item.name} size={28} />
+                          <span className="shop-rank-name">{item.name}</span>
+                          <div className="shop-rank-bar-wrap">
+                            <div className="shop-rank-bar" style={{ width: `${(item.qty / maxQty) * 100}%` }} />
+                          </div>
+                          <span className="shop-rank-val">{fmt(item.qty)} <small>กอง</small></span>
+                        </li>
+                      ))}
+                    </ol>
+                  </section>
+                  <section className="shop-panel">
+                    <header><h2>รายได้สูงสุด</h2><span className="shop-muted">เรียงตามยอดเงิน</span></header>
+                    <ol className="shop-rank-list">
+                      {byRev.slice(0, 8).map((item, i) => (
+                        <li key={item.item_id} className="shop-rank-row">
+                          <span className="shop-rank-pos">{i + 1}</span>
+                          <ItemImg src={item.image_url ?? apiData?.stockImages[item.item_id]} name={item.name} size={28} />
+                          <span className="shop-rank-name">{item.name}</span>
+                          <div className="shop-rank-bar-wrap">
+                            <div className="shop-rank-bar shop-rank-bar--rev" style={{ width: `${(item.revenue / maxRev) * 100}%` }} />
+                          </div>
+                          <span className="shop-rank-val">{fmtMoney(item.revenue)}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  </section>
+                </div>
+              );
+            })()}
+
             <Table<SaleRecord> className="shop-table" columns={salesColumns} dataSource={sales} rowKey="id" size="middle" scroll={{ x: 680 }}
               pagination={{ pageSize: 20, showSizeChanger: false, size: 'small', hideOnSinglePage: true }}
               locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="ยังไม่มีประวัติการขาย" /> }} />
