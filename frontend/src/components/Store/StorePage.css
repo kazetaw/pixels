@@ -1435,3 +1435,438 @@
   color: #64748B;
   margin-left: 2px;
 }
+
+/* ── Sell tab layout ───────────────────────────────────────────────────── */
+.sell-layout {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  min-height: 0;
+}
+
+/* Picker */
+.sell-picker {
+  flex: 1;
+  min-width: 0;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #BAE6FD;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 220px);
+}
+
+.sell-picker__search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #E0F2FE;
+  flex-shrink: 0;
+}
+
+.sell-picker__input {
+  flex: 1; border: none; outline: none;
+  font-size: 13px; color: #0C1E33; background: transparent;
+  font-family: inherit;
+}
+.sell-picker__input::placeholder { color: #94A3B8; }
+
+.sell-picker__list {
+  list-style: none; margin: 0; padding: 0;
+  overflow-y: auto; flex: 1;
+}
+
+.sell-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 14px;
+  border-bottom: 1px solid #F1F5F9;
+  transition: background .1s;
+}
+.sell-row:hover:not(.is-out) { background: #F0F9FF; }
+.sell-row.is-added { background: #EFF6FF; }
+.sell-row.is-out { opacity: .5; }
+
+.sell-row__img {
+  width: 36px; height: 36px; border-radius: 8px;
+  background: #F0F9FF; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden; font-size: 16px;
+}
+.sell-row__img img { width: 100%; height: 100%; object-fit: contain; }
+
+.sell-row__info { flex: 1; min-width: 0; cursor: pointer; }
+.sell-row__name { display: block; font-size: 12px; font-weight: 600; color: #0C1E33; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sell-row__meta { font-size: 11px; color: #64748B; }
+
+.sell-row__ctrl {
+  display: flex; align-items: center; gap: 3px; flex-shrink: 0;
+}
+.sell-row__ctrl button {
+  width: 24px; height: 24px; border-radius: 5px;
+  border: 1px solid #BAE6FD; background: #fff; cursor: pointer;
+  font-size: 14px; font-weight: 700; color: #0284C7;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .1s; flex-shrink: 0;
+}
+.sell-row__ctrl button:hover:not(:disabled) { background: #E0F2FE; }
+.sell-row__ctrl button:disabled { opacity: .3; cursor: default; }
+.sell-row__qty-input {
+  width: 36px; height: 24px;
+  border: 1px solid #BAE6FD; border-radius: 5px;
+  text-align: center; font-size: 12px; font-weight: 700;
+  color: #0C1E33; background: #fff; outline: none;
+  font-family: inherit; padding: 0;
+  -moz-appearance: textfield;
+}
+.sell-row__qty-input::-webkit-outer-spin-button,
+.sell-row__qty-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.sell-row__qty-input.is-filled { color: #0284C7; border-color: #0284C7; background: #EFF6FF; }
+.sell-row__qty-input::placeholder { color: #CBD5E1; font-weight: 400; }
+
+/* ── Thermal Receipt (shared tokens, used by sell-receipt and bill-receipt) ── */
+/*
+  Paper texture: off-white #FAF9F7
+  Zigzag top/bottom via SVG mask (clip-path polygon)
+  Subtle shadow for depth
+*/
+
+/* ── Sell Tab: receipt wrapper ─────────────────────────────────────────────── */
+.sell-receipt-wrap {
+  flex: 0 0 260px;
+  width: 260px;
+  position: sticky;
+  top: 0;
+}
+
+/* Plain white paper — no zigzag, no texture, no shadow gimmicks */
+.sell-receipt {
+  background: #fff;
+  border: 1px solid #E5E7EB;
+  border-radius: 4px;
+}
+
+/* Dashed separator between header and items */
+.sell-receipt__perf {
+  height: 0;
+  border: none;
+  border-top: 1px dashed #D1D5DB;
+  margin: 0 14px;
+}
+
+.sell-receipt__body { padding: 18px 14px 16px; }
+
+/* ── Header: centred logo + store name ─────────────────────────────────────── */
+.sell-receipt__head {
+  text-align: center;
+  padding-bottom: 12px;
+}
+.sell-receipt__logo {
+  width: 48px; height: 48px;
+  border-radius: 12px;
+  background: #F3F4F6;
+  overflow: hidden;
+  margin: 0 auto 8px;
+  display: flex; align-items: center; justify-content: center;
+}
+.sell-receipt__logo img { width: 100%; height: 100%; object-fit: cover; }
+.sell-receipt__store { font-size: 13px; font-weight: 700; color: #111827; }
+.sell-receipt__date { font-size: 10px; color: #9CA3AF; margin-top: 3px; }
+
+/* Dashed separator */
+.sell-receipt__divider {
+  border: none;
+  border-top: 1px dashed #D1D5DB;
+  margin: 10px 0;
+}
+
+/* Empty state */
+.sell-receipt__empty {
+  padding: 28px 0; text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  color: #9CA3AF; font-size: 12px;
+}
+.sell-receipt__empty .anticon { font-size: 24px; }
+
+/* ── Item list ─────────────────────────────────────────────────────────────── */
+.sell-receipt__lines { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+
+.sell-receipt__line {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px dashed #E5E7EB;
+}
+.sell-receipt__line:last-child { border-bottom: none; }
+
+.sell-receipt__line-img {
+  width: 28px; height: 28px; border-radius: 6px;
+  background: #F9FAFB; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden; font-size: 12px;
+  border: 1px solid #E5E7EB;
+}
+.sell-receipt__line-img img { width: 100%; height: 100%; object-fit: contain; }
+
+.sell-receipt__line-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.sell-receipt__line-name {
+  display: block; font-size: 11px; font-weight: 600; color: #111827; line-height: 1.3;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sell-receipt__line-sub { font-size: 10px; color: #9CA3AF; display: block; line-height: 1.3; }
+
+.sell-receipt__line-total {
+  font-size: 12px; font-weight: 700; color: #111827;
+  white-space: nowrap; flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Total summary ─────────────────────────────────────────────────────────── */
+.sell-receipt__summary { display: flex; flex-direction: column; gap: 4px; }
+.sell-receipt__sum-row {
+  display: flex; justify-content: space-between;
+  font-size: 11px; color: #6B7280;
+}
+.sell-receipt__sum-row.is-total {
+  margin-top: 4px;
+  font-size: 14px; font-weight: 800; color: #111827;
+  font-variant-numeric: tabular-nums;
+}
+.sell-receipt__sum-row.is-total span:last-child { color: #0369A1; font-size: 17px; }
+
+/* ── Actions below receipt ─────────────────────────────────────────────────── */
+.sell-receipt__actions {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 0 0; gap: 8px;
+}
+
+@media (max-width: 767px) {
+  .sell-layout { flex-direction: column; }
+  .sell-receipt-wrap { position: static; width: 100%; flex: none; }
+  .sell-picker { max-height: 320px; }
+}
+
+/* ── Bill Modal receipt (bill-receipt*) ────────────────────────────────────── */
+/* Shares the same thermal-paper aesthetic as sell-receipt */
+
+.bill-layout {
+  display: flex;
+  gap: 0;
+  min-height: 480px;
+  max-height: calc(90vh - 120px);
+  overflow: hidden;
+}
+
+/* Left: product picker */
+.bill-picker {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-right: 1px solid #E0F2FE;
+}
+.bill-picker__search {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #E0F2FE;
+  flex-shrink: 0;
+}
+.bill-picker__input {
+  flex: 1; border: none; outline: none;
+  font-size: 13px; color: #0C1E33; background: transparent;
+  font-family: inherit;
+}
+.bill-picker__input::placeholder { color: #94A3B8; }
+.bill-picker__list {
+  list-style: none; margin: 0; padding: 0;
+  overflow-y: auto; flex: 1;
+}
+.bill-item-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 14px;
+  border-bottom: 1px solid #F1F5F9;
+  transition: background .1s;
+}
+.bill-item-row:hover { background: #F0F9FF; }
+.bill-item-row.is-added { background: #EFF6FF; }
+.bill-item-row__img {
+  width: 36px; height: 36px; border-radius: 8px;
+  background: #F0F9FF; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden; font-size: 16px;
+}
+.bill-item-row__img img { width: 100%; height: 100%; object-fit: contain; }
+.bill-item-row__info { flex: 1; min-width: 0; cursor: pointer; }
+.bill-item-row__name { display: block; font-size: 12px; font-weight: 600; color: #0C1E33; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bill-item-row__price { font-size: 11px; color: #64748B; }
+.bill-item-row__ctrl {
+  display: flex; align-items: center; gap: 3px; flex-shrink: 0;
+}
+.bill-item-row__ctrl button {
+  width: 24px; height: 24px; border-radius: 5px;
+  border: 1px solid #BAE6FD; background: #fff; cursor: pointer;
+  font-size: 14px; font-weight: 700; color: #0284C7;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .1s; flex-shrink: 0;
+}
+.bill-item-row__ctrl button:hover:not(:disabled) { background: #E0F2FE; }
+.bill-item-row__ctrl button:disabled { opacity: .3; cursor: default; }
+.bill-item-row__ctrl span {
+  width: 22px; text-align: center;
+  font-size: 12px; font-weight: 700; color: #0284C7;
+}
+.bill-picker__empty {
+  padding: 32px; text-align: center; color: #94A3B8; font-size: 13px;
+}
+
+/* Right: the thermal slip */
+.bill-receipt {
+  flex: 0 0 280px;
+  width: 280px;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  background: #F0F4F8; /* tray behind the paper */
+  padding: 12px 10px 0;
+  /* no border-radius — the zigzag paper sits inside */
+}
+
+/* Paper strip */
+.bill-receipt__paper {
+  background: #FAF9F7;
+  position: relative;
+  flex: 1;
+  clip-path: polygon(
+    0% 7px, 5% 0%, 10% 7px, 15% 0%, 20% 7px, 25% 0%, 30% 7px, 35% 0%, 40% 7px, 45% 0%, 50% 7px,
+    55% 0%, 60% 7px, 65% 0%, 70% 7px, 75% 0%, 80% 7px, 85% 0%, 90% 7px, 95% 0%, 100% 7px,
+    100% calc(100% - 7px),
+    95% 100%, 90% calc(100% - 7px), 85% 100%, 80% calc(100% - 7px), 75% 100%, 70% calc(100% - 7px),
+    65% 100%, 60% calc(100% - 7px), 55% 100%, 50% calc(100% - 7px),
+    45% 100%, 40% calc(100% - 7px), 35% 100%, 30% calc(100% - 7px), 25% 100%, 20% calc(100% - 7px),
+    15% 100%, 10% calc(100% - 7px), 5% 100%, 0% calc(100% - 7px)
+  );
+  box-shadow: 0 2px 12px rgba(12,30,51,.10);
+}
+
+.bill-receipt__body { padding: 18px 16px 22px; }
+
+/* Store header — centred */
+.bill-receipt__store {
+  text-align: center;
+  padding-bottom: 12px;
+  border-bottom: 1.5px dashed #C8D9E6;
+  margin-bottom: 10px;
+}
+.bill-receipt__store-name { font-size: 14px; font-weight: 700; color: #0C1E33; }
+.bill-receipt__date { font-size: 10px; color: #94A3B8; margin-top: 3px; letter-spacing: .02em; }
+
+/* Empty placeholder */
+.bill-receipt__empty {
+  padding: 32px 0; text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  color: #94A3B8; font-size: 13px;
+}
+.bill-receipt__empty .anticon { font-size: 28px; }
+
+/* Item lines */
+.bill-receipt__lines { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0; }
+.bill-receipt__line {
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 0;
+  border-bottom: 1px dashed #D9E8EF;
+}
+.bill-receipt__line:last-child { border-bottom: none; }
+
+.bill-receipt__line-img {
+  width: 28px; height: 28px; border-radius: 6px;
+  background: #EBF4FA; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden; font-size: 13px;
+  border: 1px solid #D6ECFA;
+}
+.bill-receipt__line-img img { width: 100%; height: 100%; object-fit: contain; }
+
+.bill-receipt__line-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.bill-receipt__line-name {
+  display: block; font-size: 11px; font-weight: 600; color: #0C1E33; line-height: 1.3;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.bill-receipt__line-sub { font-size: 9.5px; color: #94A3B8; display: block; line-height: 1.3; }
+.bill-receipt__line-total {
+  font-size: 12px; font-weight: 700; color: #0C1E33;
+  white-space: nowrap; flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Divider */
+.bill-receipt__divider { border: none; border-top: 1.5px dashed #C8D9E6; margin: 8px 0; }
+
+/* Summary */
+.bill-receipt__summary { display: flex; flex-direction: column; gap: 4px; }
+.bill-receipt__sum-row { display: flex; justify-content: space-between; font-size: 11px; color: #64748B; }
+.bill-receipt__sum-row.is-total {
+  margin-top: 6px;
+  font-size: 15px; font-weight: 800; color: #0C1E33;
+  font-variant-numeric: tabular-nums;
+  align-items: baseline;
+}
+.bill-receipt__sum-row.is-total span:first-child { font-size: 11px; font-weight: 500; color: #64748B; }
+.bill-receipt__sum-row.is-total span:last-child { color: #0269A4; font-size: 18px; }
+
+/* Footer gimmick */
+.bill-receipt__footer {
+  text-align: center; padding-top: 12px;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+}
+.bill-receipt__paid {
+  font-size: 10px; font-weight: 700; letter-spacing: .08em;
+  color: #16803C; background: #DCFCE7;
+  padding: 3px 10px; border-radius: 999px;
+  border: 1px solid #86EFAC;
+}
+.bill-receipt__qr {
+  width: 36px; height: 36px;
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 1.5px;
+  opacity: .3; margin: 0 auto;
+}
+.bill-receipt__qr > span { background: #334155; border-radius: 1px; }
+.bill-receipt__footer-date { font-size: 9px; color: #94A3B8; letter-spacing: .04em; }
+
+/* Note input */
+.bill-receipt__note { display: block; padding-top: 10px; }
+
+/* Actions */
+.bill-receipt__actions {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 10px 16px; gap: 8px;
+  background: #F0F4F8;
+}
+
+@media (max-width: 767px) {
+  .bill-layout { flex-direction: column; max-height: none; }
+  .bill-receipt { flex: none; width: 100%; max-height: 420px; }
+  .bill-picker { max-height: 280px; }
+}
+
+/* sell picker occ tags */
+.sell-picker__occ {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px 12px 6px;
+  border-bottom: 1px solid #E0F2FE;
+}
+.sell-picker__occ .ant-tag-checkable {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  border: 1px solid #BAE6FD;
+  cursor: pointer;
+  transition: background .12s, color .12s;
+}
+.sell-picker__occ .ant-tag-checkable-checked {
+  background: #0284C7;
+  color: #fff;
+  border-color: #0284C7;
+}

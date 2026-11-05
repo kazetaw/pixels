@@ -5,7 +5,7 @@ import {
 } from 'antd';
 import type { ThemeConfig } from 'antd';
 import {
-  AppstoreOutlined, BarsOutlined, DeleteOutlined, EditOutlined, LogoutOutlined, MoreOutlined,
+  AppstoreOutlined, BarsOutlined, DeleteOutlined, DownloadOutlined, EditOutlined, LogoutOutlined, MoreOutlined,
   PlusOutlined, ReloadOutlined, SearchOutlined, ShopOutlined, ShoppingCartOutlined, InboxOutlined,
   BookOutlined, HistoryOutlined, ThunderboltOutlined, DatabaseOutlined, RiseOutlined, WarningOutlined, CheckCircleOutlined, CameraOutlined,
   TeamOutlined as _TeamOutlined, PictureOutlined,
@@ -26,7 +26,7 @@ type StoreRow = { id: string; name: string; logo_url?: string | null };
 type Session = { storeId: string; storeName: string; logo: string | null };
 type StoreProduct = { item_id: string; name: string; image_url: string | null; price: number; stock: number };
 type SaleRecord = { id: string; item_id: string; item_name: string; image_url: string | null; qty: number; price_per_unit: number; total: number; note: string; sold_at: string };
-type Tab = 'overview' | 'restock' | 'sales' | 'accounts';
+type Tab = 'overview' | 'restock' | 'sell' | 'sales' | 'accounts';
 
 // ── Sky · Sun · White theme (scoped to /store) ────────────────────────────────
 const SKY = '#0284C7';
@@ -189,6 +189,161 @@ function StoreGate({ onEntered }: { onEntered: (id: string, name: string, logo: 
         </div>
       )}
     </div>
+  );
+}
+
+// ── Bill Modal ────────────────────────────────────────────────────────────────
+type BillLine = { product: StoreProduct; qty: number; image?: string | null };
+
+function BillModal({ open, storeId, products, getImg, onClose, onSaved, storeName, msgApi }:
+  { open: boolean; storeId: string; products: StoreProduct[]; getImg: (p: StoreProduct) => string | null | undefined;
+    onClose: () => void; onSaved: () => void; storeName: string; msgApi: ReturnType<typeof message.useMessage>[0] }) {
+
+  const [lines, setLines] = useState<Record<string, number>>({});
+  const [search, setSearch] = useState('');
+  const [note, setNote] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => { if (open) { setLines({}); setSearch(''); setNote(''); } }, [open]);
+
+  const setQty = (id: string, qty: number) =>
+    setLines(prev => { const next = { ...prev }; if (qty <= 0) delete next[id]; else next[id] = qty; return next; });
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    return q ? products.filter(p => p.name.toLowerCase().includes(q)) : products;
+  }, [products, search]);
+
+  const billLines: BillLine[] = products
+    .filter(p => (lines[p.item_id] ?? 0) > 0)
+    .map(p => ({ product: p, qty: lines[p.item_id], image: getImg(p) }));
+
+  const totalQty = billLines.reduce((s, l) => s + l.qty, 0);
+  const totalAmt = billLines.reduce((s, l) => s + l.qty * l.product.price, 0);
+
+  const copyText = () => {
+    const rows = billLines.map(l => `${l.product.name} ${l.qty} กอง × ${fmtMoney(l.product.price)} = ${fmtMoney(l.qty * l.product.price)}`);
+    const text = [`ร้าน ${storeName}`, ...rows, `รวม ${fmtMoney(totalAmt)} (${totalQty} กอง)`].join('\n');
+    navigator.clipboard.writeText(text).then(() => void msgApi.success('คัดลอกแล้ว')).catch(() => void msgApi.error('คัดลอกไม่สำเร็จ'));
+  };
+
+  const handleSave = async () => {
+    if (!billLines.length || saving) return;
+    // Validate stock
+    const overStock = billLines.find(l => l.qty > l.product.stock);
+    if (overStock) { void msgApi.error(`${overStock.product.name}: สต็อกไม่พอ (มี ${fmt(overStock.product.stock)} กอง)`); return; }
+    setSaving(true);
+    let ok = 0;
+    for (const l of billLines) {
+      try {
+        const res = await fetch(`/api/store/${storeId}/sales`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ item_id: l.product.item_id, qty: l.qty, note: note || '' }) });
+        if (res.ok) ok++;
+        else { const e = await res.json(); void msgApi.error(`${l.product.name}: ${e.error ?? 'บันทึกไม่สำเร็จ'}`); }
+      } catch { void msgApi.error(`${l.product.name}: เชื่อมต่อไม่สำเร็จ`); }
+    }
+    setSaving(false);
+    if (ok > 0) {
+      void msgApi.success(`บันทึก ${ok} รายการแล้ว`);
+      onSaved();
+      onClose();
+    }
+  };
+
+  const now = new Date().toLocaleString('th-TH', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+  return (
+    <Modal open={open} onCancel={onClose} title="สรุปบิล" width="min(96vw, 780px)" style={{ top: 16 }}
+      footer={null} styles={{ body: { padding: 0 } }}>
+      <div className="bill-layout">
+
+        {/* Left: picker */}
+        <div className="bill-picker">
+          <div className="bill-picker__search">
+            <SearchOutlined style={{ color: '#94A3B8' }} />
+            <input className="bill-picker__input" placeholder="ค้นหาสินค้า…" value={search} onChange={e => setSearch(e.target.value)} />
+          </div>
+          <ul className="bill-picker__list">
+            {filtered.map(p => {
+              const qty = lines[p.item_id] ?? 0;
+              const added = qty > 0;
+              return (
+                <li key={p.item_id} className={`bill-item-row${added ? ' is-added' : ''}`}>
+                  <div className="bill-item-row__img">
+                    {getImg(p) ? <img src={getImg(p)!} alt="" loading="lazy" /> : <InboxOutlined />}
+                  </div>
+                  <div className="bill-item-row__info" onClick={() => setQty(p.item_id, qty + 1)}>
+                    <span className="bill-item-row__name">{p.name}</span>
+                    <span className="bill-item-row__price">{fmtMoney(p.price)} · {fmt(p.stock)} กอง</span>
+                  </div>
+                  <div className="bill-item-row__ctrl">
+                    <button onClick={() => setQty(p.item_id, qty - 1)} disabled={qty === 0} aria-label={`ลด ${p.name}`}>−</button>
+                    <span>{qty || ''}</span>
+                    <button onClick={() => setQty(p.item_id, qty + 1)} disabled={qty >= p.stock} aria-label={`เพิ่ม ${p.name}`}>+</button>
+                  </div>
+                </li>
+              );
+            })}
+            {!filtered.length && <li className="bill-picker__empty">ไม่พบสินค้า</li>}
+          </ul>
+        </div>
+
+        {/* Right: receipt */}
+        <div className="bill-receipt">
+          <div className="bill-receipt__perf" />
+          <div className="bill-receipt__body">
+            <div className="bill-receipt__store">
+              <div className="bill-receipt__store-name">{storeName}</div>
+              <div className="bill-receipt__date">{now}</div>
+            </div>
+
+            {billLines.length === 0
+              ? <div className="bill-receipt__empty"><ShoppingCartOutlined /><span>เลือกสินค้าทางซ้าย</span></div>
+              : <>
+                  <ul className="bill-receipt__lines">
+                    {billLines.map(l => (
+                      <li key={l.product.item_id} className="bill-receipt__line">
+                        <div className="bill-receipt__line-img">
+                          {l.image ? <img src={l.image} alt="" loading="lazy" /> : <InboxOutlined />}
+                        </div>
+                        <div className="bill-receipt__line-info">
+                          <span className="bill-receipt__line-name">{l.product.name}</span>
+                          <span className="bill-receipt__line-sub">{l.qty} กอง × {fmtMoney(l.product.price)}</span>
+                        </div>
+                        <span className="bill-receipt__line-total">{fmtMoney(l.qty * l.product.price)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="bill-receipt__divider" />
+                  <div className="bill-receipt__summary">
+                    <div className="bill-receipt__sum-row">
+                      <span>{billLines.length} รายการ</span>
+                      <span>{fmt(totalQty)} กอง</span>
+                    </div>
+                    <div className="bill-receipt__sum-row is-total">
+                      <span>รวมทั้งหมด</span>
+                      <span>{fmtMoney(totalAmt)}</span>
+                    </div>
+                  </div>
+                </>}
+
+            <label className="bill-receipt__note">
+              <Input placeholder="หมายเหตุ (ไม่บังคับ)" value={note} onChange={e => setNote(e.target.value)} maxLength={200} size="small" variant="filled" />
+            </label>
+          </div>
+          <div className="bill-receipt__perf" />
+
+          <div className="bill-receipt__actions">
+            <Button onClick={copyText} disabled={!billLines.length} icon={<DatabaseOutlined />}>คัดลอก</Button>
+            <Button type="primary" loading={saving} disabled={!billLines.length}
+              onClick={() => void handleSave()}>
+              บันทึกการขาย {billLines.length > 0 && `· ${fmtMoney(totalAmt)}`}
+            </Button>
+          </div>
+        </div>
+
+      </div>
+    </Modal>
   );
 }
 
@@ -498,6 +653,178 @@ function StoreApp() {
 
   // Poster export: in-stock items from the current filters/sort.
   const [posterOpen, setPosterOpen] = useState(false);
+
+  // Sell tab state
+  const [sellQtys, setSellQtys] = useState<Record<string, number>>({});
+  const [sellNote, setSellNote] = useState('');
+  const [sellSearch, setSellSearch] = useState('');
+  const [sellOccFilter, setSellOccFilter] = useState('all');
+  const [sellSubmitting, setSellSubmitting] = useState(false);
+
+  // โลโก้สำหรับสลิป — ใช้ key เดียวกับ poster export
+  const sellReceiptLogo = (() => {
+    try { return localStorage.getItem(`store-poster-logo:${session?.storeId}`) || session?.logo || '/avatars/store-duck.jpeg'; }
+    catch { return session?.logo || '/avatars/store-duck.jpeg'; }
+  })();
+
+  // ดาวน์โหลดสลิปเป็นรูป PNG (ไม่ตัดสต็อก)
+  const downloadReceipt = async () => {
+    const W = 320, pad = 20;
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d')!;
+    const FONT = "'IBM Plex Sans Thai', 'Noto Sans Thai', Tahoma, sans-serif";
+
+    const loadImg = (src: string) => new Promise<HTMLImageElement | null>(resolve => {
+      const img = new Image(); img.crossOrigin = 'anonymous';
+      const t = setTimeout(() => resolve(null), 5000);
+      img.onload = () => { clearTimeout(t); resolve(img); };
+      img.onerror = () => { clearTimeout(t); resolve(null); };
+      img.src = src;
+    });
+
+    await document.fonts?.ready;
+    const logoImg = await loadImg(sellReceiptLogo);
+    const itemImgs = await Promise.all(sellLines.map(l => {
+      const src = getImg(l.product);
+      return src ? loadImg(src) : Promise.resolve(null);
+    }));
+
+    // helper: rounded rect path
+    const rRect = (x: number, y: number, w: number, h: number, r: number) => {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y); ctx.arcTo(x + w, y, x + w, y + r, r);
+      ctx.lineTo(x + w, y + h - r); ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+      ctx.lineTo(x + r, y + h); ctx.arcTo(x, y + h, x, y + h - r, r);
+      ctx.lineTo(x, y + r); ctx.arcTo(x, y, x + r, y, r);
+      ctx.closePath();
+    };
+
+    // dashed separator
+    const dashes = (yy: number) => {
+      ctx.save(); ctx.setLineDash([3, 5]); ctx.strokeStyle = '#D1D5DB'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(pad, yy); ctx.lineTo(W - pad, yy); ctx.stroke(); ctx.restore();
+    };
+
+    // calc height
+    const lineH = 36;
+    const headH = 48 + 10 + 18 + 14 + 16 + 16; // logo + name + date + gap + divider
+    const itemsH = sellLines.length * (lineH + 1);
+    const footH = 16 + 14 + 20 + (sellNote ? 20 : 0) + 16; // divider + count row + total row
+    const H = pad + headH + itemsH + footH + pad;
+
+    canvas.width = W; canvas.height = H;
+
+    // white background
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H);
+
+    // ── header ──
+    let y = pad;
+    if (logoImg) {
+      const av = 48, r = 12;
+      const lx = W / 2 - av / 2;
+      ctx.save(); rRect(lx, y, av, av, r); ctx.clip();
+      ctx.fillStyle = '#F3F4F6'; ctx.fill();
+      const sc = Math.min(av / logoImg.width, av / logoImg.height);
+      ctx.drawImage(logoImg, lx + av / 2 - logoImg.width * sc / 2, y + av / 2 - logoImg.height * sc / 2, logoImg.width * sc, logoImg.height * sc);
+      ctx.restore();
+      y += av + 10;
+    }
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#111827'; ctx.font = `700 13px ${FONT}`;
+    ctx.fillText(session?.storeName ?? '', W / 2, y); y += 18;
+    ctx.fillStyle = '#9CA3AF'; ctx.font = `400 10px ${FONT}`;
+    ctx.fillText(new Date().toLocaleString('th-TH', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }), W / 2, y); y += 16;
+
+    y += 8; dashes(y); y += 12;
+
+    // ── items ──
+    for (let i = 0; i < sellLines.length; i++) {
+      const l = sellLines[i];
+      const img = itemImgs[i];
+      const ts = 28, tr = 6, tx = pad, ty = y + (lineH - ts) / 2;
+
+      // thumb
+      ctx.save(); rRect(tx, ty, ts, ts, tr); ctx.clip();
+      ctx.fillStyle = '#F9FAFB'; ctx.fillRect(tx, ty, ts, ts);
+      if (img) {
+        const sc = Math.min(ts / img.width, ts / img.height) * 0.82;
+        ctx.drawImage(img, tx + ts / 2 - img.width * sc / 2, ty + ts / 2 - img.height * sc / 2, img.width * sc, img.height * sc);
+      }
+      ctx.restore();
+      // thumb border
+      ctx.save(); rRect(tx, ty, ts, ts, tr); ctx.strokeStyle = '#E5E7EB'; ctx.lineWidth = 1; ctx.stroke(); ctx.restore();
+
+      const textX = pad + ts + 8;
+      ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+      ctx.fillStyle = '#111827'; ctx.font = `600 11px ${FONT}`;
+      let name = l.product.name;
+      const maxW = W - textX - pad - 60;
+      while (ctx.measureText(name).width > maxW && name.length > 1) name = name.slice(0, -1);
+      if (name !== l.product.name) name += '…';
+      ctx.fillText(name, textX, y + 8);
+      ctx.fillStyle = '#9CA3AF'; ctx.font = `400 10px ${FONT}`;
+      ctx.fillText(`${l.qty} กอง × ${fmtMoney(l.product.price)}`, textX, y + 21);
+
+      ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#111827'; ctx.font = `700 12px ${FONT}`;
+      ctx.fillText(fmtMoney(l.qty * l.product.price), W - pad, y + lineH / 2);
+
+      // item separator
+      if (i < sellLines.length - 1) dashes(y + lineH);
+      y += lineH;
+    }
+
+    y += 10; dashes(y); y += 12;
+
+    // count row
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#6B7280'; ctx.font = `400 11px ${FONT}`;
+    ctx.fillText(`${sellLines.length} รายการ · ${fmt(sellTotalQty)} กอง`, pad, y); y += 20;
+
+    // total row — plain, no box
+    ctx.textAlign = 'left'; ctx.fillStyle = '#111827'; ctx.font = `700 14px ${FONT}`;
+    ctx.fillText('รวมทั้งหมด', pad, y);
+    ctx.textAlign = 'right'; ctx.fillStyle = '#0369A1'; ctx.font = `800 17px ${FONT}`;
+    ctx.fillText(fmtMoney(sellTotal), W - pad, y); y += 20;
+
+    if (sellNote) {
+      y += 4;
+      ctx.textAlign = 'center'; ctx.fillStyle = '#9CA3AF'; ctx.font = `400 10px ${FONT}`;
+      ctx.fillText(sellNote, W / 2, y); y += 16;
+    }
+
+    // download
+    const a = document.createElement('a');
+    a.href = canvas.toDataURL('image/png');
+    a.download = `สลิป-${session?.storeName ?? 'ร้าน'}-${new Date().toISOString().slice(0, 10)}.png`;
+    a.click();
+  };
+  const sellLines = useMemo(
+    () => products.filter(p => (sellQtys[p.item_id] ?? 0) > 0).map(p => ({ product: p, qty: sellQtys[p.item_id] })),
+    [products, sellQtys]
+  );
+  const sellTotal = sellLines.reduce((s, l) => s + l.qty * l.product.price, 0);
+  const sellTotalQty = sellLines.reduce((s, l) => s + l.qty, 0);
+  const setSellQty = (id: string, qty: number) =>
+    setSellQtys(prev => { const next = { ...prev }; if (qty <= 0) delete next[id]; else next[id] = qty; return next; });
+  const handleSellSubmit = async () => {
+    if (!session || !sellLines.length || sellSubmitting) return;
+    const overStock = sellLines.find(l => l.qty > l.product.stock);
+    if (overStock) { void msgApi.error(`${overStock.product.name}: สต็อกไม่พอ (มี ${fmt(overStock.product.stock)} กอง)`); return; }
+    setSellSubmitting(true);
+    let ok = 0;
+    for (const l of sellLines) {
+      try {
+        const res = await fetch(`/api/store/${session.storeId}/sales`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ item_id: l.product.item_id, qty: l.qty, note: sellNote || '' }) });
+        if (res.ok) ok++;
+        else { const e = await res.json(); void msgApi.error(`${l.product.name}: ${(e as {error?:string}).error ?? 'ไม่สำเร็จ'}`); }
+      } catch { void msgApi.error(`${l.product.name}: เชื่อมต่อไม่สำเร็จ`); }
+    }
+    setSellSubmitting(false);
+    if (ok > 0) { void msgApi.success(`บันทึก ${ok} รายการแล้ว`); setSellQtys({}); setSellNote(''); await fetchAll(session.storeId); }
+  };
   const posterItems = useMemo(() => filteredOverview.filter(p => p.stock > 0)
     .map(p => ({ name: p.name, price: p.price, stock: p.stock, image: getImg(p) ?? null })), [filteredOverview, apiData]);
 
@@ -561,6 +888,7 @@ function StoreApp() {
   const heading: Record<Tab, [string, string]> = {
     overview: ['หน้าร้าน', 'เลือกสินค้าแล้วกดบันทึกขาย'],
     restock: ['เติมสต็อก', 'กรอกจำนวนที่รับเพิ่ม ตรวจยอดหลังเติม แล้วบันทึกพร้อมกันได้หลายรายการ'],
+    sell: ['บันทึกขาย', 'เลือกสินค้าและจำนวน ระบบจะหักสต็อกอัตโนมัติ'],
     sales: ['ประวัติขาย', 'รายการขายทั้งหมดของร้าน'],
     accounts: ['สมุดบัญชีสต็อก', 'เมลไหน · ตัวไหน · เก็บอะไร'],
   };
@@ -586,10 +914,11 @@ function StoreApp() {
             {([
               ['overview', 'หน้าร้าน', <ShopOutlined />],
               ['restock', 'เติมสต็อก', <PlusOutlined />],
+              ['sell', 'ขาย', <ShoppingCartOutlined />],
               ['sales', 'ประวัติขาย', <HistoryOutlined />],
               ['accounts', 'สมุดบัญชี', <BookOutlined />],
             ] as const).map(([key, label, icon]) => <button key={key} type="button" className={tab === key ? 'is-active' : ''} aria-current={tab === key ? 'page' : undefined} onClick={() => setTab(key)}>
-              {icon}<span>{label}</span>{key === 'restock' && pendingCount > 0 && <span className="shop-nav__count" aria-label={`${pendingCount} รายการรอบันทึก`}>{pendingCount}</span>}
+              {icon}<span>{label}</span>{key === 'restock' && pendingCount > 0 && <span className="shop-nav__count" aria-label={`${pendingCount} รายการรอบันทึก`}>{pendingCount}</span>}{key === 'sell' && sellLines.length > 0 && <span className="shop-nav__count">{sellLines.length}</span>}
             </button>)}
           </nav>
           <div className="shop-bar__end"><Tooltip title="ออกจากร้าน"><Button type="text" icon={<LogoutOutlined />} aria-label="ออกจากร้าน"
@@ -727,6 +1056,132 @@ function StoreApp() {
               </div>
             </div>}
           </>
+        )}
+
+        {/* ── Sell ── */}
+        {tab === 'sell' && (
+          <div className="sell-layout">
+
+            {/* Left: product picker */}
+            <div className="sell-picker">
+              <div className="sell-picker__search">
+                <SearchOutlined style={{ color: '#94A3B8', fontSize: 14 }} />
+                <input className="sell-picker__input" placeholder="ค้นหาสินค้า…"
+                  value={sellSearch} onChange={e => setSellSearch(e.target.value)} />
+              </div>
+              {occupations.length > 0 && (
+                <div className="sell-picker__occ">
+                  {[['all', 'ทั้งหมด'] as const, ...occupations.map(o => [o, o] as const)].map(([key, label]) => (
+                    <Tag.CheckableTag key={key} checked={sellOccFilter === key} onChange={() => setSellOccFilter(key)}>
+                      {label}
+                    </Tag.CheckableTag>
+                  ))}
+                </div>
+              )}
+              <ul className="sell-picker__list">
+                {products
+                  .filter(p =>
+                    (!sellSearch.trim() || p.name.toLowerCase().includes(sellSearch.toLowerCase())) &&
+                    matchOcc(p, sellOccFilter)
+                  )
+                  .sort((a, b) => b.stock - a.stock)
+                  .map(p => {
+                    const qty = sellQtys[p.item_id] ?? 0;
+                    return (
+                      <li key={p.item_id} className={`sell-row${qty > 0 ? ' is-added' : ''}${p.stock === 0 ? ' is-out' : ''}`}>
+                        <div className="sell-row__img">
+                          {getImg(p) ? <img src={getImg(p)!} alt="" loading="lazy" /> : <InboxOutlined />}
+                        </div>
+                        <div className="sell-row__info" onClick={() => p.stock > 0 && setSellQty(p.item_id, Math.min(qty + 1, p.stock))}>
+                          <span className="sell-row__name">{p.name}</span>
+                          <span className="sell-row__meta">{fmtMoney(p.price)} · {p.stock === 0 ? <span className="shop-danger">หมด</span> : `${fmt(p.stock)} กอง`}</span>
+                        </div>
+                        <div className="sell-row__ctrl">
+                          <button onClick={() => setSellQty(p.item_id, qty - 1)} disabled={qty === 0} aria-label={`ลด ${p.name}`}>−</button>
+                          <input
+                            className={`sell-row__qty-input${qty > 0 ? ' is-filled' : ''}`}
+                            type="number" min={0} max={p.stock}
+                            value={qty === 0 ? '' : qty}
+                            placeholder="0"
+                            aria-label={`จำนวน ${p.name}`}
+                            onClick={e => (e.target as HTMLInputElement).select()}
+                            onChange={e => {
+                              const v = parseInt(e.target.value, 10);
+                              setSellQty(p.item_id, isNaN(v) ? 0 : Math.max(0, Math.min(v, p.stock)));
+                            }}
+                          />
+                          <button onClick={() => setSellQty(p.item_id, Math.min(qty + 1, p.stock))} disabled={p.stock === 0 || qty >= p.stock} aria-label={`เพิ่ม ${p.name}`}>+</button>
+                        </div>
+                      </li>
+                    );
+                  })}
+              </ul>
+            </div>
+
+            {/* Right: thermal receipt slip */}
+            <div className="sell-receipt-wrap">
+              <div className="sell-receipt">
+                <div className="sell-receipt__body">
+                  {/* Header — centred logo + store name */}
+                  <div className="sell-receipt__head">
+                    <div className="sell-receipt__logo">
+                      <img src={sellReceiptLogo} alt="โลโก้" onError={e => { (e.target as HTMLImageElement).src = '/avatars/store-duck.jpeg'; }} />
+                    </div>
+                    <div className="sell-receipt__store">{session.storeName}</div>
+                    <div className="sell-receipt__date">{new Date().toLocaleString('th-TH', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+                  </div>
+
+                  <div className="sell-receipt__perf" />
+
+                  {/* Item lines */}
+                  {sellLines.length === 0
+                    ? <div className="sell-receipt__empty"><ShoppingCartOutlined /><span>เลือกสินค้าทางซ้าย</span></div>
+                    : <ul className="sell-receipt__lines">
+                        {sellLines.map(l => (
+                          <li key={l.product.item_id} className="sell-receipt__line">
+                            <div className="sell-receipt__line-img">
+                              {getImg(l.product) ? <img src={getImg(l.product)!} alt="" loading="lazy" /> : <InboxOutlined />}
+                            </div>
+                            <div className="sell-receipt__line-info">
+                              <span className="sell-receipt__line-name">{l.product.name}</span>
+                              <span className="sell-receipt__line-sub">{l.qty} กอง × {fmtMoney(l.product.price)}</span>
+                            </div>
+                            <span className="sell-receipt__line-total">{fmtMoney(l.qty * l.product.price)}</span>
+                          </li>
+                        ))}
+                      </ul>}
+
+                  {sellLines.length > 0 && <>
+                    <div className="sell-receipt__divider" />
+                    <div className="sell-receipt__summary">
+                      <div className="sell-receipt__sum-row">
+                        <span>{sellLines.length} รายการ · {fmt(sellTotalQty)} กอง</span>
+                      </div>
+                      <div className="sell-receipt__sum-row is-total">
+                        <span>รวมทั้งหมด</span>
+                        <span>{fmtMoney(sellTotal)}</span>
+                      </div>
+                    </div>
+                  </>}
+
+                  <Input placeholder="หมายเหตุ (ไม่บังคับ)" value={sellNote}
+                    onChange={e => setSellNote(e.target.value)} maxLength={200} size="small"
+                    style={{ marginTop: 10 }} />
+                </div>
+              </div>
+
+              <div className="sell-receipt__actions">
+                <Button size="small" disabled={!sellLines.length} onClick={() => setSellQtys({})}>ล้าง</Button>
+                <Button size="small" icon={<DownloadOutlined />} disabled={!sellLines.length}
+                  title="ดาวน์โหลดสลิปเป็นรูป (ไม่ตัดสต็อก)"
+                  onClick={() => void downloadReceipt()} />
+                <Button type="primary" loading={sellSubmitting} disabled={!sellLines.length}
+                  onClick={() => void handleSellSubmit()}>
+                  บันทึกการขาย{sellLines.length > 0 ? ` · ${fmtMoney(sellTotal)}` : ''}
+                </Button>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* ── Sales ── */}
