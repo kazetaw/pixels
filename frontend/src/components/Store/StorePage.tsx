@@ -661,11 +661,26 @@ function StoreApp() {
   const [sellOccFilter, setSellOccFilter] = useState('all');
   const [sellSubmitting, setSellSubmitting] = useState(false);
 
-  // โลโก้สำหรับสลิป — ใช้ key เดียวกับ poster export
-  const sellReceiptLogo = (() => {
-    try { return localStorage.getItem(`store-poster-logo:${session?.storeId}`) || session?.logo || '/avatars/store-duck.jpeg'; }
-    catch { return session?.logo || '/avatars/store-duck.jpeg'; }
-  })();
+  // โลโก้สลิป — แยกอิสระจากโลโก้ร้าน, เปลี่ยนได้ per-store, default = duck
+  const RECEIPT_LOGO_KEY = `receipt-logo:${session?.storeId}`;
+  const [receiptLogo, setReceiptLogo] = useState<string>(() => {
+    try { return localStorage.getItem(`receipt-logo:${session?.storeId}`) || '/avatars/duck-receipt.png'; }
+    catch { return '/avatars/duck-receipt.png'; }
+  });
+  const receiptLogoInput = useRef<HTMLInputElement>(null);
+  const changeReceiptLogo = async (file: File | undefined) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { void msgApi.error('เลือกไฟล์รูปภาพเท่านั้น'); return; }
+    const url = URL.createObjectURL(file);
+    setReceiptLogo(url);
+    // persist as data URL so it survives refresh
+    const reader = new FileReader();
+    reader.onload = () => {
+      try { localStorage.setItem(RECEIPT_LOGO_KEY, reader.result as string); } catch { /* quota */ }
+    };
+    reader.readAsDataURL(file);
+  };
+  const sellReceiptLogo = receiptLogo;
 
   // ดาวน์โหลดสลิปเป็นรูป PNG (ไม่ตัดสต็อก)
   const downloadReceipt = async () => {
@@ -1124,9 +1139,15 @@ function StoreApp() {
                 <div className="sell-receipt__body">
                   {/* Header — centred logo + store name */}
                   <div className="sell-receipt__head">
-                    <div className="sell-receipt__logo">
-                      <img src={sellReceiptLogo} alt="โลโก้" onError={e => { (e.target as HTMLImageElement).src = '/avatars/store-duck.jpeg'; }} />
+                    <div className="sell-receipt__logo" style={{ position: 'relative', cursor: 'pointer' }}
+                      onClick={() => receiptLogoInput.current?.click()}
+                      title="คลิกเพื่อเปลี่ยนรูปโลโก้สลิป">
+                      <img src={sellReceiptLogo} alt="โลโก้" onError={e => { (e.target as HTMLImageElement).src = '/avatars/duck-receipt.png'; }} />
+                      <span style={{ position: 'absolute', inset: 0, borderRadius: 12, background: 'rgba(0,0,0,.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity .15s', fontSize: 14, color: '#fff' }}
+                        className="sell-receipt__logo-overlay">✎</span>
                     </div>
+                    <input ref={receiptLogoInput} type="file" accept="image/*" style={{ display: 'none' }}
+                      onChange={e => void changeReceiptLogo(e.target.files?.[0])} />
                     <div className="sell-receipt__store">{session.storeName}</div>
                     <div className="sell-receipt__date">{new Date().toLocaleString('th-TH', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
                   </div>

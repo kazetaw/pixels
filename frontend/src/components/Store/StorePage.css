@@ -1571,6 +1571,7 @@
   display: flex; align-items: center; justify-content: center;
 }
 .sell-receipt__logo img { width: 100%; height: 100%; object-fit: cover; }
+.sell-receipt__logo:hover .sell-receipt__logo-overlay { opacity: 1 !important; }
 .sell-receipt__store { font-size: 13px; font-weight: 700; color: #111827; }
 .sell-receipt__date { font-size: 10px; color: #9CA3AF; margin-top: 3px; }
 
