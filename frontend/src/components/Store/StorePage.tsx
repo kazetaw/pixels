@@ -670,15 +670,14 @@ function StoreApp() {
     catch { return '/avatars/duck-receipt.png'; }
   });
   const receiptLogoInput = useRef<HTMLInputElement>(null);
-  const changeReceiptLogo = async (file: File | undefined) => {
+  const changeReceiptLogo = (file: File | undefined) => {
     if (!file) return;
     if (!file.type.startsWith('image/')) { void msgApi.error('เลือกไฟล์รูปภาพเท่านั้น'); return; }
-    const url = URL.createObjectURL(file);
-    setReceiptLogo(url);
-    // persist as data URL so it survives refresh
     const reader = new FileReader();
     reader.onload = () => {
-      try { localStorage.setItem(RECEIPT_LOGO_KEY, reader.result as string); } catch { /* quota */ }
+      const dataUrl = reader.result as string;
+      setReceiptLogo(dataUrl);
+      try { localStorage.setItem(RECEIPT_LOGO_KEY, dataUrl); } catch { /* quota */ }
     };
     reader.readAsDataURL(file);
   };
