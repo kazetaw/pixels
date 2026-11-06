@@ -251,8 +251,9 @@ export function PosterExportModal({ open, onClose, items, storeName, storeId, un
     [orderedItems, selected],
   );
 
-  // ── Drag state (preview grid) ─────────────────────────────────────
+  // ── Drag state (preview grid) — pointer-based, works on mobile too ──
   const dragIdx = useRef<number | null>(null);
+  const pointerDragActive = useRef(false);
   const [dragOver, setDragOver] = useState<number | null>(null);
 
   const handleDragStart = useCallback((idx: number) => { dragIdx.current = idx; }, []);
@@ -267,11 +268,48 @@ export function PosterExportModal({ open, onClose, items, storeName, storeId, un
       return arr;
     });
   }, []);
-  const clearDrag = () => { dragIdx.current = null; setDragOver(null); };
+  const clearDrag = () => { dragIdx.current = null; pointerDragActive.current = false; setDragOver(null); };
   const dropItem = (to: number) => {
     if (dragIdx.current !== null) moveItem(dragIdx.current, to);
     clearDrag();
   };
+
+  // Pointer-based drag for touch devices
+  const handlePointerDownDrag = useCallback((e: React.PointerEvent, idx: number) => {
+    // Only act on the drag handle (⠿) — check if the handle was tapped
+    const target = e.target as HTMLElement;
+    if (!target.closest('.pe-drag-handle')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    dragIdx.current = idx;
+    pointerDragActive.current = true;
+    setDragOver(idx);
+  }, []);
+
+  const handlePointerMoveDrag = useCallback((e: React.PointerEvent, _idx: number) => {
+    if (!pointerDragActive.current || dragIdx.current === null) return;
+    e.preventDefault();
+    // Find element under pointer
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const row = el?.closest('[data-drag-idx]') as HTMLElement | null;
+    if (row) {
+      const overIdx = parseInt(row.dataset.dragIdx ?? '-1', 10);
+      if (overIdx >= 0 && overIdx !== dragOver) setDragOver(overIdx);
+    }
+  }, [dragOver]);
+
+  const handlePointerUpDrag = useCallback((e: React.PointerEvent) => {
+    if (!pointerDragActive.current) return;
+    e.preventDefault();
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const row = el?.closest('[data-drag-idx]') as HTMLElement | null;
+    if (row) {
+      const toIdx = parseInt(row.dataset.dragIdx ?? '-1', 10);
+      if (toIdx >= 0 && dragIdx.current !== null) moveItem(dragIdx.current, toIdx);
+    }
+    clearDrag();
+  }, [moveItem]);
 
   const allVisibleOn  = visible.length > 0 && visible.every(i => selected.has(i.name));
   const someVisibleOn = visible.some(i => selected.has(i.name));
@@ -376,6 +414,7 @@ export function PosterExportModal({ open, onClose, items, storeName, storeId, un
               return (
                 <li
                   key={item.name}
+                  data-drag-idx={globalIdx}
                   className={`pe-picker__row${on ? ' is-on' : ''}${isOver ? ' is-drag-over' : ''}`}
                   onClick={() => toggle(item.name)}
                   draggable
@@ -388,6 +427,10 @@ export function PosterExportModal({ open, onClose, items, storeName, storeId, un
                   onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
                   onDrop={e => { e.preventDefault(); dropItem(globalIdx); }}
                   onDragEnd={clearDrag}
+                  onPointerDown={e => handlePointerDownDrag(e, globalIdx)}
+                  onPointerMove={e => handlePointerMoveDrag(e, globalIdx)}
+                  onPointerUp={handlePointerUpDrag}
+                  onPointerCancel={clearDrag}
                 >
                   <span className="pe-drag-handle" aria-hidden="true" title="ลากเพื่อจัดลำดับ" onClick={e => e.stopPropagation()}>⠿</span>
                   <Checkbox aria-label={item.name} checked={on} onClick={e => e.stopPropagation()} onChange={() => toggle(item.name)} />

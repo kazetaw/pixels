@@ -697,9 +697,13 @@
   cursor: grab;
   flex-shrink: 0;
   font-size: 14px;
-  touch-action: none;
+  touch-action: none;   /* prevent scroll stealing on mobile */
+  user-select: none;
+  -webkit-user-select: none;
+  min-width: 28px;      /* larger tap target on mobile */
+  justify-content: center;
 }
-.pe-drag-handle:active { cursor: grabbing; }
+.pe-drag-handle:active { cursor: grabbing; color: #64748B; }
 .pe-picker__row.is-drag-over {
   border-top: 2px solid #3B82F6;
   background: #EFF6FF;
