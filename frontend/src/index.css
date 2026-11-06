@@ -8,6 +8,8 @@
 *, *::before, *::after { box-sizing: border-box; }
 
 body {
+  /* Prevent double-tap zoom while retaining scrolling and pinch zoom. */
+  touch-action: manipulation;
   font-family: 'IBM Plex Sans Thai', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   font-size: 14px;
   line-height: 22px;
@@ -15,6 +17,16 @@ body {
   background: #f8fafc;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* iOS zooms focused fields when their text is smaller than 16px.
+   Include portal fields and touch devices in landscape orientation. */
+@media (any-pointer: coarse) {
+  body input,
+  body textarea,
+  body select {
+    font-size: 16px !important;
+  }
 }
 
 /* ── Ant Design global overrides ────────────────────────────────── */
