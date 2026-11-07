@@ -1640,6 +1640,18 @@
 .sell-receipt__sum-row.is-total span:last-child { color: #0369A1; font-size: 17px; }
 
 /* ── Actions below receipt ─────────────────────────────────────────────────── */
+.sell-receipt__qr-footer {
+  text-align: center;
+  padding-top: 12px;
+}
+.sell-receipt__qr-img {
+  width: 80px;
+  height: 80px;
+  display: inline-block;
+  border-radius: 6px;
+  opacity: 0.85;
+}
+
 .sell-receipt__actions {
   display: flex; justify-content: space-between; align-items: center;
   padding: 12px 0 0; gap: 8px;

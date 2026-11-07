@@ -700,6 +700,7 @@ function StoreApp() {
 
     await document.fonts?.ready;
     const logoImg = await loadImg(sellReceiptLogo);
+    const qrImg = await loadImg('/images/qrcode.png');
     const itemImgs = await Promise.all(sellLines.map(l => {
       const src = getImg(l.product);
       return src ? loadImg(src) : Promise.resolve(null);
@@ -726,7 +727,8 @@ function StoreApp() {
     const lineH = 36;
     const headH = 48 + 10 + 18 + 14 + 16 + 16; // logo + name + date + gap + divider
     const itemsH = sellLines.length * (lineH + 1);
-    const footH = 16 + 14 + 20 + (sellNote ? 20 : 0) + 16; // divider + count row + total row
+    const qrSize = 80;
+    const footH = 16 + 14 + 20 + (sellNote ? 20 : 0) + 16 + qrSize + 16; // divider + count row + total row + qr
     const H = pad + headH + itemsH + footH + pad;
 
     canvas.width = W; canvas.height = H;
@@ -808,6 +810,18 @@ function StoreApp() {
       y += 4;
       ctx.textAlign = 'center'; ctx.fillStyle = '#9CA3AF'; ctx.font = `400 10px ${FONT}`;
       ctx.fillText(sellNote, W / 2, y); y += 16;
+    }
+
+    // QR code
+    if (qrImg) {
+      const qrSize = 80;
+      const qrX = (W - qrSize) / 2;
+      y += 10;
+      ctx.save();
+      rRect(qrX, y, qrSize, qrSize, 6); ctx.clip();
+      ctx.drawImage(qrImg, qrX, y, qrSize, qrSize);
+      ctx.restore();
+      y += qrSize + 8;
     }
 
     // download
@@ -1183,6 +1197,9 @@ function StoreApp() {
                         <span>รวมทั้งหมด</span>
                         <span>{fmtMoney(sellTotal)}</span>
                       </div>
+                    </div>
+                    <div className="sell-receipt__qr-footer">
+                      <img src="/images/qrcode.png" alt="QR Code" className="sell-receipt__qr-img" />
                     </div>
                   </>}
 
