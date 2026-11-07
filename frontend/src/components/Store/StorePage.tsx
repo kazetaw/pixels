@@ -827,7 +827,7 @@ function StoreApp() {
       // text below QR
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillStyle = '#6B7280'; ctx.font = `400 10px ${FONT}`;
-      ctx.fillText('โอนแล้วแจ้งสลิปได้เลยค่ะ', W / 2, y);
+      ctx.fillText('โอนแล้วรบกวนแจ้งสลิปไว้ด้วยน้าา', W / 2, y);
       y += 16;
     }
 
