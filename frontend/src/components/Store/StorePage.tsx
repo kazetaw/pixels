@@ -830,7 +830,6 @@ function StoreApp() {
       ctx.fillText('โอนแล้วแจ้งสลิปให้ด้วยน้า', W / 2, y);
       y += 16;
     }
-
     // download
     const a = document.createElement('a');
     a.href = canvas.toDataURL('image/png');
