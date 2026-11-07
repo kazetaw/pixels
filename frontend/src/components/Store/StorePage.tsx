@@ -686,6 +686,7 @@ function StoreApp() {
   // ดาวน์โหลดสลิปเป็นรูป PNG (ไม่ตัดสต็อก)
   const downloadReceipt = async () => {
     const W = 320, pad = 20;
+    const DPR = 2; // render at 2× for sharp output on retina screens
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d')!;
     const FONT = "'IBM Plex Sans Thai', 'Noto Sans Thai', Tahoma, sans-serif";
@@ -731,7 +732,8 @@ function StoreApp() {
     const footH = 16 + 14 + 20 + (sellNote ? 20 : 0) + 16 + qrSize + 16; // divider + count row + total row + qr
     const H = pad + headH + itemsH + footH + pad;
 
-    canvas.width = W; canvas.height = H;
+    canvas.width = W * DPR; canvas.height = H * DPR;
+    ctx.scale(DPR, DPR);
 
     // white background
     ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H);
@@ -822,6 +824,11 @@ function StoreApp() {
       ctx.drawImage(qrImg, qrX, y, qrSize, qrSize);
       ctx.restore();
       y += qrSize + 8;
+      // text below QR
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#6B7280'; ctx.font = `400 10px ${FONT}`;
+      ctx.fillText('โอนแล้วแจ้งสลิปได้เลยค่ะ', W / 2, y);
+      y += 16;
     }
 
     // download
@@ -1200,6 +1207,7 @@ function StoreApp() {
                     </div>
                     <div className="sell-receipt__qr-footer">
                       <img src="/images/qrcode.png" alt="QR Code" className="sell-receipt__qr-img" />
+                      <p className="sell-receipt__qr-text">โอนแล้วแจ้งสลิปได้เลยค่ะ</p>
                     </div>
                   </>}
 
