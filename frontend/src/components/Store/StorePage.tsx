@@ -826,8 +826,8 @@ function StoreApp() {
       y += qrSize + 8;
       // text below QR
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillStyle = '#6B7280'; ctx.font = `400 10px ${FONT}`;
-      ctx.fillText('โอนแล้วรบกวนแจ้งสลิปไว้ด้วยน้าา', W / 2, y);
+      ctx.fillStyle = '#111827'; ctx.font = `600 13px ${FONT}`;
+      ctx.fillText('โอนแล้วแจ้งสลิปให้ด้วยน้า', W / 2, y);
       y += 16;
     }
 
@@ -1207,7 +1207,7 @@ function StoreApp() {
                     </div>
                     <div className="sell-receipt__qr-footer">
                       <img src="/images/qrcode.png" alt="QR Code" className="sell-receipt__qr-img" />
-                      <p className="sell-receipt__qr-text">โอนแล้วแจ้งสลิปได้เลยค่ะ</p>
+                      <p className="sell-receipt__qr-text">โอนแล้วแจ้งสลิปให้ด้วยน้า</p>
                     </div>
                   </>}
 
