@@ -238,7 +238,17 @@ export function CraftingGuide({ recipes, machines, stocks, stockImages, itemName
                     <button key={n} className={`cg-preset${qty === n ? ' is-active' : ''}`} onClick={() => setQty(n)}>{n}</button>
                   ))}
                   <button className="cg-qty-btn" onClick={() => setQty(q => Math.max(1, q - 1))}>−</button>
-                  <span className="cg-qty-val">{fmt(qty)}</span>
+                  <input
+                    className="cg-qty-val"
+                    type="number"
+                    min={1}
+                    value={qty}
+                    onChange={e => {
+                      const v = parseInt(e.target.value, 10);
+                      if (!isNaN(v) && v >= 1) setQty(v);
+                    }}
+                    onFocus={e => e.target.select()}
+                  />
                   <button className="cg-qty-btn" onClick={() => setQty(q => q + 1)}>+</button>
                 </div>
               </div>
