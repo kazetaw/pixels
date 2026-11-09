@@ -56,6 +56,7 @@ import { ContributorReturns } from './components/Organization/ContributorReturns
 import { ProductionFlowBoard } from './components/Planner/ProductionFlowBoard';
 import { StorePage } from './components/Store/StorePage';
 import { ProductionCalculator } from './components/shared/ProductionCalculator';
+import { CraftingGuide } from './components/CraftingGuide/CraftingGuide';
 import type { SaveStatus } from './hooks/useAppState';
 
 const { Sider, Content } = Layout;
@@ -926,6 +927,17 @@ export default function App() {
           }}
         >
           {isAdmin && view === 'machine-layout' && <MachineLayout machines={_machines} />}
+          {isAdmin && view === 'crafting-guide' && (
+            <div className="page-content">
+              <CraftingGuide
+                recipes={recipes}
+                machines={_machines}
+                stocks={stocks}
+                stockImages={stockImages}
+                itemNames={itemNames}
+              />
+            </div>
+          )}
           {view === 'withdrawals' && <div className="page-content"><Withdrawals key="public-withdrawals" onData={applyData} /></div>}
           {isAdmin && view === 'withdrawal-admin' && <div className="page-content"><Withdrawals key="admin-withdrawals" admin onData={applyData} /></div>}
           {view === 'data' && (
