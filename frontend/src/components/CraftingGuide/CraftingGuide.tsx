@@ -4,8 +4,8 @@
  *   "ขั้นนี้ใช้อะไร → ได้อะไร → ส่งไปขั้นไหน"
  */
 import { useMemo, useState } from 'react';
-import { Input, Empty } from 'antd';
-import { SearchOutlined, InboxOutlined } from '@ant-design/icons';
+import { Input, Empty, message } from 'antd';
+import { SearchOutlined, InboxOutlined, CopyOutlined } from '@ant-design/icons';
 import type { Recipe, Machine, StockMap, StockImageMap } from '../../types';
 import './CraftingGuide.css';
 
@@ -160,6 +160,7 @@ export function CraftingGuide({ recipes, machines, stocks, stockImages, itemName
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [qty, setQty] = useState(1);
   const [step, setStep] = useState(1);
+  const [msgApi, msgCtx] = message.useMessage();
 
   const machineMap = useMemo(() => new Map(machines.map(m => [m.machine_id, m])), [machines]);
 
@@ -188,8 +189,38 @@ export function CraftingGuide({ recipes, machines, stocks, stockImages, itemName
   const selectRecipe = (id: string) => { setSelectedId(id); setQty(1); setStep(2); };
   const machine = selected ? machineMap.get(selected.machine_id ?? '') : null;
 
+  // ── Copy TSV for Google Sheet ─────────────────────────────────────────────
+  const copyToSheet = () => {
+    if (!selected) return;
+    const header = ['✓', 'วัตถุดิบ', 'ต้องการ', 'มีในสต็อก', 'ขาด', 'หมายเหตุ'];
+    const rows = ingredients.map(ing => {
+      const have = stocks[ing.itemId] ?? 0;
+      const short = Math.max(0, ing.qty - have);
+      return [
+        have >= ing.qty ? '✅' : '❌',
+        ing.name,
+        ing.qty.toString(),
+        have.toString(),
+        short > 0 ? short.toString() : '',
+        '',
+      ];
+    });
+    const total = ingredients.reduce((s, i) => s + i.qty, 0);
+    const separator = ['', '', '', '', '', ''];
+    const footer = ['', `รวม (${selected.name} ×${qty})`, total.toString(), '', '', ''];
+
+    const tsv = [header, ...rows, separator, footer]
+      .map(r => r.join('\t'))
+      .join('\n');
+
+    navigator.clipboard.writeText(tsv)
+      .then(() => void msgApi.success('คัดลอกแล้ว — วางใน Google Sheet ได้เลย'))
+      .catch(() => void msgApi.error('คัดลอกไม่สำเร็จ'));
+  };
+
   return (
     <div className="cg-page">
+      {msgCtx}
       <div className="cg-header">
         <h1>🧪 ไกด์การคราฟ</h1>
         <p>ค้นหาสูตร กำหนดจำนวน ดูขั้นตอนและวัตถุดิบที่ต้องเตรียม</p>
@@ -284,7 +315,12 @@ export function CraftingGuide({ recipes, machines, stocks, stockImages, itemName
           {/* Step 3 */}
           {step === 3 && (
             <div className="cg-body">
-              <p className="cg-section-title">วัตถุดิบพื้นฐานทั้งหมดที่ต้องใช้ (×{fmt(qty)})</p>
+              <div className="cg-section-header">
+                <p className="cg-section-title">วัตถุดิบพื้นฐานทั้งหมดที่ต้องใช้ (×{fmt(qty)})</p>
+                <button className="cg-copy-btn" onClick={copyToSheet}>
+                  <CopyOutlined /> คัดลอกเป็น Sheet
+                </button>
+              </div>
               <div className="cg-ing-list">
                 {ingredients.map(ing => {
                   const have = stocks[ing.itemId] ?? 0;

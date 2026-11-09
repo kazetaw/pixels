@@ -223,3 +223,17 @@
   margin-top: 6px; font-size: 11px; color: #64748B;
 }
 .cg-step-usedby strong { color: #0F172A; }
+
+/* ── Copy to Sheet button ──────────────────────────────────────────────────── */
+.cg-section-header {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+.cg-copy-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 12px; border-radius: 7px;
+  border: 1.5px solid #16A34A; background: #F0FDF4;
+  color: #15803D; font-size: 12px; font-weight: 600;
+  cursor: pointer; white-space: nowrap; flex-shrink: 0;
+  transition: background .12s, border-color .12s;
+}
+.cg-copy-btn:hover { background: #DCFCE7; border-color: #15803D; }
