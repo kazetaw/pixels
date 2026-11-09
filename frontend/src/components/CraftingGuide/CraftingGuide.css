@@ -197,3 +197,29 @@
 @media (prefers-reduced-motion: reduce) {
   .cg-progress-bar { transition: none; }
 }
+
+/* ── Step 4: per-step inputs & usedBy ─────────────────────────────────────── */
+.cg-step-inputs {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 5px;
+  margin-top: 7px;
+}
+.cg-step-inputs__label {
+  font-size: 11px; color: #94A3B8; font-weight: 500; flex-shrink: 0;
+}
+.cg-step-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px; border-radius: 6px;
+  background: #F1F5F9; border: 1px solid #E2E8F0;
+  font-size: 11px; font-weight: 500; color: #334155;
+  white-space: nowrap;
+}
+.cg-step-chip.is-craft {
+  background: #EFF6FF; border-color: #BAE6FD; color: #1D4ED8;
+}
+.cg-chip-craft-mark {
+  font-size: 10px; color: #0284C7; font-weight: 600; margin-left: 2px;
+}
+.cg-step-usedby {
+  margin-top: 6px; font-size: 11px; color: #64748B;
+}
+.cg-step-usedby strong { color: #0F172A; }
