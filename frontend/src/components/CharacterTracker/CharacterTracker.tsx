@@ -97,6 +97,7 @@ interface SlotModalProps {
 }
 
 function SlotModal({ open, slot, recipes, stockImages, occupation, machines, onSave, onClose }: SlotModalProps) {
+  const [selectedMachineId, setSelectedMachineId] = useState<string>('');
   const [selectedKey, setSelectedKey] = useState(slot.itemKey);
   const [selectedName, setSelectedName] = useState(slot.itemName);
   const [status, setStatus] = useState<SlotStatus>(slot.status);
@@ -108,21 +109,20 @@ function SlotModal({ open, slot, recipes, stockImages, occupation, machines, onS
     setSelectedName(slot.itemName);
     setStatus(slot.status);
     setEndTime(slot.endTime);
-  }, [slot, open]);
+    // pre-select machine from current slot's recipe
+    const existing = recipes.find(r => r.id === slot.itemKey);
+    setSelectedMachineId(existing?.machine_id ?? '');
+  }, [slot, open, recipes]);
 
-  // Filter recipes by occupation via machine
-  const filteredRecipes = occupation === 'ทุกอาชีพ'
-    ? recipes
-    : recipes.filter(r => {
-        if (!r.machine_id) return false;
-        const m = machines.find(x => x.machine_id === r.machine_id);
-        return m?.occupation === occupation || m?.occupation === 'ทุกอาชีพ';
-      });
+  // 1. Machines filtered by occupation
+  const availableMachines = occupation === 'ทุกอาชีพ'
+    ? machines
+    : machines.filter(m => m.occupation === occupation || m.occupation === 'ทุกอาชีพ');
 
-  const handleSelect = (recipeId: string, recipeName: string) => {
-    setSelectedKey(recipeId);
-    setSelectedName(recipeName);
-  };
+  // 2. Recipes filtered by selected machine
+  const availableRecipes = selectedMachineId
+    ? recipes.filter(r => r.machine_id === selectedMachineId)
+    : availableMachines.flatMap(m => recipes.filter(r => r.machine_id === m.machine_id));
 
   const handleSave = () => {
     onSave({ itemKey: selectedKey, itemName: selectedName, status, endTime });
@@ -139,65 +139,98 @@ function SlotModal({ open, slot, recipes, stockImages, occupation, machines, onS
           <Button type="primary" onClick={handleSave}>บันทึก</Button>
         </div>
       }
-      width={520}
+      width={480}
     >
-      {/* Product picker — Select with search + image, same style as FloorTimerDashboard */}
-      <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 4px' }}>เลือกสินค้า / สูตร</p>
-      <Select
-        showSearch
-        allowClear
-        placeholder="ค้นหาสูตร…"
-        style={{ width: '100%', marginBottom: 16 }}
-        value={selectedKey || undefined}
-        onChange={(val: string | undefined) => {
-          if (!val) { setSelectedKey(''); setSelectedName(''); return; }
-          const r = filteredRecipes.find(r => r.id === val);
-          if (r) handleSelect(r.id, r.name);
-        }}
-        optionFilterProp="label"
-        options={filteredRecipes.map(r => ({ value: r.id, label: r.name }))}
-        optionRender={option => {
-          const r = filteredRecipes.find(x => x.id === option.value);
-          const img = r ? stockImages[r.id] ?? r.image : undefined;
-          return (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {img
-                ? <img src={img} alt="" style={{ width: 24, height: 24, objectFit: 'contain', borderRadius: 4, background: '#f1f5f9' }} />
-                : <div style={{ width: 24, height: 24, borderRadius: 4, background: '#e2e8f0', flexShrink: 0 }} />}
-              <span style={{ fontSize: 13 }}>{option.label}</span>
-            </div>
-          );
-        }}
-      />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingTop: 4 }}>
 
-      {/* Time & status */}
-      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end' }}>
-        <div style={{ flex: 1 }}>
-          <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 4px' }}>เวลาเสร็จ (HH:MM)</p>
-          <input
-            type="time"
-            value={endTime}
-            onChange={e => setEndTime(e.target.value)}
-            style={{
-              width: '100%', height: 32, border: '1px solid #e2e8f0', borderRadius: 6,
-              padding: '0 8px', fontSize: 14, color: '#0f172a', outline: 'none',
+        {/* Step 1: เลือกเครื่อง */}
+        <div>
+          <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 4px', fontWeight: 600 }}>เครื่องจักร</p>
+          <Select
+            showSearch
+            allowClear
+            placeholder="เลือกเครื่อง…"
+            style={{ width: '100%' }}
+            value={selectedMachineId || undefined}
+            onChange={(val: string | undefined) => {
+              setSelectedMachineId(val ?? '');
+              setSelectedKey('');
+              setSelectedName('');
+            }}
+            optionFilterProp="label"
+            options={availableMachines.map(m => ({ value: m.machine_id, label: m.machine_name }))}
+            optionRender={option => {
+              const m = availableMachines.find(x => x.machine_id === option.value);
+              return (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {m?.image
+                    ? <img src={m.image} alt="" style={{ width: 24, height: 24, objectFit: 'contain', borderRadius: 4, background: '#f1f5f9' }} />
+                    : <div style={{ width: 24, height: 24, borderRadius: 4, background: '#e2e8f0', flexShrink: 0 }} />}
+                  <span style={{ fontSize: 13 }}>{option.label}</span>
+                </div>
+              );
             }}
           />
         </div>
-        <div style={{ flex: 1 }}>
-          <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 4px' }}>สถานะ</p>
+
+        {/* Step 2: เลือกสูตร */}
+        <div>
+          <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 4px', fontWeight: 600 }}>สูตรการผลิต</p>
           <Select
-            value={status}
-            onChange={v => setStatus(v)}
+            showSearch
+            allowClear
+            placeholder={selectedMachineId ? 'เลือกสูตร…' : 'เลือกเครื่องก่อน'}
             style={{ width: '100%' }}
-            options={[
-              { value: 'idle', label: 'ว่าง' },
-              { value: 'run', label: 'กำลังผลิต' },
-              { value: 'done', label: 'เสร็จแล้ว' },
-              { value: 'over', label: 'เกินเวลา' },
-            ]}
+            value={selectedKey || undefined}
+            onChange={(val: string | undefined) => {
+              if (!val) { setSelectedKey(''); setSelectedName(''); return; }
+              const r = availableRecipes.find(r => r.id === val);
+              if (r) { setSelectedKey(r.id); setSelectedName(r.name); }
+            }}
+            optionFilterProp="label"
+            options={availableRecipes.map(r => ({ value: r.id, label: r.name }))}
+            optionRender={option => {
+              const r = availableRecipes.find(x => x.id === option.value);
+              const img = r ? (stockImages[r.id] ?? r.image) : undefined;
+              return (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {img
+                    ? <img src={img} alt="" style={{ width: 24, height: 24, objectFit: 'contain', borderRadius: 4, background: '#f1f5f9' }} />
+                    : <div style={{ width: 24, height: 24, borderRadius: 4, background: '#e2e8f0', flexShrink: 0 }} />}
+                  <span style={{ fontSize: 13 }}>{option.label}</span>
+                </div>
+              );
+            }}
           />
         </div>
+
+        {/* เวลา + สถานะ */}
+        <div style={{ display: 'flex', gap: 12 }}>
+          <div style={{ flex: 1 }}>
+            <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 4px', fontWeight: 600 }}>เวลาเสร็จ</p>
+            <input
+              type="time"
+              value={endTime}
+              onChange={e => setEndTime(e.target.value)}
+              style={{ width: '100%', height: 32, border: '1px solid #e2e8f0', borderRadius: 6, padding: '0 8px', fontSize: 14, color: '#0f172a', outline: 'none' }}
+            />
+          </div>
+          <div style={{ flex: 1 }}>
+            <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 4px', fontWeight: 600 }}>สถานะ</p>
+            <Select
+              value={status}
+              onChange={v => setStatus(v)}
+              style={{ width: '100%' }}
+              options={[
+                { value: 'idle', label: 'ว่าง' },
+                { value: 'run', label: '🔵 กำลังผลิต' },
+                { value: 'done', label: '🟢 เสร็จแล้ว' },
+                { value: 'over', label: '🟠 เกินเวลา' },
+              ]}
+            />
+          </div>
+        </div>
+
       </div>
     </Modal>
   );
