@@ -578,7 +578,6 @@ export function CharacterTracker({ recipes, machines, stockImages }: Props) {
     } catch { /* quota exceeded, silent */ }
   }, [accounts]);
 
-  const selectedAccount = accounts.find(a => a.id === selectedAccountId) ?? null;
 
   const handleAddId = (account: AccountId) => {
     setAccounts(prev => [...prev, account]);
@@ -653,21 +652,26 @@ export function CharacterTracker({ recipes, machines, stockImages }: Props) {
         })}
       </div>
 
-      {/* Account card or empty state */}
-      {!selectedAccount ? (
+      {/* All account cards in a responsive grid */}
+      {accounts.length === 0 ? (
         <div className="ct-empty">
           ยังไม่มีไอดี — กด "+ เพิ่มไอดี" เพื่อเริ่มต้น
         </div>
       ) : (
-        <AccountCard
-          account={selectedAccount}
-          occFilter={occFilter}
-          recipes={recipes}
-          machines={machines}
-          stockImages={stockImages}
-          onUpdateSlot={handleUpdateSlot}
-          onUpdateAvatar={handleUpdateAvatar}
-        />
+        <div className="ct-accounts-grid">
+          {accounts.map(acc => (
+            <AccountCard
+              key={acc.id}
+              account={acc}
+              occFilter={occFilter}
+              recipes={recipes}
+              machines={machines}
+              stockImages={stockImages}
+              onUpdateSlot={handleUpdateSlot}
+              onUpdateAvatar={handleUpdateAvatar}
+            />
+          ))}
+        </div>
       )}
 
       {/* Add ID modal */}
