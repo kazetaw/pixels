@@ -82,6 +82,20 @@ function dotColor(chars: Character[]): string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Fix 1 helper: compute end time from recipe time_per_unit
+// ─────────────────────────────────────────────────────────────────────────────
+
+function calcEndTime(timePerUnit: string): string {
+  const parts = timePerUnit.split(':').map(Number);
+  const [h = 0, m = 0, s = 0] = parts;
+  const totalMs = (h * 3600 + m * 60 + s) * 1000;
+  const end = new Date(Date.now() + totalMs);
+  const hh = String(end.getHours()).padStart(2, '0');
+  const mm = String(end.getMinutes()).padStart(2, '0');
+  return `${hh}:${mm}`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // SlotModal
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -185,7 +199,12 @@ function SlotModal({ open, slot, recipes, stockImages, occupation, machines, onS
             onChange={(val: string | undefined) => {
               if (!val) { setSelectedKey(''); setSelectedName(''); return; }
               const r = availableRecipes.find(r => r.id === val);
-              if (r) { setSelectedKey(r.id); setSelectedName(r.name); }
+              if (r) {
+                setSelectedKey(r.id);
+                setSelectedName(r.name);
+                // Fix 1: auto-fill end time from recipe duration
+                if (r.time_per_unit) setEndTime(calcEndTime(r.time_per_unit));
+              }
             }}
             optionFilterProp="label"
             options={availableRecipes.map(r => ({ value: r.id, label: r.name }))}
@@ -328,11 +347,12 @@ function AddIdModal({ open, onSave, onClose }: AddIdModalProps) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CharacterCard
+// Fix 2: AccountCard — groups all 3 characters with tab navigation
 // ─────────────────────────────────────────────────────────────────────────────
 
-interface CharacterCardProps {
-  character: Character;
+interface AccountCardProps {
+  account: AccountId;
+  occFilter: Occupation | 'ทั้งหมด';
   recipes: Recipe[];
   machines: Machine[];
   stockImages: StockImageMap;
@@ -340,16 +360,32 @@ interface CharacterCardProps {
   onUpdateAvatar: (charId: string, dataUrl: string) => void;
 }
 
-function CharacterCard({ character, recipes, machines, stockImages, onUpdateSlot, onUpdateAvatar }: CharacterCardProps) {
+function AccountCard({ account, occFilter, recipes, machines, stockImages, onUpdateSlot, onUpdateAvatar }: AccountCardProps) {
+  const [activeCharIdx, setActiveCharIdx] = useState(0);
   const [slotModal, setSlotModal] = useState<number | null>(null);
   const [cropSrc, setCropSrc] = useState<string | undefined>(undefined);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [cropTargetId, setCropTargetId] = useState<string | null>(null);
+  const fileInputRefs = useRef<Array<HTMLInputElement | null>>([null, null, null]);
 
-  const avatarSvg = PIXEL_AVATARS[OCC_AVATAR_KEY[character.occupation]];
-  const avatarSrc = character.avatar ?? svgToDataUrl(avatarSvg);
+  // If active char is filtered out, switch to first visible one
+  useEffect(() => {
+    const isVisible = (char: Character) =>
+      occFilter === 'ทั้งหมด' || char.occupation === occFilter || char.occupation === 'ทุกอาชีพ';
 
-  const handleAvatarClick = () => {
-    fileInputRef.current?.click();
+    if (!isVisible(account.chars[activeCharIdx])) {
+      const firstVisible = account.chars.findIndex(isVisible);
+      if (firstVisible !== -1) setActiveCharIdx(firstVisible);
+    }
+  }, [occFilter, account.chars, activeCharIdx]);
+
+  const activeChar = account.chars[activeCharIdx];
+
+  const isFiltered = (char: Character) =>
+    occFilter !== 'ทั้งหมด' && char.occupation !== occFilter && char.occupation !== 'ทุกอาชีพ';
+
+  const handleAvatarClick = (charId: string, idx: number) => {
+    setCropTargetId(charId);
+    fileInputRefs.current[idx]?.click();
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -357,51 +393,94 @@ function CharacterCard({ character, recipes, machines, stockImages, onUpdateSlot
     if (!file) return;
     const url = URL.createObjectURL(file);
     setCropSrc(url);
-    // reset so same file can be re-selected
     e.target.value = '';
   };
 
   const handleCropConfirm = (blob: Blob) => {
+    if (!cropTargetId) return;
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result === 'string') {
-        onUpdateAvatar(character.id, reader.result);
+        onUpdateAvatar(cropTargetId, reader.result);
       }
     };
     reader.readAsDataURL(blob);
     URL.revokeObjectURL(cropSrc ?? '');
     setCropSrc(undefined);
+    setCropTargetId(null);
   };
 
-  const color = dotColor([character]);
+  const handleClearSlot = (e: React.MouseEvent | React.KeyboardEvent, slotIndex: number) => {
+    e.stopPropagation();
+    onUpdateSlot(activeChar.id, slotIndex, { itemKey: '', itemName: '', status: 'idle', endTime: '' });
+  };
 
   return (
-    <div className="ct-card">
-      {/* Header */}
-      <div className="ct-card__header">
-        <div className="ct-avatar" onClick={handleAvatarClick} role="button" tabIndex={0}
-          aria-label="เปลี่ยนรูปโปรไฟล์"
-          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') handleAvatarClick(); }}>
-          <img src={avatarSrc} alt={character.name} />
-        </div>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          style={{ display: 'none' }}
-          onChange={handleFileChange}
-        />
-        <span className="ct-name">{character.name}</span>
-        <span className="ct-occ-badge">
-          {OCC_ICONS[character.occupation]}{OCC_ICONS[character.occupation] ? ' ' : ''}{character.occupation}
-        </span>
-        <span className="ct-dot" style={{ background: color }} aria-hidden="true" />
+    <div className="ct-account-card">
+      {/* Character tabs */}
+      <div className="ct-char-tabs" role="tablist" aria-label="เลือกตัวละคร">
+        {account.chars.map((char, idx) => {
+          const avatarSvg = PIXEL_AVATARS[OCC_AVATAR_KEY[char.occupation]];
+          const avatarSrc = char.avatar ?? svgToDataUrl(avatarSvg);
+          const color = dotColor([char]);
+          const filtered = isFiltered(char);
+          const isActive = idx === activeCharIdx;
+
+          return (
+            <button
+              key={char.id}
+              role="tab"
+              aria-selected={isActive}
+              className={`ct-char-tab${isActive ? ' is-active' : ''}${filtered ? ' is-filtered' : ''}`}
+              onClick={() => { if (!filtered) setActiveCharIdx(idx); }}
+              tabIndex={filtered ? -1 : 0}
+            >
+              {/* Avatar circle — clicking opens file picker */}
+              <div
+                className="ct-char-tab__avatar"
+                role="button"
+                tabIndex={filtered ? -1 : 0}
+                aria-label={`เปลี่ยนรูปโปรไฟล์ ${char.name}`}
+                onClick={e => {
+                  e.stopPropagation();
+                  if (!filtered) handleAvatarClick(char.id, idx);
+                }}
+                onKeyDown={e => {
+                  if ((e.key === 'Enter' || e.key === ' ') && !filtered) {
+                    e.stopPropagation();
+                    handleAvatarClick(char.id, idx);
+                  }
+                }}
+              >
+                <img src={avatarSrc} alt={char.name} />
+              </div>
+
+              {/* Hidden file input per character */}
+              <input
+                ref={el => { fileInputRefs.current[idx] = el; }}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={handleFileChange}
+              />
+
+              <span className="ct-char-tab__name">{char.name}</span>
+
+              {/* Status dot */}
+              <span
+                style={{ width: 8, height: 8, borderRadius: '50%', background: color, display: 'block', flexShrink: 0 }}
+                aria-hidden="true"
+              />
+            </button>
+          );
+        })}
       </div>
 
-      {/* Slots */}
+      {/* Slot grid for active character */}
       <div className="ct-slots">
-        {character.slots.map((slot, i) => {
+        {activeChar.slots.map((slot, i) => {
           const imgUrl = slot.itemKey ? stockImages[slot.itemKey] : undefined;
+          const hasContent = slot.status !== 'idle' || slot.itemKey !== '';
 
           return (
             <div
@@ -428,22 +507,37 @@ function CharacterCard({ character, recipes, machines, stockImages, onUpdateSlot
                 <span className="ct-slot__label">{slot.itemName}</span>
               )}
               <span className="ct-slot__time">{slot.endTime || '--:--'}</span>
+
+              {/* Fix 3: Clear slot button */}
+              {hasContent && (
+                <button
+                  className="ct-slot__clear"
+                  aria-label="ล้างช่อง"
+                  tabIndex={0}
+                  onClick={e => handleClearSlot(e, i)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' || e.key === ' ') handleClearSlot(e, i);
+                  }}
+                >
+                  ✕
+                </button>
+              )}
             </div>
           );
         })}
       </div>
 
-      {/* Slot modal */}
+      {/* Slot modal for active character */}
       {slotModal !== null && (
         <SlotModal
           open={slotModal !== null}
-          slot={character.slots[slotModal]}
+          slot={activeChar.slots[slotModal]}
           recipes={recipes}
           machines={machines}
           stockImages={stockImages}
-          occupation={character.occupation}
+          occupation={activeChar.occupation}
           onSave={updated => {
-            onUpdateSlot(character.id, slotModal, updated);
+            onUpdateSlot(activeChar.id, slotModal, updated);
             setSlotModal(null);
           }}
           onClose={() => setSlotModal(null)}
@@ -457,7 +551,7 @@ function CharacterCard({ character, recipes, machines, stockImages, onUpdateSlot
         aspect={1}
         outputSize={200}
         onConfirm={handleCropConfirm}
-        onCancel={() => { URL.revokeObjectURL(cropSrc ?? ''); setCropSrc(undefined); }}
+        onCancel={() => { URL.revokeObjectURL(cropSrc ?? ''); setCropSrc(undefined); setCropTargetId(null); }}
       />
     </div>
   );
@@ -485,12 +579,6 @@ export function CharacterTracker({ recipes, machines, stockImages }: Props) {
   }, [accounts]);
 
   const selectedAccount = accounts.find(a => a.id === selectedAccountId) ?? null;
-
-  const visibleChars = selectedAccount
-    ? occFilter === 'ทั้งหมด'
-      ? selectedAccount.chars
-      : selectedAccount.chars.filter(c => c.occupation === occFilter || c.occupation === 'ทุกอาชีพ')
-    : [];
 
   const handleAddId = (account: AccountId) => {
     setAccounts(prev => [...prev, account]);
@@ -565,28 +653,21 @@ export function CharacterTracker({ recipes, machines, stockImages }: Props) {
         })}
       </div>
 
-      {/* Character grid */}
+      {/* Account card or empty state */}
       {!selectedAccount ? (
         <div className="ct-empty">
           ยังไม่มีไอดี — กด "+ เพิ่มไอดี" เพื่อเริ่มต้น
         </div>
-      ) : visibleChars.length === 0 ? (
-        <div className="ct-empty">ไม่มีตัวละครในอาชีพนี้</div>
       ) : (
-        <div className="ct-grid" role="list">
-          {visibleChars.map(char => (
-            <div key={char.id} role="listitem">
-              <CharacterCard
-                character={char}
-                recipes={recipes}
-                machines={machines}
-                stockImages={stockImages}
-                onUpdateSlot={handleUpdateSlot}
-                onUpdateAvatar={handleUpdateAvatar}
-              />
-            </div>
-          ))}
-        </div>
+        <AccountCard
+          account={selectedAccount}
+          occFilter={occFilter}
+          recipes={recipes}
+          machines={machines}
+          stockImages={stockImages}
+          onUpdateSlot={handleUpdateSlot}
+          onUpdateAvatar={handleUpdateAvatar}
+        />
       )}
 
       {/* Add ID modal */}
