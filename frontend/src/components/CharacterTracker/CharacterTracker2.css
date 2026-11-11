@@ -1,0 +1,460 @@
+/* CharacterTracker2.css — class prefix: ct2- */
+
+/* ── Wrapper ─────────────────────────────────────────────────────────────── */
+.ct2-wrap {
+  padding: 20px 24px;
+}
+
+/* ── Occupation filter row ───────────────────────────────────────────────── */
+.ct2-occ-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.ct2-occ-btn {
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  color: #374151;
+  white-space: nowrap;
+  transition: border-color 0.12s, background 0.12s, color 0.12s;
+  line-height: 26px;
+}
+
+.ct2-occ-btn:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.ct2-occ-btn.on {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+}
+
+/* ── Account (outer) card ────────────────────────────────────────────────── */
+.ct2-id-card {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  margin-bottom: 12px;
+}
+
+.ct2-id-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.ct2-id-head-label {
+  font-size: 14px;
+  font-weight: 700;
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  color: #0f172a;
+  min-width: 0;
+  font-family: inherit;
+}
+
+.ct2-id-head-label::placeholder {
+  color: #cbd5e1;
+}
+
+.ct2-id-meta {
+  font-size: 11px;
+  color: #94a3b8;
+  flex-shrink: 0;
+}
+
+.ct2-id-edit-btn {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 12px;
+  color: #94a3b8;
+  padding: 4px 8px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  transition: color 0.12s, background 0.12s;
+}
+
+.ct2-id-edit-btn:hover {
+  color: #0f172a;
+  background: #f1f5f9;
+}
+
+.ct2-id-delete-btn {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 12px;
+  color: #fca5a5;
+  padding: 4px 8px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  transition: color 0.12s, background 0.12s;
+}
+
+.ct2-id-delete-btn:hover {
+  color: #dc2626;
+  background: #fef2f2;
+}
+
+.ct2-id-body {
+  padding: 10px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+/* ── Character (inner) card ──────────────────────────────────────────────── */
+.ct2-char-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.ct2-char-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #ffffff;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.ct2-char-ava {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #e0f2fe;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  border: 1.5px solid #bae6fd;
+  cursor: pointer;
+  transition: border-color 0.12s;
+}
+
+.ct2-char-ava:hover {
+  border-color: #38bdf8;
+}
+
+.ct2-char-ava img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.ct2-char-name {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+  color: #0f172a;
+  outline: none;
+  min-width: 0;
+  font-family: inherit;
+}
+
+.ct2-char-name::placeholder {
+  color: #cbd5e1;
+}
+
+.ct2-occ-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ct2-char-body {
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ── Slot row ────────────────────────────────────────────────────────────── */
+.ct2-slot-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 7px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  min-height: 38px;
+  cursor: pointer;
+  transition: border-color 0.12s;
+  position: relative;
+}
+
+.ct2-slot-row:hover {
+  border-color: #94a3b8;
+}
+
+.ct2-slot-row.run {
+  background: #eff6ff;
+  border-color: #bae6fd;
+}
+
+.ct2-slot-row.done {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.ct2-slot-row.over {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.ct2-slot-img {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: #f1f5f9;
+  flex-shrink: 0;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ct2-slot-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 3px;
+}
+
+.ct2-slot-mid {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.ct2-slot-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ct2-slot-floor {
+  font-size: 10px;
+  color: #94a3b8;
+  border: none;
+  background: transparent;
+  outline: none;
+  width: 100%;
+  min-width: 0;
+  font-family: inherit;
+  padding: 0;
+}
+
+.ct2-slot-floor::placeholder {
+  color: #cbd5e1;
+}
+
+.ct2-slot-time {
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex-shrink: 0;
+  color: #94a3b8;
+}
+
+.ct2-slot-row.run .ct2-slot-time {
+  color: #2563eb;
+}
+
+.ct2-slot-row.done .ct2-slot-time {
+  color: #16a34a;
+}
+
+.ct2-slot-row.over .ct2-slot-time {
+  color: #dc2626;
+}
+
+.ct2-slot-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: #e2e8f0;
+}
+
+.ct2-slot-row.run .ct2-slot-dot {
+  background: #3b82f6;
+}
+
+.ct2-slot-row.done .ct2-slot-dot {
+  background: #22c55e;
+}
+
+.ct2-slot-row.over .ct2-slot-dot {
+  background: #ef4444;
+}
+
+/* Hover-reveal delete button */
+.ct2-slot-clear {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.5);
+  color: #fff;
+  font-size: 9px;
+  line-height: 16px;
+  text-align: center;
+  border: none;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+.ct2-slot-row:hover .ct2-slot-clear {
+  opacity: 1;
+}
+
+.ct2-slot-clear:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+  opacity: 1;
+}
+
+/* ── Add slot button ─────────────────────────────────────────────────────── */
+.ct2-slot-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 5px 7px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 11px;
+  color: #94a3b8;
+  transition: all 0.12s;
+  background: transparent;
+  font-family: inherit;
+  width: 100%;
+}
+
+.ct2-slot-add:hover {
+  border-color: #3b82f6;
+  color: #3b82f6;
+  background: #eff6ff;
+}
+
+/* ── Note textarea ───────────────────────────────────────────────────────── */
+.ct2-char-note {
+  width: 100%;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  padding: 5px 7px;
+  font-size: 11px;
+  color: #475569;
+  resize: none;
+  outline: none;
+  background: #ffffff;
+  line-height: 1.5;
+  transition: border-color 0.12s;
+  font-family: inherit;
+}
+
+.ct2-char-note:focus {
+  border-color: #3b82f6;
+}
+
+.ct2-char-note::placeholder {
+  color: #cbd5e1;
+}
+
+/* ── Add ID button ───────────────────────────────────────────────────────── */
+.ct2-add-id-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px;
+  border: 1.5px dashed #cbd5e1;
+  border-radius: 16px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: #94a3b8;
+  transition: all 0.12s;
+  background: transparent;
+  font-family: inherit;
+  width: 100%;
+}
+
+.ct2-add-id-btn:hover {
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+
+/* ── Empty state ─────────────────────────────────────────────────────────── */
+.ct2-empty {
+  padding: 48px 0;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .ct2-id-body {
+    grid-template-columns: 1fr;
+  }
+
+  .ct2-wrap {
+    padding: 12px;
+  }
+}
+
+/* ── Reduced motion ──────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .ct2-occ-btn,
+  .ct2-id-card,
+  .ct2-slot-row,
+  .ct2-slot-clear,
+  .ct2-slot-add,
+  .ct2-char-ava,
+  .ct2-add-id-btn {
+    transition: none !important;
+  }
+}
