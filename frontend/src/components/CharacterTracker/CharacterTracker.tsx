@@ -11,7 +11,14 @@ import './CharacterTracker.css';
 
 type Occupation = 'วิศวะกร' | 'หมอ' | 'เชฟ' | 'ไอดอล' | 'เกษตร' | 'ทุกอาชีพ';
 type SlotStatus = 'idle' | 'run' | 'done' | 'over';
-type Slot = { itemKey: string; itemName: string; status: SlotStatus; endTime: string };
+type Slot = {
+  itemKey: string;
+  itemName: string;
+  status: SlotStatus;
+  endTime: string;
+  startTime: string | null;
+  durationSeconds: number;
+};
 type Character = { id: string; name: string; occupation: Occupation; avatar: string | null; slots: Slot[] };
 type AccountId = { id: string; label: string; chars: Character[] };
 
@@ -46,7 +53,7 @@ const OCC_AVATAR_KEY: Record<Occupation, string> = {
 };
 
 function emptySlot(): Slot {
-  return { itemKey: '', itemName: '', status: 'idle', endTime: '' };
+  return { itemKey: '', itemName: '', status: 'idle', endTime: '', startTime: null, durationSeconds: 0 };
 }
 
 function emptyChar(occ: Occupation = 'ทุกอาชีพ', name = ''): Character {
@@ -59,11 +66,28 @@ function emptyChar(occ: Occupation = 'ทุกอาชีพ', name = ''): Cha
   };
 }
 
+function patchSlot(raw: Partial<Slot> & { itemKey: string; itemName: string; status: SlotStatus; endTime: string }): Slot {
+  return {
+    ...emptySlot(),
+    ...raw,
+    startTime: raw.startTime ?? null,
+    durationSeconds: raw.durationSeconds ?? 0,
+  };
+}
+
 function loadAccounts(): AccountId[] {
   try {
     const raw = localStorage.getItem(LS_KEY);
     if (!raw) return [];
-    return JSON.parse(raw) as AccountId[];
+    const parsed = JSON.parse(raw) as AccountId[];
+    // Migration: patch slots that may be missing new fields
+    return parsed.map(acc => ({
+      ...acc,
+      chars: acc.chars.map(char => ({
+        ...char,
+        slots: char.slots.map(s => patchSlot(s as Parameters<typeof patchSlot>[0])),
+      })),
+    }));
   } catch {
     return [];
   }
@@ -73,26 +97,21 @@ function svgToDataUrl(svg: string): string {
   return `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
 }
 
-function dotColor(chars: Character[]): string {
-  const statuses = chars.flatMap(c => c.slots.map(s => s.status));
-  if (statuses.some(s => s === 'over')) return '#ea580c';
-  if (statuses.some(s => s === 'run')) return '#2563eb';
-  if (statuses.some(s => s === 'done')) return '#16a34a';
-  return '#cbd5e1';
+/** Parse "HH:MM:SS" or "HH:MM" → total seconds. Returns 0 if unparseable. */
+function parseTimeSeconds(timeStr: string | null): number {
+  if (!timeStr) return 0;
+  const parts = timeStr.split(':').map(Number);
+  if (parts.some(isNaN)) return 0;
+  const [h = 0, m = 0, s = 0] = parts;
+  return h * 3600 + m * 60 + s;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Fix 1 helper: compute end time from recipe time_per_unit
-// ─────────────────────────────────────────────────────────────────────────────
-
-function calcEndTime(timePerUnit: string): string {
-  const parts = timePerUnit.split(':').map(Number);
-  const [h = 0, m = 0, s = 0] = parts;
-  const totalMs = (h * 3600 + m * 60 + s) * 1000;
-  const end = new Date(Date.now() + totalMs);
-  const hh = String(end.getHours()).padStart(2, '0');
-  const mm = String(end.getMinutes()).padStart(2, '0');
-  return `${hh}:${mm}`;
+/** Format seconds to HH:MM:SS */
+function clock(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  return [h, m, s].map(n => String(n).padStart(2, '0')).join(':');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -114,15 +133,15 @@ function SlotModal({ open, slot, recipes, stockImages, occupation, machines, onS
   const [selectedMachineId, setSelectedMachineId] = useState<string>('');
   const [selectedKey, setSelectedKey] = useState(slot.itemKey);
   const [selectedName, setSelectedName] = useState(slot.itemName);
-  const [status, setStatus] = useState<SlotStatus>(slot.status);
   const [endTime, setEndTime] = useState(slot.endTime);
+  const [durationSeconds, setDurationSeconds] = useState(slot.durationSeconds);
 
   // Reset when slot changes
   useEffect(() => {
     setSelectedKey(slot.itemKey);
     setSelectedName(slot.itemName);
-    setStatus(slot.status);
     setEndTime(slot.endTime);
+    setDurationSeconds(slot.durationSeconds);
     // pre-select machine from current slot's recipe
     const existing = recipes.find(r => r.id === slot.itemKey);
     setSelectedMachineId(existing?.machine_id ?? '');
@@ -139,7 +158,14 @@ function SlotModal({ open, slot, recipes, stockImages, occupation, machines, onS
     : availableMachines.flatMap(m => recipes.filter(r => r.machine_id === m.machine_id));
 
   const handleSave = () => {
-    onSave({ itemKey: selectedKey, itemName: selectedName, status, endTime });
+    onSave({
+      itemKey: selectedKey,
+      itemName: selectedName,
+      status: slot.status,            // status unchanged — controlled by Start/Stop
+      endTime,
+      startTime: slot.startTime,
+      durationSeconds,
+    });
   };
 
   return (
@@ -197,17 +223,17 @@ function SlotModal({ open, slot, recipes, stockImages, occupation, machines, onS
             style={{ width: '100%' }}
             value={selectedKey || undefined}
             onChange={(val: string | undefined) => {
-              if (!val) { setSelectedKey(''); setSelectedName(''); return; }
-              const r = availableRecipes.find(r => r.id === val);
+              if (!val) { setSelectedKey(''); setSelectedName(''); setDurationSeconds(0); return; }
+              const r = availableRecipes.find(x => x.id === val);
               if (r) {
                 setSelectedKey(r.id);
                 setSelectedName(r.name);
-                // Fix 1: auto-fill end time from recipe duration
-                if (r.time_per_unit) setEndTime(calcEndTime(r.time_per_unit));
+                const secs = parseTimeSeconds(r.time_per_unit);
+                setDurationSeconds(secs);
               }
             }}
             optionFilterProp="label"
-            options={availableRecipes.map(r => ({ value: r.id, label: r.name }))}
+            options={availableRecipes.map(r => ({ value: r.id, label: r.time_per_unit ? `${r.name} (${r.time_per_unit})` : r.name }))}
             optionRender={option => {
               const r = availableRecipes.find(x => x.id === option.value);
               const img = r ? (stockImages[r.id] ?? r.image) : undefined;
@@ -223,31 +249,15 @@ function SlotModal({ open, slot, recipes, stockImages, occupation, machines, onS
           />
         </div>
 
-        {/* เวลา + สถานะ */}
-        <div style={{ display: 'flex', gap: 12 }}>
-          <div style={{ flex: 1 }}>
-            <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 4px', fontWeight: 600 }}>เวลาเสร็จ</p>
-            <input
-              type="time"
-              value={endTime}
-              onChange={e => setEndTime(e.target.value)}
-              style={{ width: '100%', height: 32, border: '1px solid #e2e8f0', borderRadius: 6, padding: '0 8px', fontSize: 14, color: '#0f172a', outline: 'none' }}
-            />
-          </div>
-          <div style={{ flex: 1 }}>
-            <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 4px', fontWeight: 600 }}>สถานะ</p>
-            <Select
-              value={status}
-              onChange={v => setStatus(v)}
-              style={{ width: '100%' }}
-              options={[
-                { value: 'idle', label: 'ว่าง' },
-                { value: 'run', label: '🔵 กำลังผลิต' },
-                { value: 'done', label: '🟢 เสร็จแล้ว' },
-                { value: 'over', label: '🟠 เกินเวลา' },
-              ]}
-            />
-          </div>
+        {/* เวลาเสร็จโดยประมาณ (ไม่บังคับ) */}
+        <div>
+          <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 4px', fontWeight: 600 }}>เวลาเสร็จโดยประมาณ (HH:MM) — ไม่บังคับ</p>
+          <input
+            type="time"
+            value={endTime}
+            onChange={e => setEndTime(e.target.value)}
+            style={{ width: '100%', height: 32, border: '1px solid #e2e8f0', borderRadius: 6, padding: '0 8px', fontSize: 14, color: '#0f172a', outline: 'none' }}
+          />
         </div>
 
       </div>
@@ -347,176 +357,252 @@ function AddIdModal({ open, onSave, onClose }: AddIdModalProps) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Fix 2: AccountCard — groups all 3 characters with tab navigation
+// CharacterRow — one full-width card per character
 // ─────────────────────────────────────────────────────────────────────────────
 
-interface AccountCardProps {
-  account: AccountId;
-  occFilter: Occupation | 'ทั้งหมด';
+interface CharacterRowProps {
+  character: Character;
+  accountLabel: string;
+  now: number;
   recipes: Recipe[];
   machines: Machine[];
   stockImages: StockImageMap;
-  onUpdateSlot: (charId: string, slotIndex: number, updated: Slot) => void;
-  onUpdateAvatar: (charId: string, dataUrl: string) => void;
+  onUpdateSlot: (slotIndex: number, updated: Slot) => void;
+  onUpdateAvatar: (dataUrl: string) => void;
+  onUpdateName: (name: string) => void;
 }
 
-function AccountCard({ account, occFilter, recipes, machines, stockImages, onUpdateSlot, onUpdateAvatar }: AccountCardProps) {
-  const [activeCharIdx, setActiveCharIdx] = useState(0);
+function CharacterRow({
+  character,
+  accountLabel,
+  now,
+  recipes,
+  machines,
+  stockImages,
+  onUpdateSlot,
+  onUpdateAvatar,
+  onUpdateName,
+}: CharacterRowProps) {
   const [slotModal, setSlotModal] = useState<number | null>(null);
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState(character.name);
   const [cropSrc, setCropSrc] = useState<string | undefined>(undefined);
-  const [cropTargetId, setCropTargetId] = useState<string | null>(null);
-  const fileInputRefs = useRef<Array<HTMLInputElement | null>>([null, null, null]);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // If active char is filtered out, switch to first visible one
+  // Auto-transition run → over when timer expires
   useEffect(() => {
-    const isVisible = (char: Character) =>
-      occFilter === 'ทั้งหมด' || char.occupation === occFilter || char.occupation === 'ทุกอาชีพ';
+    character.slots.forEach((slot, i) => {
+      if (slot.status === 'run' && slot.startTime && slot.durationSeconds > 0) {
+        const elapsed = Math.floor((now - Date.parse(slot.startTime)) / 1000);
+        if (elapsed >= slot.durationSeconds) {
+          onUpdateSlot(i, { ...slot, status: 'over' });
+        }
+      }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [now]);
 
-    if (!isVisible(account.chars[activeCharIdx])) {
-      const firstVisible = account.chars.findIndex(isVisible);
-      if (firstVisible !== -1) setActiveCharIdx(firstVisible);
-    }
-  }, [occFilter, account.chars, activeCharIdx]);
-
-  const activeChar = account.chars[activeCharIdx];
-
-  const isFiltered = (char: Character) =>
-    occFilter !== 'ทั้งหมด' && char.occupation !== occFilter && char.occupation !== 'ทุกอาชีพ';
-
-  const handleAvatarClick = (charId: string, idx: number) => {
-    setCropTargetId(charId);
-    fileInputRefs.current[idx]?.click();
-  };
+  const handleAvatarClick = () => fileInputRef.current?.click();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const url = URL.createObjectURL(file);
-    setCropSrc(url);
+    setCropSrc(URL.createObjectURL(file));
     e.target.value = '';
   };
 
   const handleCropConfirm = (blob: Blob) => {
-    if (!cropTargetId) return;
     const reader = new FileReader();
     reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        onUpdateAvatar(cropTargetId, reader.result);
-      }
+      if (typeof reader.result === 'string') onUpdateAvatar(reader.result);
     };
     reader.readAsDataURL(blob);
     URL.revokeObjectURL(cropSrc ?? '');
     setCropSrc(undefined);
-    setCropTargetId(null);
   };
 
-  const handleClearSlot = (e: React.MouseEvent | React.KeyboardEvent, slotIndex: number) => {
-    e.stopPropagation();
-    onUpdateSlot(activeChar.id, slotIndex, { itemKey: '', itemName: '', status: 'idle', endTime: '' });
+  const commitName = () => {
+    setEditingName(false);
+    const trimmed = nameInput.trim();
+    if (trimmed && trimmed !== character.name) onUpdateName(trimmed);
+    else setNameInput(character.name);
   };
+
+  const avatarSvg = PIXEL_AVATARS[OCC_AVATAR_KEY[character.occupation]];
+  const avatarSrc = character.avatar ?? svgToDataUrl(avatarSvg);
 
   return (
-    <div className="ct-account-card">
-      {/* Character tabs */}
-      <div className="ct-char-tabs" role="tablist" aria-label="เลือกตัวละคร">
-        {account.chars.map((char, idx) => {
-          const avatarSvg = PIXEL_AVATARS[OCC_AVATAR_KEY[char.occupation]];
-          const avatarSrc = char.avatar ?? svgToDataUrl(avatarSvg);
-          const color = dotColor([char]);
-          const filtered = isFiltered(char);
-          const isActive = idx === activeCharIdx;
+    <div className="ct-row-card">
+      {/* Header */}
+      <div className="ct-row-header">
+        {/* Avatar */}
+        <div
+          className="ct-avatar"
+          role="button"
+          tabIndex={0}
+          aria-label={`เปลี่ยนรูปโปรไฟล์ ${character.name}`}
+          onClick={handleAvatarClick}
+          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') handleAvatarClick(); }}
+        >
+          <img src={avatarSrc} alt={character.name} />
+        </div>
+        <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileChange} />
 
-          return (
-            <button
-              key={char.id}
-              role="tab"
-              aria-selected={isActive}
-              className={`ct-char-tab${isActive ? ' is-active' : ''}${filtered ? ' is-filtered' : ''}`}
-              onClick={() => { if (!filtered) setActiveCharIdx(idx); }}
-              tabIndex={filtered ? -1 : 0}
-            >
-              {/* Avatar circle — clicking opens file picker */}
-              <div
-                className="ct-char-tab__avatar"
-                role="button"
-                tabIndex={filtered ? -1 : 0}
-                aria-label={`เปลี่ยนรูปโปรไฟล์ ${char.name}`}
-                onClick={e => {
-                  e.stopPropagation();
-                  if (!filtered) handleAvatarClick(char.id, idx);
-                }}
-                onKeyDown={e => {
-                  if ((e.key === 'Enter' || e.key === ' ') && !filtered) {
-                    e.stopPropagation();
-                    handleAvatarClick(char.id, idx);
-                  }
-                }}
-              >
-                <img src={avatarSrc} alt={char.name} />
-              </div>
+        {/* Name (editable inline) */}
+        {editingName ? (
+          <Input
+            value={nameInput}
+            onChange={e => setNameInput(e.target.value)}
+            onBlur={commitName}
+            onPressEnter={commitName}
+            autoFocus
+            size="small"
+            style={{ flex: 1, fontSize: 14, fontWeight: 600, maxWidth: 200 }}
+          />
+        ) : (
+          <span className="ct-row-name">{character.name}</span>
+        )}
 
-              {/* Hidden file input per character */}
-              <input
-                ref={el => { fileInputRefs.current[idx] = el; }}
-                type="file"
-                accept="image/*"
-                style={{ display: 'none' }}
-                onChange={handleFileChange}
-              />
+        {/* Occupation badge */}
+        <span className="ct-occ-badge">
+          {OCC_ICONS[character.occupation]} {character.occupation}
+        </span>
 
-              <span className="ct-char-tab__name">{char.name}</span>
+        {/* Account label */}
+        <span className="ct-row-acct-badge">{accountLabel}</span>
 
-              {/* Status dot */}
-              <span
-                style={{ width: 8, height: 8, borderRadius: '50%', background: color, display: 'block', flexShrink: 0 }}
-                aria-hidden="true"
-              />
-            </button>
-          );
-        })}
+        {/* Edit name button */}
+        <button
+          className="ct-row-edit"
+          aria-label="แก้ไขชื่อตัวละคร"
+          onClick={() => { setNameInput(character.name); setEditingName(true); }}
+        >
+          ✎
+        </button>
       </div>
 
-      {/* Slot grid for active character */}
-      <div className="ct-slots">
-        {activeChar.slots.map((slot, i) => {
-          const imgUrl = slot.itemKey ? stockImages[slot.itemKey] : undefined;
-          const hasContent = slot.status !== 'idle' || slot.itemKey !== '';
+      {/* Slot grid */}
+      <div className="ct-row-slots">
+        {character.slots.map((slot, i) => {
+          const imgUrl = slot.itemKey ? (stockImages[slot.itemKey] ?? recipes.find(r => r.id === slot.itemKey)?.image) : undefined;
+          const hasContent = slot.itemKey !== '' || slot.status !== 'idle';
+
+          // Compute timer
+          let remaining = 0;
+          if (slot.status === 'run' && slot.startTime && slot.durationSeconds > 0) {
+            remaining = slot.durationSeconds - Math.floor((now - Date.parse(slot.startTime)) / 1000);
+            if (remaining < 0) remaining = 0;
+          }
+
+          const timerText = (() => {
+            if (slot.status === 'run') return clock(Math.max(0, remaining));
+            if (slot.status === 'over') return 'เกิน!';
+            if (slot.status === 'done') return '✓ เสร็จ';
+            if (slot.status === 'idle' && slot.durationSeconds > 0) return '--:--:--';
+            return '';
+          })();
+
+          const timerMod = slot.status === 'run'
+            ? 'run'
+            : slot.status === 'over'
+            ? 'over'
+            : slot.status === 'done'
+            ? 'done'
+            : 'idle';
 
           return (
-            <div
-              key={i}
-              className={`ct-slot ct-slot--${slot.status}`}
-              onClick={() => setSlotModal(i)}
-              role="button"
-              tabIndex={0}
-              aria-label={`ช่อง ${i + 1}: ${slot.itemName || 'ว่าง'}`}
-              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') setSlotModal(i); }}
-            >
+            <div key={i} className={`ct-slot ct-slot--${slot.status}`} style={{ position: 'relative' }}>
               <div className="ct-slot__strip" aria-hidden="true" />
               <span className="ct-slot__num">{i + 1}</span>
 
+              {/* Item image */}
               {imgUrl ? (
-                <img className="ct-slot__icon" src={imgUrl} alt={slot.itemName} />
-              ) : slot.status !== 'idle' ? (
-                <div style={{ width: '55%', aspectRatio: '1', background: '#e2e8f0', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#94a3b8' }} aria-hidden="true">?</div>
+                <img
+                  className="ct-slot__icon"
+                  src={imgUrl}
+                  alt={slot.itemName}
+                  style={{ width: 40, height: 40, objectFit: 'contain', flexShrink: 0 }}
+                />
               ) : (
-                <div style={{ width: '55%', aspectRatio: '1', background: '#f1f5f9', borderRadius: 4 }} aria-hidden="true" />
+                <div
+                  style={{ width: 40, height: 40, background: '#f1f5f9', borderRadius: 6, flexShrink: 0 }}
+                  aria-hidden="true"
+                />
               )}
 
+              {/* Item name */}
               {slot.itemName && (
-                <span className="ct-slot__label">{slot.itemName}</span>
+                <span
+                  className="ct-slot__label"
+                  style={{
+                    fontSize: 10,
+                    color: '#64748b',
+                    textAlign: 'center',
+                    lineHeight: 1.3,
+                    maxWidth: '100%',
+                    overflow: 'hidden',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    whiteSpace: 'normal',
+                    padding: '0 4px',
+                  }}
+                >
+                  {slot.itemName}
+                </span>
               )}
-              <span className="ct-slot__time">{slot.endTime || '--:--'}</span>
 
-              {/* Fix 3: Clear slot button */}
+              {/* Timer */}
+              {timerText && (
+                <span className={`ct-slot__timer ct-slot__timer--${timerMod}`}>
+                  {timerText}
+                </span>
+              )}
+
+              {/* Action button */}
+              {slot.status === 'idle' && slot.itemKey ? (
+                <button
+                  className="ct-slot__btn ct-slot__btn--primary"
+                  onClick={() => onUpdateSlot(i, { ...slot, status: 'run', startTime: new Date().toISOString() })}
+                >
+                  ▶ เริ่ม
+                </button>
+              ) : slot.status === 'run' ? (
+                <button
+                  className="ct-slot__btn"
+                  onClick={() => onUpdateSlot(i, { ...slot, status: 'done' })}
+                >
+                  ⏹ หยุด
+                </button>
+              ) : slot.status === 'done' || slot.status === 'over' ? (
+                <button
+                  className="ct-slot__btn"
+                  onClick={() => onUpdateSlot(i, { ...slot, status: 'idle', startTime: null })}
+                >
+                  รีเซ็ต
+                </button>
+              ) : (
+                // idle, no recipe
+                <button
+                  className="ct-slot__btn ct-slot__btn--add"
+                  onClick={() => setSlotModal(i)}
+                >
+                  + เพิ่ม
+                </button>
+              )}
+
+              {/* Clear button — hover reveals, full reset */}
               {hasContent && (
                 <button
                   className="ct-slot__clear"
                   aria-label="ล้างช่อง"
                   tabIndex={0}
-                  onClick={e => handleClearSlot(e, i)}
+                  onClick={e => { e.stopPropagation(); onUpdateSlot(i, emptySlot()); }}
                   onKeyDown={e => {
-                    if (e.key === 'Enter' || e.key === ' ') handleClearSlot(e, i);
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.stopPropagation();
+                      onUpdateSlot(i, emptySlot());
+                    }
                   }}
                 >
                   ✕
@@ -527,17 +613,17 @@ function AccountCard({ account, occFilter, recipes, machines, stockImages, onUpd
         })}
       </div>
 
-      {/* Slot modal for active character */}
+      {/* Slot modal */}
       {slotModal !== null && (
         <SlotModal
           open={slotModal !== null}
-          slot={activeChar.slots[slotModal]}
+          slot={character.slots[slotModal]}
           recipes={recipes}
           machines={machines}
           stockImages={stockImages}
-          occupation={activeChar.occupation}
+          occupation={character.occupation}
           onSave={updated => {
-            onUpdateSlot(activeChar.id, slotModal, updated);
+            onUpdateSlot(slotModal, updated);
             setSlotModal(null);
           }}
           onClose={() => setSlotModal(null)}
@@ -551,7 +637,7 @@ function AccountCard({ account, occFilter, recipes, machines, stockImages, onUpd
         aspect={1}
         outputSize={200}
         onConfirm={handleCropConfirm}
-        onCancel={() => { URL.revokeObjectURL(cropSrc ?? ''); setCropSrc(undefined); setCropTargetId(null); }}
+        onCancel={() => { URL.revokeObjectURL(cropSrc ?? ''); setCropSrc(undefined); }}
       />
     </div>
   );
@@ -563,13 +649,16 @@ function AccountCard({ account, occFilter, recipes, machines, stockImages, onUpd
 
 export function CharacterTracker({ recipes, machines, stockImages }: Props) {
   const [accounts, setAccounts] = useState<AccountId[]>(loadAccounts);
-  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(() => {
-    const loaded = loadAccounts();
-    return loaded[0]?.id ?? null;
-  });
   const [occFilter, setOccFilter] = useState<Occupation | 'ทั้งหมด'>('ทั้งหมด');
   const [addIdOpen, setAddIdOpen] = useState(false);
   const [msgApi, msgCtx] = message.useMessage();
+
+  // Single shared timer tick
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
 
   // Persist to localStorage whenever accounts change
   useEffect(() => {
@@ -578,10 +667,8 @@ export function CharacterTracker({ recipes, machines, stockImages }: Props) {
     } catch { /* quota exceeded, silent */ }
   }, [accounts]);
 
-
   const handleAddId = (account: AccountId) => {
     setAccounts(prev => [...prev, account]);
-    setSelectedAccountId(account.id);
     setAddIdOpen(false);
     void msgApi.success(`เพิ่มไอดี "${account.label}" สำเร็จ`);
   };
@@ -605,6 +692,24 @@ export function CharacterTracker({ recipes, machines, stockImages }: Props) {
     })));
   };
 
+  const handleUpdateName = (charId: string, name: string) => {
+    setAccounts(prev => prev.map(acc => ({
+      ...acc,
+      chars: acc.chars.map(c => c.id !== charId ? c : { ...c, name }),
+    })));
+  };
+
+  // Flatten all characters across all accounts, filtered by occupation
+  const filteredRows = accounts.flatMap(acc =>
+    acc.chars
+      .filter(char =>
+        occFilter === 'ทั้งหมด' ||
+        char.occupation === occFilter ||
+        char.occupation === 'ทุกอาชีพ'
+      )
+      .map(char => ({ char, accountLabel: acc.label }))
+  );
+
   return (
     <div className="ct-wrap">
       {msgCtx}
@@ -614,17 +719,11 @@ export function CharacterTracker({ recipes, machines, stockImages }: Props) {
       </h2>
 
       {/* ID row */}
-      <div className="ct-id-row" role="tablist" aria-label="เลือกไอดี">
+      <div className="ct-id-row" role="tablist" aria-label="ไอดีทั้งหมด">
         {accounts.map(acc => (
-          <button
-            key={acc.id}
-            role="tab"
-            aria-selected={selectedAccountId === acc.id}
-            className={`ct-chip${selectedAccountId === acc.id ? ' is-active' : ''}`}
-            onClick={() => setSelectedAccountId(acc.id)}
-          >
+          <span key={acc.id} className="ct-chip is-active">
             {acc.label}
-          </button>
+          </span>
         ))}
         <button
           className="ct-chip ct-chip--add"
@@ -652,23 +751,29 @@ export function CharacterTracker({ recipes, machines, stockImages }: Props) {
         })}
       </div>
 
-      {/* All account cards in a responsive grid */}
+      {/* Character rows */}
       {accounts.length === 0 ? (
         <div className="ct-empty">
           ยังไม่มีไอดี — กด "+ เพิ่มไอดี" เพื่อเริ่มต้น
         </div>
+      ) : filteredRows.length === 0 ? (
+        <div className="ct-empty">
+          ไม่มีตัวละครในอาชีพที่เลือก
+        </div>
       ) : (
-        <div className="ct-accounts-grid">
-          {accounts.map(acc => (
-            <AccountCard
-              key={acc.id}
-              account={acc}
-              occFilter={occFilter}
+        <div style={{ marginTop: 16 }}>
+          {filteredRows.map(({ char, accountLabel }) => (
+            <CharacterRow
+              key={char.id}
+              character={char}
+              accountLabel={accountLabel}
+              now={now}
               recipes={recipes}
               machines={machines}
               stockImages={stockImages}
-              onUpdateSlot={handleUpdateSlot}
-              onUpdateAvatar={handleUpdateAvatar}
+              onUpdateSlot={(slotIndex, updated) => handleUpdateSlot(char.id, slotIndex, updated)}
+              onUpdateAvatar={dataUrl => handleUpdateAvatar(char.id, dataUrl)}
+              onUpdateName={name => handleUpdateName(char.id, name)}
             />
           ))}
         </div>
