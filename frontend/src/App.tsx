@@ -55,15 +55,16 @@ import { OrganizationChart } from './components/Organization/OrganizationChart';
 import { ContributorReturns } from './components/Organization/ContributorReturns';
 import { ProductionFlowBoard } from './components/Planner/ProductionFlowBoard';
 import { StorePage } from './components/Store/StorePage';
+import { CharacterTracker } from './components/CharacterTracker/CharacterTracker';
 import { ProductionCalculator } from './components/shared/ProductionCalculator';
 import { CraftingGuide } from './components/CraftingGuide/CraftingGuide';
 import type { SaveStatus } from './hooks/useAppState';
 
 const { Sider, Content } = Layout;
 
-type MainView = 'crafting-guide' | 'machine-layout' | 'withdrawal-admin' | 'withdrawals' | 'assignments' | 'planner' | 'shared-planner' | 'production-flow' | 'data' | 'inventory' | 'floors' | 'targets' | 'budget' | 'organization' | 'contributor-returns' | 'calculator';
+type MainView = 'crafting-guide' | 'machine-layout' | 'withdrawal-admin' | 'withdrawals' | 'assignments' | 'planner' | 'shared-planner' | 'production-flow' | 'data' | 'inventory' | 'floors' | 'targets' | 'budget' | 'organization' | 'contributor-returns' | 'calculator' | 'character-tracker';
 
-const ADMIN_VIEWS: MainView[] = ['crafting-guide', 'machine-layout', 'planner', 'production-flow', 'assignments', 'shared-planner', 'data', 'inventory', 'floors', 'targets', 'budget', 'organization', 'contributor-returns', 'calculator'];
+const ADMIN_VIEWS: MainView[] = ['crafting-guide', 'machine-layout', 'planner', 'production-flow', 'assignments', 'shared-planner', 'data', 'inventory', 'floors', 'targets', 'budget', 'organization', 'contributor-returns', 'calculator', 'character-tracker'];
 const PUBLIC_VIEWS: MainView[] = ['floors', 'calculator'];
 const isAdminPath = () => window.location.pathname.replace(/\/+$/, '') === '/admin';
 function savedNavigation(admin: boolean): MainView {
@@ -82,6 +83,7 @@ const NAV_ITEMS = [
     icon: <ClockCircleOutlined />,
     label: 'สถานะชั้น',
   },
+  { key: 'character-tracker', icon: <TeamOutlined />, label: 'ติดตามตัวละคร' },
   { key: 'withdrawals', icon: <InboxOutlined />, label: 'เบิกสินค้า' },
   { key: 'withdrawal-admin', icon: <InboxOutlined />, label: 'จัดการการเบิก' },
   { key: 'planner', icon: <AimOutlined />, label: 'วางแผนการผลิต' },
@@ -1110,6 +1112,12 @@ export default function App() {
                   <Divide99Calculator />
                 </div>
               </div>
+            </div>
+          )}
+
+          {isAdmin && view === 'character-tracker' && (
+            <div className="page-content">
+              <CharacterTracker recipes={recipes} stockImages={stockImages} itemNames={itemNames} />
             </div>
           )}
         </Content>

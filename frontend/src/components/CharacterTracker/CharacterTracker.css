@@ -1,0 +1,334 @@
+/* CharacterTracker.css — class prefix: ct- */
+
+.ct-wrap {
+  padding: 20px 24px;
+}
+
+/* ── ID row ──────────────────────────────────────────────────────────────── */
+.ct-id-row {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: #e2e8f0 transparent;
+}
+
+.ct-id-row::-webkit-scrollbar { height: 4px; }
+.ct-id-row::-webkit-scrollbar-track { background: transparent; }
+.ct-id-row::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 2px; }
+
+/* ── chips ───────────────────────────────────────────────────────────────── */
+.ct-chip {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: border-color 0.12s, background 0.12s, color 0.12s;
+  line-height: 30px;
+}
+
+.ct-chip:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.ct-chip.is-active {
+  background: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
+}
+
+.ct-chip--add {
+  border-style: dashed;
+  color: #64748b;
+}
+
+.ct-chip--add:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
+/* ── occupation filter row ────────────────────────────────────────────────── */
+.ct-occ-row {
+  display: flex;
+  flex-direction: row;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.ct-occ-btn {
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  color: #374151;
+  white-space: nowrap;
+  transition: border-color 0.12s, background 0.12s, color 0.12s;
+  line-height: 26px;
+}
+
+.ct-occ-btn:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.ct-occ-btn.is-active {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+}
+
+/* ── character grid ───────────────────────────────────────────────────────── */
+.ct-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+@media (min-width: 640px) {
+  .ct-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .ct-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* ── card ──────────────────────────────────────────────────────────────────── */
+.ct-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.ct-card__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  height: 52px;
+}
+
+.ct-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  cursor: pointer;
+  background: #f1f5f9;
+  border: 2px solid #e2e8f0;
+  transition: border-color 0.15s;
+}
+
+.ct-avatar:hover {
+  border-color: #94a3b8;
+}
+
+.ct-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.ct-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ct-occ-badge {
+  font-size: 11px;
+  color: #64748b;
+  background: #f8fafc;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid #e2e8f0;
+  flex-shrink: 0;
+}
+
+.ct-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ── slot grid ────────────────────────────────────────────────────────────── */
+.ct-slots {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: #f1f5f9;
+}
+
+.ct-slot {
+  background: #ffffff;
+  aspect-ratio: 1;
+  position: relative;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  overflow: hidden;
+  transition: background 0.1s;
+}
+
+.ct-slot:hover {
+  background: #f8fafc;
+}
+
+.ct-slot__strip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+}
+
+.ct-slot__num {
+  position: absolute;
+  top: 3px;
+  left: 4px;
+  font-size: 9px;
+  color: #94a3b8;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.ct-slot__icon {
+  width: 55%;
+  aspect-ratio: 1;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.ct-slot__icon--svg {
+  width: 55%;
+  aspect-ratio: 1;
+  display: block;
+  flex-shrink: 0;
+}
+
+.ct-slot__label {
+  font-size: 9px;
+  color: #64748b;
+  text-align: center;
+  line-height: 1.2;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 2px;
+  margin-top: 2px;
+}
+
+.ct-slot__time {
+  font-size: 9px;
+  color: #94a3b8;
+  line-height: 1;
+}
+
+/* status strip colors */
+.ct-slot--idle   .ct-slot__strip { background: transparent; }
+.ct-slot--run    .ct-slot__strip { background: #2563eb; }
+.ct-slot--done   .ct-slot__strip { background: #16a34a; }
+.ct-slot--over   .ct-slot__strip { background: #ea580c; }
+
+/* ── modal picker ─────────────────────────────────────────────────────────── */
+.ct-modal-picker {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+
+.ct-pick-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 4px;
+  border-radius: 8px;
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  background: #f8fafc;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.ct-pick-tile:hover {
+  border-color: #e2e8f0;
+}
+
+.ct-pick-tile.is-selected {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.ct-pick-tile img,
+.ct-pick-tile svg {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+
+.ct-pick-tile span {
+  font-size: 10px;
+  color: #374151;
+  text-align: center;
+  line-height: 1.3;
+}
+
+/* ── add modal row ────────────────────────────────────────────────────────── */
+.ct-add-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+/* ── empty state ──────────────────────────────────────────────────────────── */
+.ct-empty {
+  padding: 48px 0;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+/* ── reduced motion ───────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .ct-chip,
+  .ct-occ-btn,
+  .ct-avatar,
+  .ct-slot,
+  .ct-pick-tile {
+    transition: none !important;
+  }
+}
