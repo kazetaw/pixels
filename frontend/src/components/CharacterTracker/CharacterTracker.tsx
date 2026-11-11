@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Modal, Select, Input, message, Button } from 'antd';
-import type { Recipe, StockImageMap } from '../../types';
+import type { Recipe, Machine, StockImageMap } from '../../types';
 import { CropModal } from '../shared/CropModal';
-import { PIXEL_AVATARS, PIXEL_ICONS } from './pixelIcons';
+import { PIXEL_AVATARS } from './pixelIcons';
 import './CharacterTracker.css';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -17,6 +17,7 @@ type AccountId = { id: string; label: string; chars: Character[] };
 
 export interface Props {
   recipes: Recipe[];
+  machines: Machine[];
   stockImages: StockImageMap;
   itemNames: Record<string, string>;
 }
@@ -72,23 +73,6 @@ function svgToDataUrl(svg: string): string {
   return `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
 }
 
-/** Pick a pixel icon by guessing from an item key/name */
-function guessIcon(key: string): string {
-  const k = key.toLowerCase();
-  if (k.includes('circuit') || k.includes('วงจร')) return PIXEL_ICONS.circuit;
-  if (k.includes('iron') || k.includes('เหล็ก')) return PIXEL_ICONS.iron;
-  if (k.includes('medicine') || k.includes('ยา')) return PIXEL_ICONS.medicine;
-  if (k.includes('potion') || k.includes('น้ำยา') || k.includes('ปรุง')) return PIXEL_ICONS.potion;
-  if (k.includes('flask') || k.includes('ขวด')) return PIXEL_ICONS.flask;
-  if (k.includes('herb') || k.includes('สมุนไพร')) return PIXEL_ICONS.herb;
-  if (k.includes('gear') || k.includes('เฟือง')) return PIXEL_ICONS.gear;
-  if (k.includes('battery') || k.includes('แบตเตอรี')) return PIXEL_ICONS.battery;
-  // Default by first char of key
-  const icons = Object.values(PIXEL_ICONS);
-  const idx = key.charCodeAt(0) % icons.length;
-  return icons[idx];
-}
-
 function dotColor(chars: Character[]): string {
   const statuses = chars.flatMap(c => c.slots.map(s => s.status));
   if (statuses.some(s => s === 'over')) return '#ea580c';
@@ -106,11 +90,13 @@ interface SlotModalProps {
   slot: Slot;
   recipes: Recipe[];
   stockImages: StockImageMap;
+  occupation: Occupation;
+  machines: Machine[];
   onSave: (updated: Slot) => void;
   onClose: () => void;
 }
 
-function SlotModal({ open, slot, recipes, stockImages, onSave, onClose }: SlotModalProps) {
+function SlotModal({ open, slot, recipes, stockImages, occupation, machines, onSave, onClose }: SlotModalProps) {
   const [selectedKey, setSelectedKey] = useState(slot.itemKey);
   const [selectedName, setSelectedName] = useState(slot.itemName);
   const [status, setStatus] = useState<SlotStatus>(slot.status);
@@ -123,6 +109,15 @@ function SlotModal({ open, slot, recipes, stockImages, onSave, onClose }: SlotMo
     setStatus(slot.status);
     setEndTime(slot.endTime);
   }, [slot, open]);
+
+  // Filter recipes by occupation via machine
+  const filteredRecipes = occupation === 'ทุกอาชีพ'
+    ? recipes
+    : recipes.filter(r => {
+        if (!r.machine_id) return false;
+        const m = machines.find(x => x.machine_id === r.machine_id);
+        return m?.occupation === occupation || m?.occupation === 'ทุกอาชีพ';
+      });
 
   const handleSelect = (recipeId: string, recipeName: string) => {
     setSelectedKey(recipeId);
@@ -146,36 +141,34 @@ function SlotModal({ open, slot, recipes, stockImages, onSave, onClose }: SlotMo
       }
       width={520}
     >
-      {/* Product picker */}
-      <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 8px' }}>เลือกสินค้า</p>
-      <div style={{ maxHeight: 260, overflowY: 'auto', marginBottom: 16 }}>
-        <div className="ct-modal-picker">
-          {recipes.map(r => {
-            const imgUrl = stockImages[r.id];
-            const isSelected = selectedKey === r.id;
-            return (
-              <div
-                key={r.id}
-                className={`ct-pick-tile${isSelected ? ' is-selected' : ''}`}
-                onClick={() => handleSelect(r.id, r.name)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') handleSelect(r.id, r.name); }}
-              >
-                {imgUrl ? (
-                  <img src={imgUrl} alt={r.name} />
-                ) : (
-                  <img
-                    src={svgToDataUrl(guessIcon(r.id + r.name))}
-                    alt={r.name}
-                  />
-                )}
-                <span>{r.name}</span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      {/* Product picker — Select with search + image, same style as FloorTimerDashboard */}
+      <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 4px' }}>เลือกสินค้า / สูตร</p>
+      <Select
+        showSearch
+        allowClear
+        placeholder="ค้นหาสูตร…"
+        style={{ width: '100%', marginBottom: 16 }}
+        value={selectedKey || undefined}
+        onChange={(val: string | undefined) => {
+          if (!val) { setSelectedKey(''); setSelectedName(''); return; }
+          const r = filteredRecipes.find(r => r.id === val);
+          if (r) handleSelect(r.id, r.name);
+        }}
+        optionFilterProp="label"
+        options={filteredRecipes.map(r => ({ value: r.id, label: r.name }))}
+        optionRender={option => {
+          const r = filteredRecipes.find(x => x.id === option.value);
+          const img = r ? stockImages[r.id] ?? r.image : undefined;
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {img
+                ? <img src={img} alt="" style={{ width: 24, height: 24, objectFit: 'contain', borderRadius: 4, background: '#f1f5f9' }} />
+                : <div style={{ width: 24, height: 24, borderRadius: 4, background: '#e2e8f0', flexShrink: 0 }} />}
+              <span style={{ fontSize: 13 }}>{option.label}</span>
+            </div>
+          );
+        }}
+      />
 
       {/* Time & status */}
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end' }}>
@@ -308,12 +301,13 @@ function AddIdModal({ open, onSave, onClose }: AddIdModalProps) {
 interface CharacterCardProps {
   character: Character;
   recipes: Recipe[];
+  machines: Machine[];
   stockImages: StockImageMap;
   onUpdateSlot: (charId: string, slotIndex: number, updated: Slot) => void;
   onUpdateAvatar: (charId: string, dataUrl: string) => void;
 }
 
-function CharacterCard({ character, recipes, stockImages, onUpdateSlot, onUpdateAvatar }: CharacterCardProps) {
+function CharacterCard({ character, recipes, machines, stockImages, onUpdateSlot, onUpdateAvatar }: CharacterCardProps) {
   const [slotModal, setSlotModal] = useState<number | null>(null);
   const [cropSrc, setCropSrc] = useState<string | undefined>(undefined);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -375,7 +369,6 @@ function CharacterCard({ character, recipes, stockImages, onUpdateSlot, onUpdate
       <div className="ct-slots">
         {character.slots.map((slot, i) => {
           const imgUrl = slot.itemKey ? stockImages[slot.itemKey] : undefined;
-          const iconSvg = slot.itemKey ? guessIcon(slot.itemKey) : undefined;
 
           return (
             <div
@@ -392,12 +385,8 @@ function CharacterCard({ character, recipes, stockImages, onUpdateSlot, onUpdate
 
               {imgUrl ? (
                 <img className="ct-slot__icon" src={imgUrl} alt={slot.itemName} />
-              ) : slot.itemKey && iconSvg ? (
-                <img
-                  className="ct-slot__icon"
-                  src={svgToDataUrl(iconSvg)}
-                  alt={slot.itemName}
-                />
+              ) : slot.status !== 'idle' ? (
+                <div style={{ width: '55%', aspectRatio: '1', background: '#e2e8f0', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#94a3b8' }} aria-hidden="true">?</div>
               ) : (
                 <div style={{ width: '55%', aspectRatio: '1', background: '#f1f5f9', borderRadius: 4 }} aria-hidden="true" />
               )}
@@ -417,7 +406,9 @@ function CharacterCard({ character, recipes, stockImages, onUpdateSlot, onUpdate
           open={slotModal !== null}
           slot={character.slots[slotModal]}
           recipes={recipes}
+          machines={machines}
           stockImages={stockImages}
+          occupation={character.occupation}
           onSave={updated => {
             onUpdateSlot(character.id, slotModal, updated);
             setSlotModal(null);
@@ -443,7 +434,7 @@ function CharacterCard({ character, recipes, stockImages, onUpdateSlot, onUpdate
 // CharacterTracker
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function CharacterTracker({ recipes, stockImages }: Props) {
+export function CharacterTracker({ recipes, machines, stockImages }: Props) {
   const [accounts, setAccounts] = useState<AccountId[]>(loadAccounts);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(() => {
     const loaded = loadAccounts();
@@ -555,6 +546,7 @@ export function CharacterTracker({ recipes, stockImages }: Props) {
               <CharacterCard
                 character={char}
                 recipes={recipes}
+                machines={machines}
                 stockImages={stockImages}
                 onUpdateSlot={handleUpdateSlot}
                 onUpdateAvatar={handleUpdateAvatar}

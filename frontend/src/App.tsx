@@ -1117,7 +1117,7 @@ export default function App() {
 
           {isAdmin && view === 'character-tracker' && (
             <div className="page-content">
-              <CharacterTracker recipes={recipes} stockImages={stockImages} itemNames={itemNames} />
+              <CharacterTracker recipes={recipes} machines={_machines} stockImages={stockImages} itemNames={itemNames} />
             </div>
           )}
         </Content>
