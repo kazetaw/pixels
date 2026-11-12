@@ -1,8 +1,8 @@
 import './FloorTimerDashboard.css';
-import { ItemThumbnail, ItemLabel, ItemVisualProvider, itemSelectVisuals } from '../shared/ItemVisual';
+import { ItemLabel, ItemVisualProvider, itemSelectVisuals } from '../shared/ItemVisual';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Empty, Form, InputNumber, Modal, Select, Spin, Tag, Tooltip, message } from 'antd';
-import { ClockCircleOutlined, PauseCircleOutlined, PlayCircleOutlined, PlusOutlined, ReloadOutlined, SettingOutlined } from '@ant-design/icons';
+import { Alert, Button, Empty, Form, InputNumber, Modal, Select, Spin, Tag, message } from 'antd';
+import { PauseCircleOutlined, PlayCircleOutlined, PlusOutlined, ReloadOutlined, SettingOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import { createFloorTimer, fetchAllData, fetchFloorTimers, updateFloorTimer } from '../../api/client';
 import type { FloorDisplayStatus, FloorTimer, Machine, Recipe, StockImageMap } from '../../types';
 import { machinesForProfession } from './floorOptions';
@@ -60,18 +60,11 @@ export function FloorTimerDashboard() {
   const [saving, setSaving] = useState(false);
   const [stockImages, setStockImages] = useState<StockImageMap>({});
   const [highlighted, setHighlighted] = useState<number | null>(null);
-  const [statusFilter, setStatusFilter] = useState<'all' | FloorDisplayStatus>('all');
   const [_timerForm] = Form.useForm<{ hours: number; minutes: number; seconds: number }>();  const [configuring, setConfiguring] = useState<FloorTimer | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [_timerForm2] = Form.useForm<{ hours: number; minutes: number; seconds: number }>();
   const [customTimerFloor, setCustomTimerFloor] = useState<FloorTimer | null>(null);
-  const [customDurationSec, setCustomDurationSec] = useState<number>(0);
-
-  function formatDuration(sec: number): string {
-    const h = Math.floor(sec / 3600);
-    const m = Math.floor((sec % 3600) / 60);
-    return h > 0 ? `${h} ชม.${m > 0 ? ` ${m} นาที` : ''}` : `${m} นาที`;
-  }
+  const [customTimerForm] = Form.useForm<{ hours: number; minutes: number; seconds: number }>();
   const [floorForm] = Form.useForm<{ floor_number: number; profession?: string; machine_id?: string; recipe_id?: string }>();
   const [configForm] = Form.useForm<{ profession?: string; machine_id?: string; recipe_id?: string }>();
   const [messageApi, contextHolder] = message.useMessage();
@@ -173,176 +166,139 @@ export function FloorTimerDashboard() {
     setAddOpen(true);
   };
 
-  const visibleFloors = statusFilter === 'all' ? displayFloors : displayFloors.filter((floor) => floor.displayStatus === statusFilter);
-  const resetFloor = (floor: FloorTimer, success: string) => void patchFloor(floor.floor_number, { status: 'idle', start_time: null, estimated_duration_seconds: 0, completed_at: null }, success);
-  const hhmm = (d: Date | null) => d?.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) ?? '';
-
   return <ItemVisualProvider recipes={recipes} machines={machines} stockImages={stockImages}><div className="floor-dashboard">
     {contextHolder}
     {error && <Alert type="error" showIcon message="โหลดข้อมูลชั้นไม่สำเร็จ" description={error} action={<Button size="small" onClick={() => void load()}>ลองอีกครั้ง</Button>} />}
 
+    {/* ── Stats bar ── */}
+    {!loading && displayFloors.length > 0 && (
+      <section className="floor-summary-panel"><div className="floor-stats-bar">
+        {(Object.keys(statusMeta) as FloorDisplayStatus[]).map((s) => (
+          <span key={s} className={`floor-stat floor-stat--${s}`}>
+            <i className={`floor-dot floor-dot--${s}`} />
+            {statusMeta[s].label} <b>{counts[s]}</b>
+          </span>
+        ))}
+      </div>
+      <div className="floor-overview">
+        <div className="floor-overview__cells">
+          {displayFloors.map((floor) => (
+            <button
+              key={floor.floor_number}
+              className={`floor-overview-cell floor-overview-cell--${floor.displayStatus}`}
+              title={`ชั้น ${floor.floor_number} — ${statusMeta[floor.displayStatus].label}`}
+              onClick={() => {
+                setHighlighted(floor.floor_number);
+                document.getElementById(`floor-card-${floor.floor_number}`)
+                  ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }}
+            >
+              {floor.floor_number}
+            </button>
+          ))}
+          {/* + add button as last cell */}
+          <button
+            className="floor-overview-cell floor-overview-cell--add"
+            title="เพิ่มชั้นใหม่"
+            onClick={openAddFloor}
+          >
+            <PlusOutlined style={{ fontSize: 12 }} />
+          </button>
+        </div>
+        <p className="floor-overview__hint">คลิกเพื่อไปยังรายละเอียดชั้น</p>
+      </div></section>
+    )}
+
+    {/* ── Floor cards ── */}
     {loading
       ? <div className="floor-dashboard__loading"><Spin /><span>กำลังโหลดสถานะชั้น…</span></div>
       : displayFloors.length === 0
         ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="ยังไม่มีชั้นในระบบ"><Button type="primary" onClick={openAddFloor}>เพิ่มชั้นแรก</Button></Empty>
-        : <>
-          {/* ── Summary: counts double as filters ── */}
-          <section className="floor-summary" aria-label="สรุปสถานะชั้น">
-            {(['all', 'running', 'completed', 'floating', 'idle'] as const).map((key) => (
-              <button key={key} type="button" aria-pressed={statusFilter === key}
-                className={`floor-summary__item floor-summary__item--${key}${statusFilter === key ? ' is-active' : ''}`}
-                onClick={() => setStatusFilter(key)}>
-                <span className="floor-summary__label">{key !== 'all' && <i className={`floor-dot floor-dot--${key}`} />}{key === 'all' ? 'ทั้งหมด' : statusMeta[key].label}</span>
-                <b>{key === 'all' ? displayFloors.length : counts[key]}</b>
-              </button>
-            ))}
-          </section>
-
-          {/* ── Floor map: 12 per row, click to jump; + adds a floor ── */}
-          <section className="floor-map" aria-label="ผังชั้น">
-            <div className="floor-map__cells">
-              {displayFloors.map((floor) => (
-                <button key={floor.floor_number} type="button"
-                  className={`floor-map__cell floor-map__cell--${floor.displayStatus}`}
-                  title={`ชั้น ${floor.floor_number} — ${statusMeta[floor.displayStatus].label}`}
-                  onClick={() => {
-                    setStatusFilter('all'); setHighlighted(floor.floor_number);
-                    window.setTimeout(() => document.getElementById(`floor-card-${floor.floor_number}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 0);
-                  }}>{floor.floor_number}</button>
-              ))}
-              <button type="button" className="floor-map__cell floor-map__cell--add" title="เพิ่มชั้นใหม่" aria-label="เพิ่มชั้นใหม่" onClick={openAddFloor}><PlusOutlined /></button>
-            </div>
-            <p className="floor-map__hint">คลิกเพื่อไปยังรายละเอียดชั้น</p>
-          </section>
-
-          {/* ── Floor cards ── */}
-          {visibleFloors.length === 0
-            ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={`ไม่มีชั้นที่${statusFilter === 'all' ? '' : statusMeta[statusFilter].label}`} />
-            : <div className="floor-grid">
-              {visibleFloors.map((floor) => {
+        : <section className="floor-details-panel"><div className="floor-cards-heading"><h3>รายละเอียดชั้น</h3><span>{displayFloors.length} ชั้น</span><Button size="small" icon={<PlusOutlined />} onClick={openAddFloor}>เพิ่มชั้น</Button></div>
+            <div className="floor-cards-scroll">
+              {displayFloors.map((floor) => {
                 const meta = statusMeta[floor.displayStatus];
                 const machine = machines.find((m) => m.machine_id === floor.machine_id);
                 const recipe = recipes.find((r) => r.id === floor.recipe_id);
                 const finishTime = floor.start_time && floor.estimated_duration_seconds
                   ? new Date(new Date(floor.start_time).getTime() + floor.estimated_duration_seconds * 1000) : null;
-                const progress = floor.displayStatus === 'running' && floor.estimated_duration_seconds
-                  ? Math.min(100, Math.max(0, 100 - (floor.remaining / floor.estimated_duration_seconds) * 100)) : floor.displayStatus === 'idle' ? 0 : 100;
-                const overdue = finishTime ? Math.max(0, Math.floor((now - finishTime.getTime()) / 1000) - FLOAT_GRACE_SECONDS) : 0;
+                const statusImage = { running: 'working', completed: 'completed', floating: 'floating', idle: '' }[floor.displayStatus];
                 return (
-                  <article id={`floor-card-${floor.floor_number}`} key={floor.floor_number}
-                    className={`floor-tile floor-tile--${floor.displayStatus}${highlighted === floor.floor_number ? ' is-highlighted' : ''}`}>
-                    <header className="floor-tile__head">
-                      <strong>ชั้น {floor.floor_number}</strong>
-                      <Tag color={meta.color} variant="filled">{meta.label}</Tag>
-                      <Tooltip title="ตั้งค่าเครื่องและสูตร"><Button type="text" size="small" aria-label={`ตั้งค่าชั้น ${floor.floor_number}`} icon={<SettingOutlined />} onClick={() => openConfig(floor)} /></Tooltip>
-                    </header>
-
-                    <div className="floor-tile__product">
-                      <span className="floor-tile__img"><ItemThumbnail id={recipe?.id} image={recipe?.image} size={52} /></span>
-                      <div>
-                        <b title={recipe?.name}>{recipe?.name ?? 'ยังไม่ได้เลือกสูตร'}</b>
-                        <span title={machine?.machine_name}>{machine?.machine_name ?? 'ยังไม่ได้เลือกเครื่อง'}</span>
-                      </div>
+                  <div id={`floor-card-${floor.floor_number}`} key={floor.floor_number}
+                    className={`floor-card2 floor-card2--${floor.displayStatus}${highlighted === floor.floor_number ? " is-highlighted" : ""}`}>
+                    {/* Head */}
+                    <div className="floor-card2__head">
+                      <span className="floor-card2__num">ชั้น {floor.floor_number}</span>
+                      <Tag color={meta.color}>{meta.label}</Tag>
+                      <Button className="floor-card2__settings" type="text" size="small" aria-label={`ตั้งค่าชั้น ${floor.floor_number}`} icon={<SettingOutlined />} onClick={() => openConfig(floor)} />
                     </div>
-
-                    <div className="floor-tile__status">
-                      {floor.displayStatus === 'idle' && <><b>พร้อมใช้งาน</b><span>{recipe ? `ใช้เวลา ${clock(recipeSeconds(recipe))}` : 'ตั้งค่าสูตรก่อนเริ่ม'}</span></>}
-                      {floor.displayStatus === 'running' && <><b className="is-timer">{clock(floor.remaining)}</b><span>เสร็จเวลา {hhmm(finishTime)}</span></>}
-                      {floor.displayStatus === 'completed' && <><b>เสร็จแล้ว</b><span>ลอยในอีก {clock(floor.remaining)}</span></>}
-                      {floor.displayStatus === 'floating' && <><b>ลอยแล้ว</b><span>เกินมา {clock(overdue)}</span></>}
-                      <div className="floor-tile__bar" aria-hidden><i style={{ width: `${progress}%` }} /></div>
+                    {/* Machine + finish time */}
+                    <div className="floor-card2__machine">
+                      <span>{machine?.machine_name ?? 'ยังไม่ได้เลือกเครื่อง'}</span>
+                      {finishTime && floor.displayStatus === 'running' && (
+                        <span className="floor-card2__finish-time">
+                          เสร็จ {finishTime.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
+                      {finishTime && floor.displayStatus === 'completed' && (
+                        <span className="floor-card2__finish-time floor-card2__finish-time--done">
+                          เสร็จ {finishTime.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
                     </div>
-
-                    <footer className="floor-tile__actions">
+                    {/* Avatar */}
+                    <div className="floor-card2__avatar">
+                      {statusImage
+                        ? <img src={`/floor-status/${statusImage}.png`} alt={meta.label} />
+                        : <PauseCircleOutlined /> }
+                    </div>
+                    {/* Status */}
+                    <div className="floor-card2__status">
+                      {floor.displayStatus === 'idle' && <span className="fcs--idle">พร้อมใช้งาน</span>}
+                      {floor.displayStatus === 'running' && <><b className="fcs--timer">{clock(floor.remaining)}</b><span className="fcs--sub">เสร็จ {finishTime?.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}</span></>}
+                      {floor.displayStatus === 'completed' && <><b className="fcs--done">เสร็จแล้ว!!</b><span className="fcs--sub">{clock(floor.remaining)} ก่อนลอย</span></>}
+                      {floor.displayStatus === 'floating' && <><b className="fcs--float">ลอยแล้วพรี่!!</b><span className="fcs--sub">{clock(finishTime ? Math.max(0, Math.floor((now - finishTime.getTime()) / 1000) - FLOAT_GRACE_SECONDS) : 0)}</span></>}
+                    </div>
+                    {/* Recipe */}
+                    {recipe && <div className="floor-card2__recipe"><ItemLabel id={recipe.id} name={recipe.name} image={recipe.image} size={16} reserveImage /></div>}
+                    {/* Actions */}
+                    <div className="floor-card2__actions">
                       {floor.displayStatus === 'running'
-                        ? <Button block className="floor-tile__stop" icon={<PauseCircleOutlined />} onClick={() => resetFloor(floor, 'หยุดแล้ว')}>หยุด</Button>
-                        : <Button block type="primary" icon={<PlayCircleOutlined />} disabled={!floor.recipe_id} loading={saving} onClick={() => void startDirect(floor)}>{floor.displayStatus === 'idle' ? 'เริ่ม' : 'เริ่มใหม่'}</Button>}
-                      <Tooltip title="กำหนดเวลาเอง"><Button aria-label={`กำหนดเวลาเอง ชั้น ${floor.floor_number}`} icon={<ClockCircleOutlined />} onClick={() => {
-                        const rec = recipes.find((r) => r.id === floor.recipe_id);
-                        setCustomDurationSec(rec ? recipeSeconds(rec) : 0);
-                        setCustomTimerFloor(floor);
-                      }} /></Tooltip>
-                      <Tooltip title="รีเซ็ตเป็นว่าง"><Button aria-label={`รีเซ็ต ชั้น ${floor.floor_number}`} icon={<ReloadOutlined />} disabled={floor.displayStatus === 'idle'} onClick={() => resetFloor(floor, 'รีเซ็ตแล้ว')} /></Tooltip>
-                    </footer>
-                  </article>
+                        ? <Button className="floor-card2__stop" size="small" icon={<PauseCircleOutlined />} onClick={() => void patchFloor(floor.floor_number, { status: 'idle', start_time: null, estimated_duration_seconds: 0, completed_at: null }, 'หยุดแล้ว')}>หยุด</Button>
+                        : <Button size="small" type="primary" icon={<PlayCircleOutlined />} disabled={!floor.recipe_id} loading={saving} onClick={() => void startDirect(floor)}>เริ่ม</Button>}
+                      <Button size="small" icon={<ClockCircleOutlined />} onClick={() => { customTimerForm.setFieldsValue({ hours: 0, minutes: 30, seconds: 0 }); setCustomTimerFloor(floor); }} title="กำหนดเวลาเอง" />
+                      <Button className="floor-card2__reset" size="small" icon={<ReloadOutlined />} onClick={() => void patchFloor(floor.floor_number, { status: 'idle', start_time: null, estimated_duration_seconds: 0, completed_at: null }, 'รีเซ็ตแล้ว')}>รีเซ็ต</Button>
+                    </div>
+                  </div>
                 );
               })}
-            </div>}
-        </>}
+            </div></section>
+    }
+
 
     <Modal
       open={!!customTimerFloor}
       onCancel={() => setCustomTimerFloor(null)}
-      title={`กำหนดเวลา — ชั้น ${customTimerFloor?.floor_number ?? ''}`}
-      okText="เริ่มนับถอยหลัง"
+      title={`กำหนดเวลาเอง — ชั้น ${customTimerFloor?.floor_number ?? ''}`}
+      okText="เริ่มจับเวลา"
       cancelText="ยกเลิก"
-      okButtonProps={{ loading: saving, icon: <PlayCircleOutlined />, disabled: !customDurationSec }}
+      okButtonProps={{ loading: saving, icon: <PlayCircleOutlined /> }}
       onOk={async () => {
-        if (!customDurationSec) return;
-        await patchFloor(customTimerFloor!.floor_number, {
-          status: 'running',
-          start_time: new Date().toISOString(),
-          estimated_duration_seconds: customDurationSec,
-          completed_at: null,
-        }, `ตั้งเวลาชั้น ${customTimerFloor!.floor_number} — ${formatDuration(customDurationSec)}`);
+        const values = await customTimerForm.validateFields();
+        const duration = (values.hours || 0) * 3600 + (values.minutes || 0) * 60 + (values.seconds || 0);
+        if (!duration) { customTimerForm.setFields([{ name: 'seconds', errors: ['ตั้งเวลาอย่างน้อย 1 วินาที'] }]); return; }
+        await patchFloor(customTimerFloor!.floor_number, { status: 'running', start_time: new Date().toISOString(), estimated_duration_seconds: duration, completed_at: null }, `เริ่มจับเวลาชั้น ${customTimerFloor!.floor_number} แล้ว`);
         setCustomTimerFloor(null);
-        setCustomDurationSec(0);
       }}
     >
-      <p className="floor-modal-note" style={{ marginBottom: 16 }}>
-        เลือกระยะเวลาที่ต้องการ — ระบบจะนับถอยหลังและแจ้งเมื่อเสร็จ
-      </p>
-
-      {/* Duration presets */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
-        {[
-          { label: '15 นาที', sec: 15 * 60 },
-          { label: '30 นาที', sec: 30 * 60 },
-          { label: '1 ชม.',   sec: 60 * 60 },
-          { label: '2 ชม.',   sec: 2 * 60 * 60 },
-          { label: '3 ชม.',   sec: 3 * 60 * 60 },
-          { label: '4 ชม.',   sec: 4 * 60 * 60 },
-          { label: '6 ชม.',   sec: 6 * 60 * 60 },
-          { label: '8 ชม.',   sec: 8 * 60 * 60 },
-        ].map(({ label, sec }) => (
-          <button
-            key={sec}
-            type="button"
-            onClick={() => setCustomDurationSec(sec)}
-            style={{
-              borderRadius: 999, padding: '6px 16px', fontSize: 13, fontWeight: 500,
-              cursor: 'pointer', border: '1px solid', transition: 'all .12s',
-              background: customDurationSec === sec ? '#2563eb' : '#f8fafc',
-              color: customDurationSec === sec ? '#fff' : '#374151',
-              borderColor: customDurationSec === sec ? '#2563eb' : '#e2e8f0',
-            }}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {/* Custom minutes input */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span style={{ fontSize: 13, color: '#64748b', flexShrink: 0 }}>หรือกรอกเอง (นาที)</span>
-        <InputNumber
-          min={1} max={1440} precision={0}
-          value={customDurationSec > 0 ? Math.round(customDurationSec / 60) : undefined}
-          onChange={(v) => setCustomDurationSec(v ? v * 60 : 0)}
-          style={{ width: 100 }}
-          placeholder="เช่น 90"
-        />
-      </div>
-
-      {/* Preview finish time */}
-      {customDurationSec > 0 && (() => {
-        const finish = new Date(Date.now() + customDurationSec * 1000);
-        return (
-          <p style={{ marginTop: 14, fontSize: 13, color: '#2563eb', fontWeight: 500 }}>
-            → เสร็จเวลาประมาณ {finish.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.
-          </p>
-        );
-      })()}
+      <p className="floor-modal-note">ระบุเวลาที่ต้องการ — ระบบจะเริ่มนับถอยหลังทันที</p>
+      <Form form={customTimerForm} layout="vertical" initialValues={{ hours: 0, minutes: 30, seconds: 0 }}>
+        <div className="floor-time-inputs">
+          <Form.Item label="ชั่วโมง" name="hours" rules={[{ required: true }]}><InputNumber min={0} max={99} /></Form.Item>
+          <Form.Item label="นาที" name="minutes" rules={[{ required: true }]}><InputNumber min={0} max={59} /></Form.Item>
+          <Form.Item label="วินาที" name="seconds" rules={[{ required: true }]}><InputNumber min={0} max={59} /></Form.Item>
+        </div>
+      </Form>
     </Modal>
 
     <Modal open={!!configuring} onCancel={() => setConfiguring(null)} onOk={() => void saveConfig()} okText="บันทึกการตั้งค่า" okButtonProps={{ loading: saving }} cancelText="ยกเลิก" title={`ตั้งค่าเครื่องและสูตร — ชั้น ${configuring?.floor_number ?? ''}`}>
