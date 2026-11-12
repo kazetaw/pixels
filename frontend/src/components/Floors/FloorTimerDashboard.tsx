@@ -65,7 +65,13 @@ export function FloorTimerDashboard() {
   const [addOpen, setAddOpen] = useState(false);
   const [_timerForm2] = Form.useForm<{ hours: number; minutes: number; seconds: number }>();
   const [customTimerFloor, setCustomTimerFloor] = useState<FloorTimer | null>(null);
-  const [customFinishTime, setCustomFinishTime] = useState<string>('');
+  const [customDurationSec, setCustomDurationSec] = useState<number>(0);
+
+  function formatDuration(sec: number): string {
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    return h > 0 ? `${h} ชม.${m > 0 ? ` ${m} นาที` : ''}` : `${m} นาที`;
+  }
   const [floorForm] = Form.useForm<{ floor_number: number; profession?: string; machine_id?: string; recipe_id?: string }>();
   const [configForm] = Form.useForm<{ profession?: string; machine_id?: string; recipe_id?: string }>();
   const [messageApi, contextHolder] = message.useMessage();
@@ -251,7 +257,11 @@ export function FloorTimerDashboard() {
                       {floor.displayStatus === 'running'
                         ? <Button block className="floor-tile__stop" icon={<PauseCircleOutlined />} onClick={() => resetFloor(floor, 'หยุดแล้ว')}>หยุด</Button>
                         : <Button block type="primary" icon={<PlayCircleOutlined />} disabled={!floor.recipe_id} loading={saving} onClick={() => void startDirect(floor)}>{floor.displayStatus === 'idle' ? 'เริ่ม' : 'เริ่มใหม่'}</Button>}
-                      <Tooltip title="กำหนดเวลาเอง"><Button aria-label={`กำหนดเวลาเอง ชั้น ${floor.floor_number}`} icon={<ClockCircleOutlined />} onClick={() => { setCustomFinishTime(''); setCustomTimerFloor(floor); }} /></Tooltip>
+                      <Tooltip title="กำหนดเวลาเอง"><Button aria-label={`กำหนดเวลาเอง ชั้น ${floor.floor_number}`} icon={<ClockCircleOutlined />} onClick={() => {
+                        const rec = recipes.find((r) => r.id === floor.recipe_id);
+                        setCustomDurationSec(rec ? recipeSeconds(rec) : 0);
+                        setCustomTimerFloor(floor);
+                      }} /></Tooltip>
                       <Tooltip title="รีเซ็ตเป็นว่าง"><Button aria-label={`รีเซ็ต ชั้น ${floor.floor_number}`} icon={<ReloadOutlined />} disabled={floor.displayStatus === 'idle'} onClick={() => resetFloor(floor, 'รีเซ็ตแล้ว')} /></Tooltip>
                     </footer>
                   </article>
@@ -264,92 +274,72 @@ export function FloorTimerDashboard() {
       open={!!customTimerFloor}
       onCancel={() => setCustomTimerFloor(null)}
       title={`กำหนดเวลา — ชั้น ${customTimerFloor?.floor_number ?? ''}`}
-      okText="บันทึก"
+      okText="เริ่มนับถอยหลัง"
       cancelText="ยกเลิก"
-      okButtonProps={{ loading: saving, icon: <PlayCircleOutlined />, disabled: !customFinishTime }}
+      okButtonProps={{ loading: saving, icon: <PlayCircleOutlined />, disabled: !customDurationSec }}
       onOk={async () => {
-        if (!customFinishTime) return;
-        const [fh, fm] = customFinishTime.split(':').map(Number);
-        const now = new Date();
-        const finish = new Date(now);
-        finish.setHours(fh, fm, 0, 0);
-        // ถ้าเวลาเสร็จผ่านไปแล้ว ให้บวก 1 วัน
-        if (finish <= now) finish.setDate(finish.getDate() + 1);
-        const remainingSec = Math.round((finish.getTime() - now.getTime()) / 1000);
-        if (remainingSec <= 0) return;
+        if (!customDurationSec) return;
         await patchFloor(customTimerFloor!.floor_number, {
           status: 'running',
-          start_time: now.toISOString(),
-          estimated_duration_seconds: remainingSec,
+          start_time: new Date().toISOString(),
+          estimated_duration_seconds: customDurationSec,
           completed_at: null,
-        }, `ตั้งเวลาชั้น ${customTimerFloor!.floor_number} — เสร็จ ${customFinishTime}`);
+        }, `ตั้งเวลาชั้น ${customTimerFloor!.floor_number} — ${formatDuration(customDurationSec)}`);
         setCustomTimerFloor(null);
-        setCustomFinishTime('');
+        setCustomDurationSec(0);
       }}
     >
       <p className="floor-modal-note" style={{ marginBottom: 16 }}>
-        เลือกเวลาที่เครื่องจะ <strong>เสร็จ</strong> — ระบบจะนับถอยหลังให้เอง
+        เลือกระยะเวลาที่ต้องการ — ระบบจะนับถอยหลังและแจ้งเมื่อเสร็จ
       </p>
 
-      {/* Finish time input */}
-      <div style={{ marginBottom: 16 }}>
-        <label style={{ fontSize: 13, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 6 }}>
-          เสร็จเมื่อ
-        </label>
-        <input
-          type="time"
-          value={customFinishTime}
-          onChange={(e) => setCustomFinishTime(e.target.value)}
-          style={{
-            width: '100%', padding: '10px 14px', fontSize: 20, fontWeight: 600,
-            border: '1px solid #e2e8f0', borderRadius: 8, outline: 'none',
-            color: customFinishTime ? '#0f172a' : '#94a3b8',
-            fontFamily: 'inherit', cursor: 'pointer',
-          }}
+      {/* Duration presets */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+        {[
+          { label: '15 นาที', sec: 15 * 60 },
+          { label: '30 นาที', sec: 30 * 60 },
+          { label: '1 ชม.',   sec: 60 * 60 },
+          { label: '2 ชม.',   sec: 2 * 60 * 60 },
+          { label: '3 ชม.',   sec: 3 * 60 * 60 },
+          { label: '4 ชม.',   sec: 4 * 60 * 60 },
+          { label: '6 ชม.',   sec: 6 * 60 * 60 },
+          { label: '8 ชม.',   sec: 8 * 60 * 60 },
+        ].map(({ label, sec }) => (
+          <button
+            key={sec}
+            type="button"
+            onClick={() => setCustomDurationSec(sec)}
+            style={{
+              borderRadius: 999, padding: '6px 16px', fontSize: 13, fontWeight: 500,
+              cursor: 'pointer', border: '1px solid', transition: 'all .12s',
+              background: customDurationSec === sec ? '#2563eb' : '#f8fafc',
+              color: customDurationSec === sec ? '#fff' : '#374151',
+              borderColor: customDurationSec === sec ? '#2563eb' : '#e2e8f0',
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Custom minutes input */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ fontSize: 13, color: '#64748b', flexShrink: 0 }}>หรือกรอกเอง (นาที)</span>
+        <InputNumber
+          min={1} max={1440} precision={0}
+          value={customDurationSec > 0 ? Math.round(customDurationSec / 60) : undefined}
+          onChange={(v) => setCustomDurationSec(v ? v * 60 : 0)}
+          style={{ width: 100 }}
+          placeholder="เช่น 90"
         />
       </div>
 
-      {/* Quick presets — เสร็จใน X นาทีจากตอนนี้ */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-        <span style={{ fontSize: 12, color: '#94a3b8', alignSelf: 'center', marginRight: 2 }}>เสร็จใน:</span>
-        {[15, 30, 60, 120, 240, 360, 480].map((min) => {
-          const d = new Date(Date.now() + min * 60000);
-          const hh = String(d.getHours()).padStart(2, '0');
-          const mm = String(d.getMinutes()).padStart(2, '0');
-          const val = `${hh}:${mm}`;
-          const label = min < 60 ? `${min} นาที` : `${min / 60} ชม.`;
-          return (
-            <button
-              key={min}
-              type="button"
-              onClick={() => setCustomFinishTime(val)}
-              style={{
-                borderRadius: 999, padding: '4px 12px', fontSize: 12, fontWeight: 500,
-                cursor: 'pointer', border: '1px solid',
-                background: customFinishTime === val ? '#2563eb' : '#f8fafc',
-                color: customFinishTime === val ? '#fff' : '#374151',
-                borderColor: customFinishTime === val ? '#2563eb' : '#e2e8f0',
-              }}
-            >
-              {label} ({val})
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Preview remaining */}
-      {customFinishTime && (() => {
-        const [fh, fm] = customFinishTime.split(':').map(Number);
-        const now = new Date();
-        const finish = new Date(now);
-        finish.setHours(fh, fm, 0, 0);
-        if (finish <= now) finish.setDate(finish.getDate() + 1);
-        const sec = Math.round((finish.getTime() - now.getTime()) / 1000);
-        const h = Math.floor(sec / 3600);
-        const m = Math.floor((sec % 3600) / 60);
+      {/* Preview finish time */}
+      {customDurationSec > 0 && (() => {
+        const finish = new Date(Date.now() + customDurationSec * 1000);
         return (
-          <p style={{ marginTop: 12, fontSize: 13, color: '#2563eb', fontWeight: 500 }}>
-            → นับถอยหลัง {h > 0 ? `${h} ชม. ` : ''}{m} นาที
+          <p style={{ marginTop: 14, fontSize: 13, color: '#2563eb', fontWeight: 500 }}>
+            → เสร็จเวลาประมาณ {finish.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.
           </p>
         );
       })()}
