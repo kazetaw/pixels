@@ -458,3 +458,309 @@
     transition: none !important;
   }
 }
+
+/* ── Overview Panel ──────────────────────────────────────────────────────── */
+.ct2-overview {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 16px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.ct2-ov-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid #f1f5f9;
+  gap: 8px;
+}
+
+.ct2-ov-head h2 {
+  font-size: 13px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.ct2-ov-head-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ct2-ov-summary {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.ct2-ov-toggle {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 10px;
+  color: #94a3b8;
+  padding: 2px 4px;
+  border-radius: 4px;
+  line-height: 1;
+  transition: color 0.1s;
+}
+
+.ct2-ov-toggle:hover {
+  color: #0f172a;
+}
+
+.ct2-ov-body {
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ct2-ov-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid #f8fafc;
+}
+
+.ct2-ov-row:last-child {
+  border-bottom: none;
+}
+
+.ct2-ov-ava {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #e0f2fe;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  flex-shrink: 0;
+  border: 1.5px solid #bae6fd;
+  overflow: hidden;
+}
+
+.ct2-ov-ava img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ct2-ov-name {
+  font-size: 11px;
+  font-weight: 600;
+  width: 60px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #0f172a;
+}
+
+.ct2-ov-id {
+  font-size: 9px;
+  color: #94a3b8;
+  width: 48px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ct2-ov-chips {
+  display: flex;
+  gap: 3px;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.ct2-ov-chip {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.ct2-ov-chip--run {
+  background: #eff6ff;
+  border-color: #bae6fd;
+  color: #2563eb;
+}
+
+.ct2-ov-chip--done {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #16a34a;
+}
+
+.ct2-ov-chip--over {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #dc2626;
+  animation: ct2-pulse 1.5s infinite;
+}
+
+.ct2-ov-chip__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.ct2-ov-empty {
+  font-size: 11px;
+  color: #cbd5e1;
+  font-style: italic;
+}
+
+@keyframes ct2-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* ── SlotModal time section ──────────────────────────────────────────────── */
+.ct2-time-section {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.ct2-time-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #64748b;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.ct2-field-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #64748b;
+  margin: 0 0 4px;
+  letter-spacing: 0.03em;
+}
+
+.ct2-time-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.ct2-time-input {
+  width: 100%;
+  padding: 7px 9px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.12s;
+  background: #fff;
+  color: #0f172a;
+  box-sizing: border-box;
+}
+
+.ct2-time-input:focus {
+  border-color: #0f172a;
+}
+
+.ct2-time-input--end {
+  color: #0284c7;
+  font-weight: 600;
+}
+
+.ct2-time-hint {
+  font-size: 10px;
+  color: #94a3b8;
+  margin-top: 4px;
+  margin-bottom: 0;
+}
+
+.ct2-time-presets {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+  align-items: center;
+}
+
+.ct2-preset-label {
+  font-size: 10px;
+  color: #94a3b8;
+}
+
+.ct2-preset-btn {
+  padding: 3px 9px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  font: 500 11px inherit;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.1s;
+}
+
+.ct2-preset-btn:hover {
+  border-color: #0f172a;
+  color: #0f172a;
+}
+
+.ct2-preset-btn.on {
+  background: #0f172a;
+  color: #fff;
+  border-color: #0f172a;
+}
+
+.ct2-status-row {
+  display: flex;
+  gap: 6px;
+}
+
+.ct2-s-btn {
+  flex: 1;
+  padding: 8px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  font: 600 11px inherit;
+  cursor: pointer;
+  background: #fff;
+  transition: all 0.12s;
+  text-align: center;
+  color: #475569;
+}
+
+.ct2-s-btn:hover {
+  border-color: #94a3b8;
+}
+
+.ct2-s-btn.run {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  color: #2563eb;
+}
+
+.ct2-s-btn.done {
+  background: #f0fdf4;
+  border-color: #22c55e;
+  color: #16a34a;
+}
+
+.ct2-s-btn.over {
+  background: #fef2f2;
+  border-color: #ef4444;
+  color: #dc2626;
+}

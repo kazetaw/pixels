@@ -98,6 +98,13 @@ function formatClock(seconds: number): string {
   return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
+/** Format remaining seconds to H:MM (no seconds, for overview chips) */
+function formatClockShort(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  return `${h}:${String(m).padStart(2, '0')}`;
+}
+
 function makeSlot(): Slot {
   return {
     id: crypto.randomUUID(),
@@ -134,6 +141,46 @@ function loadAccounts(): AccountId[] {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// SlotModal helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+function hhmmToTodayISO(hhmm: string): string {
+  const [h, m] = hhmm.split(':').map(Number);
+  const d = new Date();
+  d.setHours(h, m, 0, 0);
+  return d.toISOString();
+}
+
+function addSecondsToHHMM(hhmm: string, seconds: number): string {
+  const [h, m] = hhmm.split(':').map(Number);
+  const totalMins = h * 60 + m + Math.floor(seconds / 60);
+  const newH = Math.floor(totalMins / 60) % 24;
+  const newM = totalMins % 60;
+  return `${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`;
+}
+
+function isoToHHMM(iso: string): string {
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+function getNowHHMM(): string {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+function getRoundHourPresets(): string[] {
+  const now = new Date();
+  const result: string[] = [];
+  for (let i = 0; i < 4; i++) {
+    const d = new Date(now);
+    d.setHours(now.getHours() + i, 0, 0, 0);
+    result.push(`${String(d.getHours()).padStart(2, '0')}:00`);
+  }
+  return result;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // SlotModal
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -157,7 +204,7 @@ function SlotModal({
   occupation,
   machines,
   onSave,
-  onStatusChange,
+  onStatusChange: _onStatusChange,
   onClose,
 }: SlotModalProps) {
   const [selectedMachineId, setSelectedMachineId] = useState<string>('');
@@ -166,6 +213,9 @@ function SlotModal({
   const [selectedImage, setSelectedImage] = useState<string | null>(slot.itemImage);
   const [floorNote, setFloorNote] = useState(slot.floorNote);
   const [durationSeconds, setDurationSeconds] = useState(slot.durationSeconds);
+  const [manualStartHHMM, setManualStartHHMM] = useState<string>('');
+  const [manualEndHHMM, setManualEndHHMM] = useState<string>('');
+  const [localStatus, setLocalStatus] = useState<SlotStatus>(slot.status);
 
   useEffect(() => {
     if (!open) return;
@@ -174,8 +224,21 @@ function SlotModal({
     setSelectedImage(slot.itemImage);
     setFloorNote(slot.floorNote);
     setDurationSeconds(slot.durationSeconds);
+    setLocalStatus(slot.status);
     const existing = recipes.find(r => r.id === slot.itemKey);
     setSelectedMachineId(existing?.machine_id ?? '');
+    if (slot.startTime) {
+      const startHHMM = isoToHHMM(slot.startTime);
+      setManualStartHHMM(startHHMM);
+      if (slot.durationSeconds > 0) {
+        setManualEndHHMM(addSecondsToHHMM(startHHMM, slot.durationSeconds));
+      } else {
+        setManualEndHHMM('');
+      }
+    } else {
+      setManualStartHHMM('');
+      setManualEndHHMM('');
+    }
   }, [slot, open, recipes]);
 
   const availableMachines =
@@ -192,6 +255,8 @@ function SlotModal({
       );
 
   const handleSave = () => {
+    const computedStartTime =
+      manualStartHHMM ? hhmmToTodayISO(manualStartHHMM) : slot.startTime;
     onSave({
       ...slot,
       itemKey: selectedKey,
@@ -199,24 +264,10 @@ function SlotModal({
       itemImage: selectedImage,
       floorNote,
       durationSeconds,
+      startTime: computedStartTime,
+      status: localStatus,
     });
   };
-
-  const currentSlot = {
-    ...slot,
-    itemKey: selectedKey,
-    itemName: selectedName,
-    itemImage: selectedImage,
-    floorNote,
-    durationSeconds,
-  };
-
-  const handleStart = () =>
-    onStatusChange({ ...currentSlot, status: 'run', startTime: new Date().toISOString() });
-  const handleStop = () =>
-    onStatusChange({ ...currentSlot, status: 'done' });
-  const handleReset = () =>
-    onStatusChange({ ...currentSlot, status: 'idle', startTime: null });
 
   return (
     <Modal
@@ -315,7 +366,11 @@ function SlotModal({
                 setSelectedName(r.name);
                 const img = stockImages[r.id] ?? r.image ?? null;
                 setSelectedImage(img ?? null);
-                setDurationSeconds(parseTimeSeconds(r.time_per_unit));
+                const dur = parseTimeSeconds(r.time_per_unit);
+                setDurationSeconds(dur);
+                if (manualStartHHMM && dur > 0) {
+                  setManualEndHHMM(addSecondsToHHMM(manualStartHHMM, dur));
+                }
               }
             }}
             optionFilterProp="label"
@@ -370,33 +425,115 @@ function SlotModal({
           />
         </div>
 
-        {/* Status controls */}
+        {/* Time section — only when a recipe is selected */}
         {selectedKey && (
-          <div>
-            <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 6px', fontWeight: 600 }}>
-              สถานะ
-            </p>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {slot.status === 'idle' && (
-                <Button size="small" type="primary" onClick={handleStart}>
-                  ▶ เริ่ม
-                </Button>
+          <>
+            <div className="ct2-time-section">
+              <div className="ct2-time-label">
+                ⏱ ตั้งเวลาเริ่ม-เสร็จเอง{' '}
+                <span style={{ fontWeight: 400, color: '#94A3B8' }}>(ไม่บังคับ)</span>
+              </div>
+              <div className="ct2-time-row">
+                <div>
+                  <p className="ct2-field-label">เริ่มเมื่อ</p>
+                  <input
+                    type="time"
+                    className="ct2-time-input"
+                    value={manualStartHHMM}
+                    onChange={e => {
+                      const v = e.target.value;
+                      setManualStartHHMM(v);
+                      if (v && durationSeconds > 0) {
+                        setManualEndHHMM(addSecondsToHHMM(v, durationSeconds));
+                      }
+                    }}
+                  />
+                </div>
+                <div>
+                  <p className="ct2-field-label">เสร็จเมื่อ (ประมาณ)</p>
+                  <input
+                    type="time"
+                    className="ct2-time-input ct2-time-input--end"
+                    value={manualEndHHMM}
+                    onChange={e => setManualEndHHMM(e.target.value)}
+                  />
+                </div>
+              </div>
+              {manualStartHHMM && durationSeconds > 0 && (
+                <p className="ct2-time-hint">
+                  ระบบคำนวณจากสูตร: เริ่ม + {Math.round(durationSeconds / 3600)} ชม. ={' '}
+                  {manualEndHHMM} · แก้ได้
+                </p>
               )}
-              {slot.status === 'run' && (
-                <Button size="small" onClick={handleStop}>
-                  ⏹ หยุด
-                </Button>
-              )}
-              {(slot.status === 'done' || slot.status === 'over') && (
-                <Button size="small" type="primary" onClick={handleStop}>
-                  ✓ เสร็จ
-                </Button>
-              )}
-              <Button size="small" onClick={handleReset}>
-                รีเซ็ต
-              </Button>
+              <div className="ct2-time-presets">
+                <span className="ct2-preset-label">เริ่มตอน:</span>
+                <button
+                  className={`ct2-preset-btn${manualStartHHMM === getNowHHMM() ? ' on' : ''}`}
+                  onClick={() => {
+                    const v = getNowHHMM();
+                    setManualStartHHMM(v);
+                    if (durationSeconds > 0) setManualEndHHMM(addSecondsToHHMM(v, durationSeconds));
+                  }}
+                >
+                  ตอนนี้
+                </button>
+                {getRoundHourPresets().map(hhmm => (
+                  <button
+                    key={hhmm}
+                    className={`ct2-preset-btn${manualStartHHMM === hhmm ? ' on' : ''}`}
+                    onClick={() => {
+                      setManualStartHHMM(hhmm);
+                      if (durationSeconds > 0) {
+                        setManualEndHHMM(addSecondsToHHMM(hhmm, durationSeconds));
+                      }
+                    }}
+                  >
+                    {hhmm}
+                  </button>
+                ))}
+                <button
+                  className="ct2-preset-btn"
+                  onClick={() => {
+                    if (!manualStartHHMM) return;
+                    const v = addSecondsToHHMM(manualStartHHMM, 3600);
+                    setManualStartHHMM(v);
+                    if (durationSeconds > 0) {
+                      setManualEndHHMM(addSecondsToHHMM(v, durationSeconds));
+                    }
+                  }}
+                >
+                  +1 ชม.
+                </button>
+              </div>
             </div>
-          </div>
+
+            {/* Status buttons */}
+            <div>
+              <p className="ct2-field-label" style={{ marginBottom: 6 }}>
+                สถานะ
+              </p>
+              <div className="ct2-status-row">
+                <button
+                  className={`ct2-s-btn${localStatus === 'run' ? ' run' : ''}`}
+                  onClick={() => setLocalStatus('run')}
+                >
+                  ▶ กำลังทำ
+                </button>
+                <button
+                  className={`ct2-s-btn${localStatus === 'done' ? ' done' : ''}`}
+                  onClick={() => setLocalStatus('done')}
+                >
+                  ✓ เสร็จ
+                </button>
+                <button
+                  className={`ct2-s-btn${localStatus === 'over' ? ' over' : ''}`}
+                  onClick={() => setLocalStatus('over')}
+                >
+                  ! เกินเวลา
+                </button>
+              </div>
+            </div>
+          </>
         )}
       </div>
     </Modal>
@@ -882,6 +1019,105 @@ function AccountCard({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// OverviewPanel
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface OverviewPanelProps {
+  accounts: AccountId[];
+  now: number;
+}
+
+function OverviewPanel({ accounts, now }: OverviewPanelProps) {
+  const [open, setOpen] = useState(true);
+
+  const totalChars = accounts.reduce((n, a) => n + a.chars.length, 0);
+  const overCount = accounts.reduce(
+    (n, a) =>
+      n + a.chars.reduce((m, c) => m + c.slots.filter(s => s.status === 'over').length, 0),
+    0
+  );
+
+  const summaryText =
+    `${totalChars} ตัวละคร` + (overCount > 0 ? ` · ${overCount} เกินเวลา!` : '');
+
+  return (
+    <div className="ct2-overview">
+      <div className="ct2-ov-head">
+        <h2>📋 ภาพรวม</h2>
+        <div className="ct2-ov-head-right">
+          <span className="ct2-ov-summary">{summaryText}</span>
+          <button
+            className="ct2-ov-toggle"
+            onClick={() => setOpen(o => !o)}
+            aria-expanded={open}
+            aria-label={open ? 'ย่อ' : 'ขยาย'}
+          >
+            {open ? '[▾]' : '[▴]'}
+          </button>
+        </div>
+      </div>
+      {open && (
+        <div className="ct2-ov-body">
+          {accounts.flatMap(account =>
+            account.chars.map(character => {
+              const avatarSvg = PIXEL_AVATARS[OCC_AVATAR_KEY[character.occupation]];
+              const avatarSrc = character.avatar ?? svgToDataUrl(avatarSvg);
+
+              const activeSlots = character.slots.filter(s => s.status !== 'idle');
+
+              return (
+                <div key={`${account.id}-${character.id}`} className="ct2-ov-row">
+                  <div className="ct2-ov-ava">
+                    <img src={avatarSrc} alt={character.name} />
+                  </div>
+                  <span className="ct2-ov-name">{character.name}</span>
+                  <span className="ct2-ov-id">{account.label}</span>
+                  <div className="ct2-ov-chips">
+                    {activeSlots.length === 0 ? (
+                      <span className="ct2-ov-empty">ยังไม่มีช่อง</span>
+                    ) : (
+                      activeSlots.map(slot => {
+                        let chipClass = 'ct2-ov-chip';
+                        let chipText = slot.itemName;
+
+                        if (slot.status === 'run') {
+                          chipClass += ' ct2-ov-chip--run';
+                          let remaining = 0;
+                          if (slot.startTime && slot.durationSeconds > 0) {
+                            remaining = slot.durationSeconds - Math.floor((now - Date.parse(slot.startTime)) / 1000);
+                          }
+                          chipText = `${slot.itemName} ${formatClockShort(Math.max(0, remaining))}`;
+                        } else if (slot.status === 'done') {
+                          chipClass += ' ct2-ov-chip--done';
+                          chipText = `${slot.itemName} ✓`;
+                        } else if (slot.status === 'over') {
+                          chipClass += ' ct2-ov-chip--over';
+                          chipText = `${slot.itemName} เกิน!`;
+                        }
+
+                        return (
+                          <span key={slot.id} className={chipClass}>
+                            <span className="ct2-ov-chip__dot" />
+                            {chipText}
+                          </span>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+          {totalChars === 0 && (
+            <span className="ct2-ov-empty">ยังไม่มีตัวละคร</span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // CharacterTracker (main component)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -953,6 +1189,9 @@ export function CharacterTracker({ recipes, machines, stockImages }: Props) {
           </button>
         ))}
       </div>
+
+      {/* Overview panel — always shows all accounts */}
+      {accounts.length > 0 && <OverviewPanel accounts={accounts} now={now} />}
 
       {/* Account cards */}
       {accounts.length === 0 ? (
