@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { Modal, Select, Input, message, Button } from 'antd';
 import type { Recipe, Machine, StockImageMap } from '../../types';
 import { CropModal } from '../shared/CropModal';
-import { PIXEL_AVATARS } from './pixelIcons';
 import './CharacterTracker.css';
 import './CharacterTracker2.css';
 
@@ -64,22 +63,45 @@ const OCC_DOT_COLOR: Record<Occupation, string> = {
   'ทุกอาชีพ': '#94A3B8',
 };
 
-const OCC_AVATAR_KEY: Record<Occupation, string> = {
-  'ทุกอาชีพ': 'engineer',
-  'วิศวะกร': 'engineer',
-  'หมอ': 'doctor',
-  'เชฟ': 'chef',
-  'ไอดอล': 'idol',
-  'เกษตร': 'farmer',
+const OCC_AVATAR_IDX: Record<Occupation, number> = {
+  'ทุกอาชีพ': 0,
+  'วิศวะกร': 1,
+  'หมอ': 2,
+  'เชฟ': 3,
+  'ไอดอล': 4,
+  'เกษตร': 5,
 };
+
+/** Render pixel avatar — uses same sprite sheet as StoreAccounts */
+function PixelAvatar({ avatarIdx, src, size = 28 }: { avatarIdx: number; src: string | null; size?: number }) {
+  const [broken, setBroken] = useState(false);
+  useEffect(() => setBroken(false), [src]);
+  const col = avatarIdx % 3;
+  const row = Math.floor(avatarIdx / 3);
+  if (src && !broken) {
+    return <img src={src} alt="" style={{ width: size, height: size, objectFit: 'cover', borderRadius: '50%', display: 'block' }} onError={() => setBroken(true)} />;
+  }
+  return (
+    <span
+      style={{
+        display: 'inline-block',
+        width: size,
+        height: size,
+        borderRadius: '50%',
+        backgroundImage: "url('/images/character-avatars.png')",
+        backgroundSize: '300% 200%',
+        backgroundPosition: `${col * 50}% ${row * 100}%`,
+        imageRendering: 'pixelated',
+        flexShrink: 0,
+      }}
+      aria-hidden="true"
+    />
+  );
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
-
-function svgToDataUrl(svg: string): string {
-  return `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
-}
 
 /** Parse "H:MM:SS" or "H:MM" → total seconds. Returns 0 if null/unparseable. */
 function parseTimeSeconds(timeStr: string | null): number {
@@ -759,8 +781,7 @@ function CharacterCard({
   const [cropSrc, setCropSrc] = useState<string | undefined>(undefined);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const avatarSvg = PIXEL_AVATARS[OCC_AVATAR_KEY[character.occupation]];
-  const avatarSrc = character.avatar ?? svgToDataUrl(avatarSvg);
+  const avatarIdx = OCC_AVATAR_IDX[character.occupation] ?? 0;
 
   const handleAvatarClick = () => fileInputRef.current?.click();
 
@@ -829,7 +850,7 @@ function CharacterCard({
             if (e.key === 'Enter' || e.key === ' ') handleAvatarClick();
           }}
         >
-          <img src={avatarSrc} alt={character.name} />
+          <PixelAvatar avatarIdx={avatarIdx} src={character.avatar} size={28} />
         </div>
         <input
           ref={fileInputRef}
@@ -1060,15 +1081,14 @@ function OverviewPanel({ accounts, now }: OverviewPanelProps) {
         <div className="ct2-ov-body">
           {accounts.flatMap(account =>
             account.chars.map(character => {
-              const avatarSvg = PIXEL_AVATARS[OCC_AVATAR_KEY[character.occupation]];
-              const avatarSrc = character.avatar ?? svgToDataUrl(avatarSvg);
+              const avatarIdx = OCC_AVATAR_IDX[character.occupation] ?? 0;
 
               const activeSlots = character.slots.filter(s => s.status !== 'idle');
 
               return (
                 <div key={`${account.id}-${character.id}`} className="ct2-ov-row">
                   <div className="ct2-ov-ava">
-                    <img src={avatarSrc} alt={character.name} />
+                    <PixelAvatar avatarIdx={avatarIdx} src={character.avatar} size={22} />
                   </div>
                   <span className="ct2-ov-name">{character.name}</span>
                   <span className="ct2-ov-id">{account.label}</span>

@@ -65,7 +65,7 @@ export function FloorTimerDashboard() {
   const [addOpen, setAddOpen] = useState(false);
   const [_timerForm2] = Form.useForm<{ hours: number; minutes: number; seconds: number }>();
   const [customTimerFloor, setCustomTimerFloor] = useState<FloorTimer | null>(null);
-  const [customTimerForm] = Form.useForm<{ hours: number; minutes: number; seconds: number }>();
+  const [customFinishTime, setCustomFinishTime] = useState<string>('');
   const [floorForm] = Form.useForm<{ floor_number: number; profession?: string; machine_id?: string; recipe_id?: string }>();
   const [configForm] = Form.useForm<{ profession?: string; machine_id?: string; recipe_id?: string }>();
   const [messageApi, contextHolder] = message.useMessage();
@@ -251,7 +251,7 @@ export function FloorTimerDashboard() {
                       {floor.displayStatus === 'running'
                         ? <Button block className="floor-tile__stop" icon={<PauseCircleOutlined />} onClick={() => resetFloor(floor, 'หยุดแล้ว')}>หยุด</Button>
                         : <Button block type="primary" icon={<PlayCircleOutlined />} disabled={!floor.recipe_id} loading={saving} onClick={() => void startDirect(floor)}>{floor.displayStatus === 'idle' ? 'เริ่ม' : 'เริ่มใหม่'}</Button>}
-                      <Tooltip title="กำหนดเวลาเอง"><Button aria-label={`กำหนดเวลาเอง ชั้น ${floor.floor_number}`} icon={<ClockCircleOutlined />} onClick={() => { customTimerForm.setFieldsValue({ hours: 0, minutes: 30, seconds: 0 }); setCustomTimerFloor(floor); }} /></Tooltip>
+                      <Tooltip title="กำหนดเวลาเอง"><Button aria-label={`กำหนดเวลาเอง ชั้น ${floor.floor_number}`} icon={<ClockCircleOutlined />} onClick={() => { setCustomFinishTime(''); setCustomTimerFloor(floor); }} /></Tooltip>
                       <Tooltip title="รีเซ็ตเป็นว่าง"><Button aria-label={`รีเซ็ต ชั้น ${floor.floor_number}`} icon={<ReloadOutlined />} disabled={floor.displayStatus === 'idle'} onClick={() => resetFloor(floor, 'รีเซ็ตแล้ว')} /></Tooltip>
                     </footer>
                   </article>
@@ -263,26 +263,96 @@ export function FloorTimerDashboard() {
     <Modal
       open={!!customTimerFloor}
       onCancel={() => setCustomTimerFloor(null)}
-      title={`กำหนดเวลาเอง — ชั้น ${customTimerFloor?.floor_number ?? ''}`}
-      okText="เริ่มจับเวลา"
+      title={`กำหนดเวลา — ชั้น ${customTimerFloor?.floor_number ?? ''}`}
+      okText="บันทึก"
       cancelText="ยกเลิก"
-      okButtonProps={{ loading: saving, icon: <PlayCircleOutlined /> }}
+      okButtonProps={{ loading: saving, icon: <PlayCircleOutlined />, disabled: !customFinishTime }}
       onOk={async () => {
-        const values = await customTimerForm.validateFields();
-        const duration = (values.hours || 0) * 3600 + (values.minutes || 0) * 60 + (values.seconds || 0);
-        if (!duration) { customTimerForm.setFields([{ name: 'seconds', errors: ['ตั้งเวลาอย่างน้อย 1 วินาที'] }]); return; }
-        await patchFloor(customTimerFloor!.floor_number, { status: 'running', start_time: new Date().toISOString(), estimated_duration_seconds: duration, completed_at: null }, `เริ่มจับเวลาชั้น ${customTimerFloor!.floor_number} แล้ว`);
+        if (!customFinishTime) return;
+        const [fh, fm] = customFinishTime.split(':').map(Number);
+        const now = new Date();
+        const finish = new Date(now);
+        finish.setHours(fh, fm, 0, 0);
+        // ถ้าเวลาเสร็จผ่านไปแล้ว ให้บวก 1 วัน
+        if (finish <= now) finish.setDate(finish.getDate() + 1);
+        const remainingSec = Math.round((finish.getTime() - now.getTime()) / 1000);
+        if (remainingSec <= 0) return;
+        await patchFloor(customTimerFloor!.floor_number, {
+          status: 'running',
+          start_time: now.toISOString(),
+          estimated_duration_seconds: remainingSec,
+          completed_at: null,
+        }, `ตั้งเวลาชั้น ${customTimerFloor!.floor_number} — เสร็จ ${customFinishTime}`);
         setCustomTimerFloor(null);
+        setCustomFinishTime('');
       }}
     >
-      <p className="floor-modal-note">ระบุเวลาที่ต้องการ — ระบบจะเริ่มนับถอยหลังทันที</p>
-      <Form form={customTimerForm} layout="vertical" initialValues={{ hours: 0, minutes: 30, seconds: 0 }}>
-        <div className="floor-time-inputs">
-          <Form.Item label="ชั่วโมง" name="hours" rules={[{ required: true }]}><InputNumber min={0} max={99} /></Form.Item>
-          <Form.Item label="นาที" name="minutes" rules={[{ required: true }]}><InputNumber min={0} max={59} /></Form.Item>
-          <Form.Item label="วินาที" name="seconds" rules={[{ required: true }]}><InputNumber min={0} max={59} /></Form.Item>
-        </div>
-      </Form>
+      <p className="floor-modal-note" style={{ marginBottom: 16 }}>
+        เลือกเวลาที่เครื่องจะ <strong>เสร็จ</strong> — ระบบจะนับถอยหลังให้เอง
+      </p>
+
+      {/* Finish time input */}
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ fontSize: 13, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 6 }}>
+          เสร็จเมื่อ
+        </label>
+        <input
+          type="time"
+          value={customFinishTime}
+          onChange={(e) => setCustomFinishTime(e.target.value)}
+          style={{
+            width: '100%', padding: '10px 14px', fontSize: 20, fontWeight: 600,
+            border: '1px solid #e2e8f0', borderRadius: 8, outline: 'none',
+            color: customFinishTime ? '#0f172a' : '#94a3b8',
+            fontFamily: 'inherit', cursor: 'pointer',
+          }}
+        />
+      </div>
+
+      {/* Quick presets — เสร็จใน X นาทีจากตอนนี้ */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        <span style={{ fontSize: 12, color: '#94a3b8', alignSelf: 'center', marginRight: 2 }}>เสร็จใน:</span>
+        {[15, 30, 60, 120, 240, 360, 480].map((min) => {
+          const d = new Date(Date.now() + min * 60000);
+          const hh = String(d.getHours()).padStart(2, '0');
+          const mm = String(d.getMinutes()).padStart(2, '0');
+          const val = `${hh}:${mm}`;
+          const label = min < 60 ? `${min} นาที` : `${min / 60} ชม.`;
+          return (
+            <button
+              key={min}
+              type="button"
+              onClick={() => setCustomFinishTime(val)}
+              style={{
+                borderRadius: 999, padding: '4px 12px', fontSize: 12, fontWeight: 500,
+                cursor: 'pointer', border: '1px solid',
+                background: customFinishTime === val ? '#2563eb' : '#f8fafc',
+                color: customFinishTime === val ? '#fff' : '#374151',
+                borderColor: customFinishTime === val ? '#2563eb' : '#e2e8f0',
+              }}
+            >
+              {label} ({val})
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Preview remaining */}
+      {customFinishTime && (() => {
+        const [fh, fm] = customFinishTime.split(':').map(Number);
+        const now = new Date();
+        const finish = new Date(now);
+        finish.setHours(fh, fm, 0, 0);
+        if (finish <= now) finish.setDate(finish.getDate() + 1);
+        const sec = Math.round((finish.getTime() - now.getTime()) / 1000);
+        const h = Math.floor(sec / 3600);
+        const m = Math.floor((sec % 3600) / 60);
+        return (
+          <p style={{ marginTop: 12, fontSize: 13, color: '#2563eb', fontWeight: 500 }}>
+            → นับถอยหลัง {h > 0 ? `${h} ชม. ` : ''}{m} นาที
+          </p>
+        );
+      })()}
     </Modal>
 
     <Modal open={!!configuring} onCancel={() => setConfiguring(null)} onOk={() => void saveConfig()} okText="บันทึกการตั้งค่า" okButtonProps={{ loading: saving }} cancelText="ยกเลิก" title={`ตั้งค่าเครื่องและสูตร — ชั้น ${configuring?.floor_number ?? ''}`}>
