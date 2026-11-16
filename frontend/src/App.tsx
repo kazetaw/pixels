@@ -1,3 +1,4 @@
+import './components/Store/StoreClosed.css';
 import { MachineLayout } from './components/MachineLayout/MachineLayout';
 import { Withdrawals } from './components/Withdrawals/Withdrawals';
 import { ItemVisualProvider } from './components/shared/ItemVisual';
@@ -54,7 +55,7 @@ import { AssignmentSummary } from './components/Organization/AssignmentSummary';
 import { OrganizationChart } from './components/Organization/OrganizationChart';
 import { ContributorReturns } from './components/Organization/ContributorReturns';
 import { ProductionFlowBoard } from './components/Planner/ProductionFlowBoard';
-import { StorePage } from './components/Store/StorePage';
+// import { StorePage } from './components/Store/StorePage';
 import { CharacterTracker } from './components/CharacterTracker/CharacterTracker';
 import { ProductionCalculator } from './components/shared/ProductionCalculator';
 import { CraftingGuide } from './components/CraftingGuide/CraftingGuide';
@@ -792,7 +793,24 @@ export default function App() {
     );
   }
 
-  if (isStore) return <StorePage />;
+  if (isStore) return (
+    <main className="store-closed" aria-labelledby="store-closed-title">
+      {/* <header className="store-closed__brand"><span aria-hidden="true">▦</span> Pixel Company</header> */}
+      <section className="store-closed__content">
+        <div className="store-closed__portrait">
+          <img src="/avatars/sorry.jpeg" alt="น้องเป็ดทำหน้าอ้อน ขอโทษที่ร้านปิด" width={736} height={736} />
+          <span className="store-closed__sign">ร้านปิดแล้วน้า</span>
+        </div>
+        <div className="store-closed__message">
+          <span className="store-closed__status"><span aria-hidden="true" />ร้านปิดให้บริการ</span>
+          <h1 id="store-closed-title">ขออภัย<br />ร้านปิดแล้ว</h1>
+          <p>ไว้ค่อยมาใหม่น้า<br />ขอบคุณทุกคนที่แวะมาหากัน</p>
+          <div className="store-closed__thanks"><span aria-hidden="true">♡</span> แล้วเจอกันใหม่</div>
+        </div>
+      </section>
+      <footer className="store-closed__footer">ขอบคุณที่เคยร่วมงานกันนะ :)</footer>
+    </main>
+  );
 
   // Admin PIN gate
   if (isAdmin && !adminUnlocked) {
