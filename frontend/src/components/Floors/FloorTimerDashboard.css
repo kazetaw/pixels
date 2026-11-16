@@ -103,9 +103,9 @@
 .floor-dashboard--external .floor-card2 {
   aspect-ratio: 1 / 1; box-sizing: border-box;
   display: grid; grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: 36px 16px minmax(36px, 1fr) 42px 18px 34px;
+  grid-template-rows: 36px 14px minmax(32px, 1fr) 42px 25px 32px;
   grid-template-areas: 'head' 'machine' 'picture' 'status' 'recipe' 'actions';
-  gap: 3px; padding: 12px 14px;
+  gap: 3px; padding: 10px 13px;
   background: #fff; border: 1px solid #dce3ec; border-radius: 16px;
   box-shadow: 0 3px 10px #243b5310;
 }
@@ -118,8 +118,8 @@
 .floor-dashboard--external .floor-card2__settings { flex-shrink: 0; width: 22px; padding: 0; color: #94a3b8; }
 .floor-dashboard--external .floor-card2__machine { grid-area: machine; display: block; min-height: 0; margin: 0; font-size: 10px; color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .floor-dashboard--external .floor-card2__finish-time { display: none; }
-.floor-dashboard--external .external-recipe-image { grid-area: picture; place-self: center; display: grid; place-items: center; width: 36px; height: 36px; color: #94a3b8; }
-.floor-dashboard--external .external-recipe-image .item-thumbnail { width: 36px !important; height: 36px !important; background: transparent; border: 0; border-radius: 0; }
+.floor-dashboard--external .external-recipe-image { grid-area: picture; place-self: center; display: grid; place-items: center; width: 32px; height: 32px; color: #94a3b8; }
+.floor-dashboard--external .external-recipe-image .item-thumbnail { width: 32px !important; height: 32px !important; background: transparent; border: 0; border-radius: 0; }
 .floor-dashboard--external .external-recipe-image img { object-fit: contain; }
 .floor-dashboard--external .floor-card2__status { grid-area: status; min-height: 0; padding: 0; gap: 1px; background: transparent; border-radius: 0; color: var(--card-accent); }
 .floor-dashboard--external .fcs--timer { font-size: 27px; font-weight: 600; line-height: 1.1; letter-spacing: -.8px; }
@@ -139,3 +139,61 @@
 }
 
 .floor-dashboard--external .external-character-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+
+/* Named machine layout: full-width title, centered timer, one control dock. */
+.floor-dashboard--external .floor-card2 {
+  grid-template-columns: minmax(0, 1fr) 108px;
+  grid-template-rows: 36px 22px minmax(34px, 1fr) 48px 42px;
+  grid-template-areas: 'head head' 'machine machine' 'picture picture' 'status status' 'recipe actions';
+  gap: 3px 8px; padding: 12px;
+  border-radius: 18px; border: 1px solid #e0e6ee;
+  background: #fff; box-shadow: 0 4px 16px #243b5309;
+  position: relative;
+}
+.floor-dashboard--external .floor-card2__head { align-items: flex-start; gap: 8px; }
+.floor-dashboard--external .floor-card2__num { font-size: 14px; line-height: 18px; font-weight: 700; letter-spacing: -.2px; }
+.floor-dashboard--external .floor-card2__settings { width: 24px; height: 24px !important; color: #94a3b8; }
+.floor-dashboard--external .floor-card2__machine { display: flex; align-items: center; justify-content: space-between; gap: 6px; text-align: left; font-size: 10px; }
+.floor-dashboard--external .floor-card2__machine > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.floor-dashboard--external .floor-card2__machine .ant-tag { margin: 0; flex-shrink: 0; font-size: 9px; line-height: 18px; padding: 0 7px; border: 0; border-radius: 20px; color: var(--card-accent); background: var(--card-tint); font-weight: 600; }
+.floor-dashboard--external .external-recipe-image { width: 38px; height: 38px; }
+.floor-dashboard--external .external-recipe-image .item-thumbnail { width: 38px !important; height: 38px !important; }
+.floor-dashboard--external .floor-card2__status { justify-content: flex-start; gap: 3px; }
+.floor-dashboard--external .fcs--timer { font-family: 'IBM Plex Sans', sans-serif; font-style: normal; font-size: 30px; font-weight: 600; line-height: 1; letter-spacing: -1px; }
+.floor-dashboard--external .fcs--done, .floor-dashboard--external .fcs--float { font-size: 22px; line-height: 1.2; }
+.floor-dashboard--external .fcs--sub { font-size: 10px; color: #64748b; }
+.floor-dashboard--external .floor-card2__recipe { justify-content: flex-start; gap: 6px; align-self: stretch; padding: 7px 0 0; border-top: 1px solid #edf0f5; font-size: 11px; font-weight: 600; color: #334155; }
+.floor-dashboard--external .floor-card2__recipe > .anticon { display: grid; place-items: center; flex-shrink: 0; width: 23px; height: 23px; border-radius: 50%; background: var(--card-tint); color: var(--card-accent); font-size: 12px; }
+.floor-dashboard--external .floor-card2__actions { grid-template-columns: 44px 28px 28px; gap: 4px; align-items: center; padding-top: 7px; border-top: 1px solid #edf0f5; }
+.floor-dashboard--external .floor-card2__actions .ant-btn { height: 30px !important; font-size: 11px !important; padding-inline: 3px; border-radius: 8px !important; }
+.floor-dashboard--external .floor-card2__actions > .ant-btn:first-child .ant-btn-icon { display: none; }
+.floor-dashboard--external .floor-card2__actions .ant-btn-default:not(.floor-card2__stop) { border-color: transparent; background: #f3f5f8; }
+
+/* Four columns on phones, with all controls directly on each card. */
+@container (max-width: 600px) {
+  .floor-dashboard--external .floor-cards-scroll { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
+  .floor-dashboard--external .floor-card2 {
+    aspect-ratio: auto; min-width: 0; padding: 5px; gap: 4px;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 28px 44px 30px 16px 60px;
+    grid-template-areas: 'head' 'picture' 'status' 'recipe' 'actions';
+    border-radius: 10px; border-top: 3px solid var(--card-accent);
+  }
+  .floor-dashboard--external .floor-card2__head { align-items: start; gap: 0; }
+  .floor-dashboard--external .floor-card2__num { font-size: 10px; line-height: 13px; padding-right: 0; }
+  .floor-dashboard--external .floor-card2__settings { position: absolute; right: 3px; top: 34px; width: 24px; height: 24px !important; z-index: 1; background: #ffffffd9; border-radius: 50%; font-size: 12px; }
+  .floor-dashboard--external .floor-card2__machine { display: none; }
+  .floor-dashboard--external .external-recipe-image { width: 40px; height: 40px; }
+  .floor-dashboard--external .external-recipe-image .item-thumbnail { width: 40px !important; height: 40px !important; }
+  .floor-dashboard--external .floor-card2__status { justify-content: center; gap: 2px; }
+  .floor-dashboard--external .fcs--timer { font-size: clamp(10px, 3.1cqw, 18px); letter-spacing: -.5px; }
+  .floor-dashboard--external .fcs--idle,
+  .floor-dashboard--external .fcs--done,
+  .floor-dashboard--external .fcs--float { font-size: 11px; line-height: 1.2; }
+  .floor-dashboard--external .fcs--sub { font-size: 8px; line-height: 10px; white-space: nowrap; }
+  .floor-dashboard--external .floor-card2__recipe { padding: 0; border: 0; justify-content: center; font-size: 9px; line-height: 14px; }
+  .floor-dashboard--external .floor-card2__recipe > .anticon { display: none; }
+  .floor-dashboard--external .floor-card2__actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: 28px 28px; gap: 4px; padding: 0; border: 0; }
+  .floor-dashboard--external .floor-card2__actions > .ant-btn:first-child { grid-column: 1 / -1; }
+  .floor-dashboard--external .floor-card2__actions .ant-btn { width: 100%; min-width: 0; height: 28px !important; padding: 0; font-size: 11px !important; border-radius: 6px !important; }
+}

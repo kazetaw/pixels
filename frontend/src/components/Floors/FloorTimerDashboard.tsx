@@ -3,7 +3,7 @@ import './FloorTimerDashboard.css';
 import { ItemThumbnail, ItemLabel, ItemVisualProvider, itemSelectVisuals } from '../shared/ItemVisual';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Empty, Form, Input, InputNumber, Modal, Select, Spin, Tag, message } from 'antd';
-import { PauseCircleOutlined, PlayCircleOutlined, PlusOutlined, ReloadOutlined, SettingOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import { PauseCircleOutlined, PlayCircleOutlined, PlusOutlined, ReloadOutlined, SettingOutlined, ClockCircleOutlined, UserOutlined } from '@ant-design/icons';
 import { createFloorTimer, fetchAllData, fetchFloorTimers, updateFloorTimer } from '../../api/client';
 import type { FloorDisplayStatus, FloorTimer, Machine, Recipe, StockImageMap } from '../../types';
 import { machinesForProfession } from './floorOptions';
@@ -246,13 +246,14 @@ export function FloorTimerDashboard({ external = false }: { external?: boolean }
                     className={`floor-card2 floor-card2--${floor.displayStatus}${highlighted === floor.floor_number ? " is-highlighted" : ""}`}>
                     {/* Head */}
                     <div className="floor-card2__head">
-                      <span className="floor-card2__num">{label(floor)}</span>
-                      <Tag color={meta.color}>{meta.label}</Tag>
+                      <span className="floor-card2__num" title={label(floor)}>{label(floor)}</span>
+                      {!external && <Tag color={meta.color}>{meta.label}</Tag>}
                       <Button className="floor-card2__settings" type="text" size="small" aria-label={`ตั้งค่า ${label(floor)}`} icon={<SettingOutlined />} onClick={() => openConfig(floor)} />
                     </div>
                     {/* Machine + finish time */}
                     <div className="floor-card2__machine">
                       <span>{machine?.machine_name ?? 'ยังไม่ได้เลือกเครื่อง'}</span>
+                      {external && <Tag color={meta.color}>{meta.label}</Tag>}
                       {finishTime && floor.displayStatus === 'running' && (
                         <span className="floor-card2__finish-time">
                           เสร็จ {finishTime.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
@@ -282,7 +283,7 @@ export function FloorTimerDashboard({ external = false }: { external?: boolean }
                     </div>
                     {/* Recipe */}
                     {external
-                      ? <div className="floor-card2__recipe" title={floor.character_name || 'ยังไม่ได้ระบุชื่อตัวละคร'}><span className="external-character-name">{floor.character_name || 'ยังไม่ได้ระบุชื่อตัวละคร'}</span></div>
+                      ? <div className="floor-card2__recipe" title={floor.character_name || 'ยังไม่ได้ระบุชื่อตัวละคร'}><UserOutlined aria-hidden="true" /><span className="external-character-name">{floor.character_name || 'ยังไม่ได้ระบุชื่อตัวละคร'}</span></div>
                       : recipe && <div className="floor-card2__recipe"><ItemLabel id={recipe.id} name={recipe.name} image={recipe.image} size={16} reserveImage /></div>}
                     {/* Actions */}
                     <div className="floor-card2__actions">
