@@ -63,10 +63,10 @@ import type { SaveStatus } from './hooks/useAppState';
 
 const { Sider, Content } = Layout;
 
-type MainView = 'crafting-guide' | 'machine-layout' | 'withdrawal-admin' | 'withdrawals' | 'assignments' | 'planner' | 'shared-planner' | 'production-flow' | 'data' | 'inventory' | 'floors' | 'targets' | 'budget' | 'organization' | 'contributor-returns' | 'calculator' | 'character-tracker';
+type MainView = 'external-machines' | 'crafting-guide' | 'machine-layout' | 'withdrawal-admin' | 'withdrawals' | 'assignments' | 'planner' | 'shared-planner' | 'production-flow' | 'data' | 'inventory' | 'floors' | 'targets' | 'budget' | 'organization' | 'contributor-returns' | 'calculator' | 'character-tracker';
 
-const ADMIN_VIEWS: MainView[] = ['crafting-guide', 'machine-layout', 'planner', 'production-flow', 'assignments', 'shared-planner', 'data', 'inventory', 'floors', 'targets', 'budget', 'organization', 'contributor-returns', 'calculator', 'character-tracker'];
-const PUBLIC_VIEWS: MainView[] = ['floors', 'calculator'];
+const ADMIN_VIEWS: MainView[] = ['external-machines', 'crafting-guide', 'machine-layout', 'planner', 'production-flow', 'assignments', 'shared-planner', 'data', 'inventory', 'floors', 'targets', 'budget', 'organization', 'contributor-returns', 'calculator', 'character-tracker'];
+const PUBLIC_VIEWS: MainView[] = ['external-machines', 'floors', 'calculator'];
 const isAdminPath = () => window.location.pathname.replace(/\/+$/, '') === '/admin';
 function savedNavigation(admin: boolean): MainView {
   try {
@@ -77,6 +77,7 @@ function savedNavigation(admin: boolean): MainView {
 }
 
 const NAV_ITEMS = [
+  { key: 'external-machines', icon: <ClockCircleOutlined />, label: 'เครื่องนอก' },
   { key: 'crafting-guide', icon: <_ApartmentOutlined />, label: 'ไกด์การคราฟ' },
   { key: 'machine-layout', icon: <_ApartmentOutlined />, label: 'จัดเครื่องลงชั้น' },
   {
@@ -1033,6 +1034,13 @@ export default function App() {
                 recipes={recipes}
                 onStockChanged={async () => { /* reload handled by useAppState polling */ }}
               />
+            </div>
+          )}
+
+          {view === 'external-machines' && (
+            <div className="page-content floor-page-content">
+              <PageHead title="เครื่องนอก" sub="ตั้งชื่อและจับเวลาเครื่องนอกของคุณ • บันทึกเฉพาะเบราว์เซอร์นี้" />
+              <FloorTimerDashboard key="external-machines" external />
             </div>
           )}
 

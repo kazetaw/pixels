@@ -76,6 +76,8 @@ export interface AppData {
 export type FloorDisplayStatus = 'idle' | 'running' | 'completed' | 'floating';
 
 export interface FloorTimer {
+  name?: string;
+  character_name?: string;
   floor_number: number;
   profession?: string;
   machine_id: string | null;

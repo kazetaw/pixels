@@ -33,3 +33,7 @@ current search/page). It does not modify inventory.
 
 ## Store restock attribution
 Run `20261028_01_store_restock_metadata.sql` to add dedicated restock name/tag columns. Until it is applied, the API stores versioned metadata in the existing note column and decodes it when reading history. Historical entries retain a null author; new entries store `entered_by`, `tags`, and the existing database-generated `restocked_at`.
+
+## External machine timers
+Run `20261116_external_machine_timers.sql` before deploying the เครื่องนอก page.
+It creates independent named timer records and does not change production floors.

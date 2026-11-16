@@ -928,6 +928,53 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
+  // External machines have independent IDs and editable display names.
+  if (segments[0] === 'external-machines') {
+    try {
+      const db = getSupabase();
+      if (!segments[1] && method === 'GET') {
+        const { data, error } = await db.from('external_machine_timers').select('*').order('floor_number');
+        if (error) throw error;
+        return res.json(data ?? []);
+      }
+      if ((!segments[1] && method === 'POST') || (segments[1] && method === 'PATCH')) {
+        const body = req.body ?? {};
+        const patch: Record<string, unknown> = {};
+        if (method === 'POST' || body.name !== undefined) {
+          if (typeof body.name !== 'string' || !body.name.trim() || body.name.trim().length > 120)
+            return res.status(400).json({ error: 'กรอกชื่อเครื่องนอกไม่เกิน 120 ตัวอักษร' });
+          patch.name = body.name.trim();
+        }
+        for (const key of ['profession', 'machine_id', 'recipe_id', 'start_time', 'completed_at']) {
+          if (body[key] !== undefined) {
+            if (body[key] !== null && typeof body[key] !== 'string') return res.status(400).json({ error: `Invalid ${key}` });
+            if (['start_time', 'completed_at'].includes(key) && body[key] !== null && !Number.isFinite(Date.parse(body[key])))
+              return res.status(400).json({ error: `Invalid ${key}` });
+            patch[key] = body[key];
+          }
+        }
+        if (body.status !== undefined) {
+          if (!['idle', 'running'].includes(body.status)) return res.status(400).json({ error: 'Invalid status' });
+          patch.status = body.status;
+        }
+        if (body.estimated_duration_seconds !== undefined) {
+          if (!Number.isInteger(body.estimated_duration_seconds) || body.estimated_duration_seconds < 0 || body.estimated_duration_seconds > 2147483647)
+            return res.status(400).json({ error: 'Invalid duration' });
+          patch.estimated_duration_seconds = body.estimated_duration_seconds;
+        }
+        const id = Number(segments[1]);
+        if (method === 'PATCH' && (!Number.isSafeInteger(id) || id < 1)) return res.status(400).json({ error: 'Invalid ID' });
+        const query = method === 'POST'
+          ? db.from('external_machine_timers').insert(patch)
+          : db.from('external_machine_timers').update(patch).eq('floor_number', id);
+        const { data, error } = await query.select('*').single();
+        if (error) throw error;
+        return res.status(method === 'POST' ? 201 : 200).json(data);
+      }
+      return res.status(405).json({ error: 'Method not allowed' });
+    } catch (e) { return res.status(500).json({ error: (e as Error).message }); }
+  }
+
   // ── /api/floors ───────────────────────────────────────────────────────────────
   if (segments[0] === 'floors') {
     const floorNum = segments[1] ? parseInt(segments[1], 10) : NaN;
