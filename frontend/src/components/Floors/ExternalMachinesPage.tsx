@@ -112,7 +112,7 @@ export function ExternalMachinesPage() {
           { label: 'ในเครื่องนี้', value: 'local', icon: <LaptopOutlined /> },
         ]} />
         <span>{mode === 'cloud' ? 'บันทึกในบัญชี • ดูต่อได้ทุกอุปกรณ์' : 'บันทึกเฉพาะเบราว์เซอร์นี้'}</span>
-      </div> : <div className="external-workspace__benefit"><CloudOutlined /><span>อยากเปิดต่อบนมือถือหรือคอม? เข้าสู่ระบบแล้วนำเข้ารายการเดิมได้เลย</span></div>}
+      </div> : <div className="external-workspace__benefit"><CloudOutlined /><span></span></div>}
     </section>
     {localError && <Alert type="warning" message={localError} className="external-account-alert" />}
     {account && localTimers.length > 0 && !imported && <section className="external-import-prompt">
