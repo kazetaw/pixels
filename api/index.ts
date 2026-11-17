@@ -1,3 +1,4 @@
+import { externalAccountHandler } from './lib/externalAccounts.js';
 import { accountBucket, accountKey, validateAccount } from './lib/storeAccounts.js';
 import { validMachineLayout } from './lib/machineLayout.js';
 /**
@@ -163,6 +164,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const url = (req.url ?? '').split('?')[0];
   const path = url.replace(/^\/api\/?/, '');   // e.g. "recipes/abc-123"
   const segments = path.split('/').filter(Boolean);
+  if (segments[0] === 'external-account') return externalAccountHandler(req, res, segments);
 
   if (segments[0] === 'machine-layout') {
     const db = getSupabase();

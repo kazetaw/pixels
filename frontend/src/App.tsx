@@ -1,3 +1,4 @@
+import { ExternalMachinesPage } from './components/Floors/ExternalMachinesPage';
 import './components/Store/StoreClosed.css';
 import { MachineLayout } from './components/MachineLayout/MachineLayout';
 import { Withdrawals } from './components/Withdrawals/Withdrawals';
@@ -1039,8 +1040,8 @@ export default function App() {
 
           {view === 'external-machines' && (
             <div className="page-content floor-page-content">
-              <PageHead title="เครื่องนอก" sub="ตั้งชื่อและจับเวลาเครื่องนอกของคุณ • บันทึกเฉพาะเบราว์เซอร์นี้" />
-              <FloorTimerDashboard key="external-machines" external />
+              <PageHead title="เครื่องนอก" sub="ตั้งชื่อและจับเวลาเครื่องนอกของคุณ" />
+              <ExternalMachinesPage />
             </div>
           )}
 

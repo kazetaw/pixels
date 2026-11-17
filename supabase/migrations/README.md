@@ -37,3 +37,23 @@ Run `20261028_01_store_restock_metadata.sql` to add dedicated restock name/tag c
 ## External machine timers
 Run `20261116_external_machine_timers.sql` before deploying the เครื่องนอก page.
 It creates independent named timer records and does not change production floors.
+
+## External account POC (2026-11-17)
+Run `20261117_external_accounts.sql` before deploying account mode. Existing local
+keys and shared `external_machine_timers` rows are not changed or auto-imported.
+The same-origin `/api/external-account/*` API uses HttpOnly sessions, scrypt password
+hashes and service-role queries scoped to the authenticated owner. Direct browser
+access to the account tables and RPCs is disabled by RLS and function grants.
+Users explicitly import local timers after login; `(owner_id, import_key)` makes
+retries idempotent without overwriting edited cloud copies. New accounts on another
+device can only import local entries from that device; import first on the original
+browser. Refreshing/focusing account mode retrieves server updates every 15 seconds.
+POC limitation: there is no password recovery or account deletion UI yet.
+Tests: `node --import tsx --test scripts/tests/externalAccounts.test.ts`.
+Optional live test creates/removes only random test accounts:
+`EXTERNAL_ACCOUNT_LIVE_TEST=1 node --import tsx scripts/tests/externalAccounts.live.ts`.
+
+Account sessions now use persistent HttpOnly cookies for 90 days. Valid sessions
+with fewer than 83 days remaining are extended during authenticated requests;
+expired or revoked sessions are never recreated. Logout revokes the current
+session only. Browser storage clearing and private browsing may remove cookies.

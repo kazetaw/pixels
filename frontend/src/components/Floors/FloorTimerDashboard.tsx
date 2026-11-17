@@ -1,3 +1,4 @@
+import { cloudTimers } from './externalAccountClient';
 import { EXTERNAL_TIMER_PREFIX, readExternalTimers, createExternalTimer, updateExternalTimer } from './externalTimerStorage';
 import './FloorTimerDashboard.css';
 import { ItemThumbnail, ItemLabel, ItemVisualProvider, itemSelectVisuals } from '../shared/ItemVisual';
@@ -51,7 +52,7 @@ const statusMeta: Record<FloorDisplayStatus, { label: string; color: string }> =
   floating: { label: 'ลอย', color: 'red' },
 };
 
-export function FloorTimerDashboard({ external = false }: { external?: boolean }) {
+export function FloorTimerDashboard({ external = false, cloud = false, accountId }: { external?: boolean; cloud?: boolean; accountId?: string }) {
   const label = (floor: FloorTimer): string => external ? floor.name ?? 'เครื่องนอก' : `ชั้น ${floor.floor_number}`;
   const unit = external ? 'เครื่องนอก' : 'ชั้น';
   const [floors, setFloors] = useState<FloorTimer[]>([]);
@@ -75,16 +76,29 @@ export function FloorTimerDashboard({ external = false }: { external?: boolean }
   const load = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const [timerRows, data] = await Promise.all([(external ? readExternalTimers() : fetchFloorTimers()), fetchAllData()]);
+      const [timerRows, data] = await Promise.all([(external ? (cloud ? cloudTimers.read(accountId) : readExternalTimers()) : fetchFloorTimers()), fetchAllData()]);
       setFloors(timerRows); setMachines(data.machines); setRecipes(data.recipes); setStockImages(data.stockImages ?? {});
     }
     catch (e) { setError((e as Error).message); }
     finally { setLoading(false); }
-  }, [external]);
+  }, [external, cloud, accountId]);
 
   useEffect(() => { void load(); }, [load]);
   useEffect(() => {
-    if (!external) return;
+    if (!external || !cloud) return;
+    let active = true;
+    const refresh = () => {
+      if (document.visibilityState !== 'visible' || saving) return;
+      void cloudTimers.read(accountId).then(items => { if (active) { setFloors(items); setError(null); } })
+        .catch(e => { if (active) setError(e.message); });
+    };
+    const timer = window.setInterval(refresh, 15000);
+    window.addEventListener('focus', refresh);
+    return () => { active = false; window.clearInterval(timer); window.removeEventListener('focus', refresh); };
+  }, [external, cloud, saving, accountId]);
+
+  useEffect(() => {
+    if (!external || cloud) return;
     const sync = (event: StorageEvent) => {
       if (event.key !== null && !event.key.startsWith(EXTERNAL_TIMER_PREFIX)) return;
       try { setFloors(readExternalTimers()); setError(null); }
@@ -92,7 +106,7 @@ export function FloorTimerDashboard({ external = false }: { external?: boolean }
     };
     window.addEventListener('storage', sync);
     return () => window.removeEventListener('storage', sync);
-  }, [external]);
+  }, [external, cloud, accountId]);
   useEffect(() => {
     if (highlighted === null) return;
     const id = window.setTimeout(() => setHighlighted(null), 3000);
@@ -109,7 +123,7 @@ export function FloorTimerDashboard({ external = false }: { external?: boolean }
   const patchFloor = async (floorNumber: number, patch: Partial<FloorTimer>, success: string) => {
     setSaving(true);
     try {
-      const updated = await (external ? updateExternalTimer(floorNumber, patch) : updateFloorTimer(floorNumber, patch));
+      const updated = await (external ? (cloud ? cloudTimers.update(floorNumber, patch, accountId) : updateExternalTimer(floorNumber, patch)) : updateFloorTimer(floorNumber, patch));
       setFloors((items) => items.map((item) => item.floor_number === floorNumber ? updated : item));
       messageApi.success(success);
       return true;
@@ -160,7 +174,7 @@ export function FloorTimerDashboard({ external = false }: { external?: boolean }
     setSaving(true);
     try {
       const created = external
-        ? await createExternalTimer({ name: values.name?.trim(), character_name: values.character_name?.trim() ?? '', profession: values.profession, machine_id: values.machine_id ?? null, recipe_id: values.recipe_id ?? null })
+        ? await (cloud ? (timer: Partial<FloorTimer>) => cloudTimers.create(timer, accountId) : createExternalTimer)({ name: values.name?.trim(), character_name: values.character_name?.trim() ?? '', profession: values.profession, machine_id: values.machine_id ?? null, recipe_id: values.recipe_id ?? null })
         : await createFloorTimer(values.floor_number, values.profession);
       // If machine/recipe also selected, patch immediately after create
       if (!external && (values.machine_id || values.recipe_id)) {
