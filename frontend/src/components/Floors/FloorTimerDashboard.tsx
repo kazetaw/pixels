@@ -4,7 +4,7 @@ import './FloorTimerDashboard.css';
 import { ItemThumbnail, ItemLabel, ItemVisualProvider, itemSelectVisuals } from '../shared/ItemVisual';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Empty, Form, Input, InputNumber, Modal, Select, Spin, Tag, message } from 'antd';
-import { PauseCircleOutlined, PlayCircleOutlined, PlusOutlined, ReloadOutlined, SettingOutlined, ClockCircleOutlined, UserOutlined } from '@ant-design/icons';
+import { CheckCircleFilled, CloudOutlined, PauseCircleOutlined, PlayCircleOutlined, PlusOutlined, ReloadOutlined, SettingOutlined, ClockCircleOutlined, UserOutlined } from '@ant-design/icons';
 import { createFloorTimer, fetchAllData, fetchFloorTimers, updateFloorTimer } from '../../api/client';
 import type { FloorDisplayStatus, FloorTimer, Machine, Recipe, StockImageMap } from '../../types';
 import { machinesForProfession } from './floorOptions';
@@ -71,6 +71,7 @@ export function FloorTimerDashboard({ external = false, cloud = false, accountId
   const [customTimerForm] = Form.useForm<{ hours: number; minutes: number; seconds: number }>();
   const [floorForm] = Form.useForm<{ floor_number: number; name?: string; character_name?: string; profession?: string; machine_id?: string; recipe_id?: string }>();
   const [configForm] = Form.useForm<{ name?: string; character_name?: string; profession?: string; machine_id?: string; recipe_id?: string }>();
+  const [confirmModal, confirmContext] = Modal.useModal();
   const [messageApi, contextHolder] = message.useMessage();
 
   const load = useCallback(async () => {
@@ -200,6 +201,7 @@ export function FloorTimerDashboard({ external = false, cloud = false, accountId
 
   return <ItemVisualProvider recipes={recipes} machines={machines} stockImages={stockImages}><div className={`floor-dashboard${external ? " floor-dashboard--external" : ""}`}>
     {contextHolder}
+    {confirmContext}
     {error && <Alert type="error" showIcon message={`โหลดข้อมูล${unit}ไม่สำเร็จ`} description={error} action={<Button size="small" onClick={() => void load()}>ลองอีกครั้ง</Button>} />}
 
     {/* ── Stats bar ── */}
@@ -212,7 +214,7 @@ export function FloorTimerDashboard({ external = false, cloud = false, accountId
           </span>
         ))}
       </div>
-      <div className="floor-overview">
+      {!external && <div className="floor-overview">
         <div className="floor-overview__cells">
           {displayFloors.map((floor) => (
             <button
@@ -238,7 +240,7 @@ export function FloorTimerDashboard({ external = false, cloud = false, accountId
           </button>
         </div>
         <p className="floor-overview__hint">แตะเพื่อไปยังรายละเอียด</p>
-      </div></section>
+      </div>}</section>
     )}
 
     {/* ── Floor cards ── */}
@@ -254,6 +256,8 @@ export function FloorTimerDashboard({ external = false, cloud = false, accountId
                 const recipe = recipes.find((r) => r.id === floor.recipe_id);
                 const finishTime = floor.start_time && floor.estimated_duration_seconds
                   ? new Date(new Date(floor.start_time).getTime() + floor.estimated_duration_seconds * 1000) : null;
+                const progress = floor.displayStatus === 'idle' ? 0 : floor.displayStatus === 'running'
+                  ? Math.max(0, Math.min(100, (1 - floor.remaining / floor.estimated_duration_seconds) * 100)) : 100;
                 const statusImage = { running: 'working', completed: 'completed', floating: 'floating', idle: '' }[floor.displayStatus];
                 return (
                   <div id={`floor-card-${floor.floor_number}`} key={floor.floor_number}
@@ -268,33 +272,31 @@ export function FloorTimerDashboard({ external = false, cloud = false, accountId
                     <div className="floor-card2__machine">
                       <span>{machine?.machine_name ?? 'ยังไม่ได้เลือกเครื่อง'}</span>
                       {external && <Tag color={meta.color}>{meta.label}</Tag>}
-                      {finishTime && floor.displayStatus === 'running' && (
-                        <span className="floor-card2__finish-time">
-                          เสร็จ {finishTime.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      )}
-                      {finishTime && floor.displayStatus === 'completed' && (
-                        <span className="floor-card2__finish-time floor-card2__finish-time--done">
-                          เสร็จ {finishTime.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      )}
+                      {finishTime && (floor.displayStatus === 'running' || floor.displayStatus === 'completed') && <span className="floor-card2__finish-time">เสร็จ {finishTime.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}</span>}
                     </div>
-                    {/* Avatar */}
-                    {!external && <div className="floor-card2__avatar">
-                      {statusImage
-                        ? <img src={`/floor-status/${statusImage}.png`} alt={meta.label} />
-                        : <PauseCircleOutlined /> }
+                    {!external && <div className="floor-card2__avatar">{statusImage ? <img src={`/floor-status/${statusImage}.png`} alt={meta.label} /> : <PauseCircleOutlined />}</div>}
+                    {external && <div className="external-progress" role="progressbar" aria-label={`${recipe?.name ?? 'ยังไม่ได้เลือกสูตร'} — ${meta.label}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress)}>
+                      <svg viewBox="0 0 100 100" aria-hidden="true"><circle className="external-progress__track" cx="50" cy="50" r="44" /><circle className="external-progress__value" cx="50" cy="50" r="44" pathLength="100" strokeDasharray="100" strokeDashoffset={100 - progress} /></svg>
+                      <div className="external-recipe-image" title={recipe?.name ?? 'ยังไม่ได้เลือกสูตร'}>{recipe ? <ItemThumbnail id={recipe.id} image={recipe.image} size={52} /> : <span>—</span>}</div>
+                      {floor.displayStatus === 'completed' && <span className="external-progress__badge" key="completed"><CheckCircleFilled /></span>}
+                      {floor.displayStatus === 'floating' && <span className="external-progress__badge" key="floating"><CloudOutlined /></span>}
                     </div>}
-                    {external && <div className="external-recipe-image" role="img" aria-label={recipe?.name ?? 'ยังไม่ได้เลือกสูตร'} title={recipe?.name ?? 'ยังไม่ได้เลือกสูตร'}>
-                      {recipe ? <ItemThumbnail id={recipe.id} image={recipe.image} size={52} /> : <span>—</span>}
-                    </div>}
-                    {/* Status */}
+                    {external ? <div className="floor-card2__status external-item-status">
+                      <span className="external-item-state">{floor.displayStatus === 'running' ? <PlayCircleOutlined /> : floor.displayStatus === 'completed' ? <CheckCircleFilled /> : floor.displayStatus === 'floating' ? <CloudOutlined /> : <PauseCircleOutlined />}{floor.displayStatus === 'running' ? 'กำลังทำ' : floor.displayStatus === 'floating' ? 'ลอยแล้ว' : floor.displayStatus === 'completed' ? 'เสร็จ · ก่อนลอย' : meta.label}</span>
+                      <b className="external-item-time">{floor.displayStatus === 'idle' ? 'พร้อมเริ่ม' : clock(floor.displayStatus === 'floating' ? (finishTime ? Math.max(0, Math.floor((now - finishTime.getTime()) / 1000) - FLOAT_GRACE_SECONDS) : 0) : floor.remaining)}</b>
+                      {finishTime && floor.displayStatus !== 'idle' && <span className="external-item-note" title={finishTime.toLocaleString('th-TH')}>
+                        <span>{floor.displayStatus === 'floating' ? 'เสร็จตั้งแต่' : 'เสร็จ'} </span>
+                        <span>{finishTime.toDateString() !== new Date(now).toDateString() && `${finishTime.getDate()}/${finishTime.getMonth() + 1} `}{finishTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}</span>
+                      </span>}
+
+                    </div> : <>
                     <div className="floor-card2__status">
                       {floor.displayStatus === 'idle' && <span className="fcs--idle">พร้อมใช้งาน</span>}
-                      {floor.displayStatus === 'running' && <><b className="fcs--timer">{clock(floor.remaining)}</b><span className="fcs--sub">เสร็จ {finishTime?.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}</span></>}
+                      {floor.displayStatus === 'running' && <><b className="fcs--timer">{clock(floor.remaining)}</b><span className="fcs--sub">เสร็จ {finishTime?.toLocaleTimeString(external ? 'en-US' : 'th-TH', { hour: external ? 'numeric' : '2-digit', minute: '2-digit', hour12: external })}</span></>}
                       {floor.displayStatus === 'completed' && <><b className="fcs--done">{external ? 'เสร็จแล้ว' : 'เสร็จแล้ว!!'}</b><span className="fcs--sub">{clock(floor.remaining)} ก่อนลอย</span></>}
                       {floor.displayStatus === 'floating' && <><b className="fcs--float">{external ? 'ลอยแล้ว' : 'ลอยแล้วพรี่!!'}</b><span className="fcs--sub">{clock(finishTime ? Math.max(0, Math.floor((now - finishTime.getTime()) / 1000) - FLOAT_GRACE_SECONDS) : 0)}</span></>}
                     </div>
+                    </>}
                     {/* Recipe */}
                     {external
                       ? <div className="floor-card2__recipe" title={floor.character_name || 'ยังไม่ได้ระบุชื่อตัวละคร'}><UserOutlined aria-hidden="true" /><span className="external-character-name">{floor.character_name || 'ยังไม่ได้ระบุชื่อตัวละคร'}</span></div>
@@ -305,7 +307,11 @@ export function FloorTimerDashboard({ external = false, cloud = false, accountId
                         ? <Button className="floor-card2__stop" size="small" icon={<PauseCircleOutlined />} onClick={() => void patchFloor(floor.floor_number, { status: 'idle', start_time: null, estimated_duration_seconds: 0, completed_at: null }, 'หยุดแล้ว')}>หยุด</Button>
                         : <Button size="small" type="primary" icon={<PlayCircleOutlined />} disabled={!floor.recipe_id} loading={saving} onClick={() => void startDirect(floor)}>เริ่ม</Button>}
                       <Button size="small" icon={<ClockCircleOutlined />} onClick={() => { const seconds = recipeSeconds(recipe); customTimerForm.setFieldsValue({ hours: Math.floor(seconds / 3600), minutes: Math.floor(seconds % 3600 / 60), seconds: seconds % 60 }); setCustomTimerFloor(floor); }} title="กำหนดเวลาเอง" />
-                      <Button className="floor-card2__reset" aria-label={`รีเซ็ต ${label(floor)}`} title="รีเซ็ต" size="small" icon={<ReloadOutlined />} onClick={() => void patchFloor(floor.floor_number, { status: 'idle', start_time: null, estimated_duration_seconds: 0, completed_at: null }, 'รีเซ็ตแล้ว')}>{external ? null : 'รีเซ็ต'}</Button>
+                      <Button className="floor-card2__reset" aria-label={`รีเซ็ต ${label(floor)}`} title="รีเซ็ต" size="small" icon={<ReloadOutlined />} onClick={() => {
+                        const reset = () => patchFloor(floor.floor_number, { status: 'idle', start_time: null, estimated_duration_seconds: 0, completed_at: null }, 'รีเซ็ตแล้ว');
+                        if (!external) { void reset(); return; }
+                        confirmModal.confirm({ title: `รีเซ็ต ${label(floor)}?`, content: 'เวลาที่จับอยู่จะถูกล้าง และเครื่องจะกลับเป็นสถานะว่าง สูตรและชื่อตัวละครยังอยู่', okText: 'รีเซ็ตเวลา', cancelText: 'ยกเลิก', okButtonProps: { danger: true }, onOk: async () => { if (!await reset()) throw new Error('รีเซ็ตไม่สำเร็จ'); } });
+                      }}>{external ? null : 'รีเซ็ต'}</Button>
                     </div>
                   </div>
                 );

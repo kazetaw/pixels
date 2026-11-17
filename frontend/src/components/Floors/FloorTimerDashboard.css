@@ -165,7 +165,7 @@
 .floor-dashboard--external .floor-card2__recipe { justify-content: flex-start; gap: 6px; align-self: stretch; padding: 7px 0 0; border-top: 1px solid #edf0f5; font-size: 11px; font-weight: 600; color: #334155; }
 .floor-dashboard--external .floor-card2__recipe > .anticon { display: grid; place-items: center; flex-shrink: 0; width: 23px; height: 23px; border-radius: 50%; background: var(--card-tint); color: var(--card-accent); font-size: 12px; }
 .floor-dashboard--external .floor-card2__actions { grid-template-columns: 44px 28px 28px; gap: 4px; align-items: center; padding-top: 7px; border-top: 1px solid #edf0f5; }
-.floor-dashboard--external .floor-card2__actions .ant-btn { height: 30px !important; font-size: 11px !important; padding-inline: 3px; border-radius: 8px !important; }
+.floor-dashboard--external .floor-card2__actions .ant-btn { height: 30px !important; min-height: 30px; font-size: 11px !important; padding-inline: 3px; border-radius: 8px !important; }
 .floor-dashboard--external .floor-card2__actions > .ant-btn:first-child .ant-btn-icon { display: none; }
 .floor-dashboard--external .floor-card2__actions .ant-btn-default:not(.floor-card2__stop) { border-color: transparent; background: #f3f5f8; }
 
@@ -175,7 +175,7 @@
   .floor-dashboard--external .floor-card2 {
     aspect-ratio: auto; min-width: 0; padding: 5px; gap: 4px;
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: 28px 44px 30px 16px 60px;
+    grid-template-rows: 28px 44px 30px 16px 78px;
     grid-template-areas: 'head' 'picture' 'status' 'recipe' 'actions';
     border-radius: 10px; border-top: 3px solid var(--card-accent);
   }
@@ -193,7 +193,213 @@
   .floor-dashboard--external .fcs--sub { font-size: 8px; line-height: 10px; white-space: nowrap; }
   .floor-dashboard--external .floor-card2__recipe { padding: 0; border: 0; justify-content: center; font-size: 9px; line-height: 14px; }
   .floor-dashboard--external .floor-card2__recipe > .anticon { display: none; }
-  .floor-dashboard--external .floor-card2__actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: 28px 28px; gap: 4px; padding: 0; border: 0; }
+  .floor-dashboard--external .floor-card2__actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: 36px 36px; gap: 6px; padding: 0; border: 0; }
   .floor-dashboard--external .floor-card2__actions > .ant-btn:first-child { grid-column: 1 / -1; }
-  .floor-dashboard--external .floor-card2__actions .ant-btn { width: 100%; min-width: 0; height: 28px !important; padding: 0; font-size: 11px !important; border-radius: 6px !important; }
+  .floor-dashboard--external .floor-card2__actions .ant-btn { width: 100%; min-width: 0; height: 36px !important; min-height: 36px; padding: 0; font-size: 11px !important; border-radius: 6px !important; }
+}
+
+/* Three columns keep every machine control visible on phones. */
+@container (max-width: 600px) {
+  .floor-dashboard--external .floor-cards-scroll { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .floor-dashboard--external .floor-card2__num { font-size: 12px; line-height: 14px; }
+  .floor-dashboard--external .floor-card2__recipe { font-size: 11px; }
+}
+
+.floor-dashboard--external .floor-card2__actions .ant-btn-primary:not(:disabled) { background: #eaf1ff !important; border-color: #cbdafb !important; color: #2454a6 !important; }
+.floor-dashboard--external .floor-card2__actions .ant-btn-primary:not(:disabled):hover { background: #dbe8ff !important; border-color: #8fafe9 !important; }
+@container (max-width: 600px) {
+  .floor-dashboard--external .floor-card2 { grid-template-rows: 60px 44px 36px 16px 78px; }
+  .floor-dashboard--external .floor-card2__head { padding-top: 30px; }
+  .floor-dashboard--external .floor-card2__settings { top: 2px; right: 2px; width: 32px; height: 32px !important; min-height: 32px; font-size: 15px; }
+  .floor-dashboard--external .fcs--timer { font-size: clamp(13px, 3.8cqw, 18px); }
+  .floor-dashboard--external .fcs--sub { font-size: 11px; line-height: 14px; }
+}
+
+/* Compact cards: keep a square preference without clipping mobile controls. */
+@container (max-width: 600px) {
+  .floor-dashboard--external .floor-card2 {
+    aspect-ratio: auto;
+    width: 100%;
+    height: 176px;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 28px minmax(32px, 1fr) 30px 14px 32px;
+    grid-template-areas: 'head' 'picture' 'status' 'recipe' 'actions';
+    gap: 3px;
+  }
+  .floor-dashboard--external .floor-card2__head { padding-top: 0; padding-right: 22px; }
+  .floor-dashboard--external .floor-card2__num { font-size: 11px; line-height: 14px; }
+  .floor-dashboard--external .floor-card2__settings { top: 2px; right: 0; width: 26px; height: 28px !important; min-height: 28px; font-size: 13px; }
+  .floor-dashboard--external .external-recipe-image,
+  .floor-dashboard--external .external-recipe-image .item-thumbnail { width: 32px !important; height: 32px !important; }
+  .floor-dashboard--external .floor-card2__actions { grid-template-columns: minmax(0, 1.2fr) repeat(2, minmax(0, 1fr)); grid-template-rows: 32px; gap: 3px; }
+  .floor-dashboard--external .floor-card2__actions > .ant-btn:first-child { grid-column: auto; }
+  .floor-dashboard--external .floor-card2__actions .ant-btn { height: 32px !important; min-height: 32px; font-size: 10px !important; }
+}
+
+/* Status stays readable at a glance, even in the compact three-column view. */
+.floor-dashboard--external .floor-card2 { background: var(--card-tint); border-color: color-mix(in srgb, var(--card-accent) 25%, white); }
+.floor-dashboard--external .floor-card2__status { gap: 3px; }
+.floor-dashboard--external .fcs--timer,
+.floor-dashboard--external .fcs--done,
+.floor-dashboard--external .fcs--float {
+  display: inline-flex; align-items: center; justify-content: center;
+  max-width: 100%; box-sizing: border-box; padding: 3px 7px;
+  border-radius: 5px; background: var(--card-accent); color: #fff;
+  font-weight: 700; line-height: 1.2;
+}
+.floor-dashboard--external .fcs--sub { color: #475569; font-weight: 500; }
+@container (max-width: 600px) {
+  .floor-dashboard--external .floor-card2 { grid-template-rows: 28px minmax(24px, 1fr) 40px 14px 32px; }
+  .floor-dashboard--external .fcs--done,
+  .floor-dashboard--external .fcs--float { font-size: 12px; }
+  .floor-dashboard--external .fcs--timer { font-size: clamp(12px, 3.6cqw, 16px); padding-inline: 4px; letter-spacing: -.4px; }
+  .floor-dashboard--external .fcs--sub { font-size: 10px; line-height: 13px; }
+}
+
+/* Progress concept: actual elapsed production time around the recipe image. */
+.floor-dashboard--external .floor-card2 {
+  --card-accent: #64748b; --card-tint: #f1f5f9;
+  background: #fff; border: 1px solid #dfe6ef; border-radius: 14px;
+  box-shadow: 0 3px 10px #20334e08; aspect-ratio: auto;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: 36px 22px 100px 64px 34px;
+  grid-template-areas: 'head' 'recipe' 'picture' 'status' 'actions';
+  gap: 6px; padding: 12px;
+}
+.floor-dashboard--external .floor-card2--running { --card-accent: #2785ed; --card-tint: #eff6ff; }
+.floor-dashboard--external .floor-card2--completed { --card-accent: #419c35; --card-tint: #f0faed; }
+.floor-dashboard--external .floor-card2--floating { --card-accent: #e77a62; --card-tint: #fff3ed; }
+.floor-dashboard--external .floor-card2__head { padding: 0 24px 0 0; align-items: start; border: 0; }
+.floor-dashboard--external .floor-card2__settings { position: absolute; top: 7px; right: 5px; width: 28px; height: 28px !important; min-height: 28px; background: transparent; color: #8694aa; }
+.floor-dashboard--external .floor-card2__machine { display: none; }
+.floor-dashboard--external .floor-card2__recipe { padding: 0; border: 0; justify-content: flex-start; font-size: 11px; gap: 4px; }
+.floor-dashboard--external .floor-card2__recipe > .anticon { display: inline-flex; width: auto; height: auto; background: none; color: #8694aa; }
+.external-progress { grid-area: picture; width: 100px; height: 100px; position: relative; place-self: center; }
+.external-progress > svg { display: block; width: 100%; height: 100%; overflow: visible; transform: rotate(-90deg); }
+.external-progress > svg > circle { fill: none; stroke-width: 5; }
+.external-progress__track { stroke: #e7ecf2; }
+.external-progress__value { stroke: var(--card-accent); stroke-linecap: round; transition: stroke-dashoffset 1s linear, stroke .4s ease; }
+.floor-dashboard--external .external-progress .external-recipe-image { position: absolute; inset: 0; margin: auto; width: 60px; height: 60px; }
+.floor-dashboard--external .external-progress .item-thumbnail { width: 60px !important; height: 60px !important; }
+.external-progress__badge { position: absolute; right: 0; bottom: 2px; display: grid; place-items: center; width: 27px; height: 27px; border: 3px solid white; border-radius: 50%; background: var(--card-accent); color: white; font-size: 17px; animation: external-status-arrive .35s ease-out; }
+.floor-card2--floating .external-progress__badge { animation: external-cloud-float 3s ease-in-out infinite; }
+.floor-card2--running .external-progress .external-recipe-image { animation: external-item-breathe 3s ease-in-out infinite; }
+.floor-dashboard--external .external-item-status { align-items: center; justify-content: center; gap: 3px; }
+.external-item-state { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--card-accent); font-weight: 600; }
+.external-item-time { font-size: 25px; line-height: 1.15; color: #233049; font-variant-numeric: tabular-nums; letter-spacing: -.6px; white-space: nowrap; }
+.external-item-note { font-size: 10px; color: #64748b; white-space: nowrap; }
+.floor-dashboard--external .floor-card2__actions { grid-template-columns: minmax(0, 1fr) 34px 34px; grid-template-rows: 34px; gap: 5px; padding: 0; border: 0; }
+.floor-dashboard--external .floor-card2__actions > .ant-btn:first-child { grid-column: auto; }
+.floor-dashboard--external .floor-card2__actions .ant-btn-primary:not(:disabled) { background: #419c35 !important; border-color: #419c35 !important; color: white !important; }
+.floor-dashboard--external .floor-card2__actions .ant-btn-primary:not(:disabled):hover { background: #34802a !important; border-color: #34802a !important; }
+.floor-dashboard--external .floor-card2__actions .floor-card2__stop { background: #2785ed; border-color: #2785ed; color: white; }
+@keyframes external-item-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.04); } }
+@keyframes external-cloud-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+@keyframes external-status-arrive { from { transform: scale(.65); opacity: .3; } to { transform: scale(1); opacity: 1; } }
+@container (max-width: 600px) {
+  .floor-dashboard--external .floor-card2 { height: 204px; padding: 6px; gap: 3px; grid-template-rows: 28px 14px 62px 44px 30px; border-radius: 11px; }
+  .floor-dashboard--external .floor-card2__head { padding-right: 19px; }
+  .floor-dashboard--external .floor-card2__num { font-size: 10px; line-height: 13px; }
+  .floor-dashboard--external .floor-card2__settings { top: 3px; right: 0; width: 24px; height: 28px !important; }
+  .floor-dashboard--external .floor-card2__recipe { font-size: 10px; }
+  .external-progress { width: 62px; height: 62px; }
+  .floor-dashboard--external .external-progress .external-recipe-image,
+  .floor-dashboard--external .external-progress .item-thumbnail { width: 38px !important; height: 38px !important; }
+  .external-progress__badge { width: 21px; height: 21px; border-width: 2px; font-size: 13px; }
+  .external-item-state { font-size: 10px; gap: 3px; }
+  .external-item-time { font-size: clamp(13px, 4cqw, 18px); }
+  .external-item-note { font-size: 9px; }
+  .floor-dashboard--external .external-item-status { gap: 1px; }
+  .floor-dashboard--external .floor-card2__actions { grid-template-columns: minmax(0, 1.2fr) repeat(2, minmax(0, 1fr)); grid-template-rows: 30px; gap: 3px; }
+  .floor-dashboard--external .floor-card2__actions .ant-btn { height: 30px !important; min-height: 30px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .floor-dashboard--external .external-progress *, .floor-dashboard--external .external-progress__value { animation: none !important; transition: none !important; }
+}
+
+/* Square cards: the ring and timing share the middle row. */
+.floor-dashboard--external .floor-card2 {
+  aspect-ratio: 1 / 1; width: 100%; height: auto; min-height: 0;
+  grid-template-columns: 84px minmax(0, 1fr);
+  grid-template-rows: 36px minmax(0, 1fr) 22px 34px;
+  grid-template-areas: 'head head' 'picture status' 'recipe recipe' 'actions actions';
+}
+.floor-dashboard--external .external-progress { width: 80px; height: 80px; }
+.floor-dashboard--external .external-item-time { font-size: 20px; }
+@container (max-width: 600px) {
+  .floor-dashboard--external .floor-card2 {
+    aspect-ratio: 1 / 1; height: auto; min-height: 0; padding: 4px; gap: 2px;
+    grid-template-columns: 28px minmax(0, 1fr);
+    grid-template-rows: 20px minmax(0, 1fr) 11px 24px;
+  }
+  .floor-dashboard--external .floor-card2__head { padding-right: 17px; }
+  .floor-dashboard--external .floor-card2__num { font-size: 9px; line-height: 10px; }
+  .floor-dashboard--external .floor-card2__settings { top: 1px; right: 0; width: 21px; height: 22px !important; min-height: 22px; font-size: 11px; }
+  .floor-dashboard--external .external-progress { width: 28px; height: 28px; }
+  .floor-dashboard--external .external-progress .external-recipe-image,
+  .floor-dashboard--external .external-progress .item-thumbnail { width: 19px !important; height: 19px !important; }
+  .external-progress__badge { width: 12px; height: 12px; font-size: 8px; border-width: 1px; bottom: -1px; right: -1px; }
+  .floor-dashboard--external .external-item-status { gap: 1px; }
+  .external-item-state { font-size: 8px; gap: 2px; line-height: 10px; }
+  .floor-dashboard--external .external-item-time { font-size: clamp(9px, 2.7cqw, 14px); letter-spacing: -.4px; line-height: 1.1; }
+  .external-item-note { font-size: 7px; line-height: 9px; }
+  .floor-dashboard--external .floor-card2__recipe { font-size: 9px; line-height: 11px; }
+  .floor-dashboard--external .floor-card2__recipe > .anticon { font-size: 9px; }
+  .floor-dashboard--external .floor-card2__actions { grid-template-rows: 24px; gap: 2px; }
+  .floor-dashboard--external .floor-card2__actions .ant-btn { height: 24px !important; min-height: 24px; font-size: 9px !important; }
+}
+
+/* Center the recipe again; allocate the flexible space to the artwork. */
+.floor-dashboard--external .floor-card2 {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: 26px minmax(0, 1fr) 48px 16px 30px;
+  grid-template-areas: 'head' 'picture' 'status' 'recipe' 'actions';
+  gap: 3px; padding: 8px;
+}
+.floor-dashboard--external .external-progress { width: 100%; height: 100%; aspect-ratio: 1; max-width: 90px; max-height: 90px; }
+.floor-dashboard--external .external-progress > svg { position: absolute; inset: 0; }
+.floor-dashboard--external .external-progress .external-recipe-image,
+.floor-dashboard--external .external-progress .item-thumbnail { width: 65% !important; height: 65% !important; }
+.floor-dashboard--external .external-progress .external-recipe-image .item-thumbnail { width: 100% !important; height: 100% !important; }
+.floor-dashboard--external .floor-card2__recipe { justify-content: center; }
+@container (max-width: 600px) {
+  .floor-dashboard--external .floor-card2 { padding: 3px; gap: 1px; grid-template-rows: 12px minmax(0, 1fr) 23px 9px 22px; }
+  .floor-dashboard--external .floor-card2__num { -webkit-line-clamp: 1; font-size: 9px; line-height: 12px; }
+  .floor-dashboard--external .floor-card2__head { padding-right: 16px; }
+  .floor-dashboard--external .floor-card2__settings { top: 0; right: 0; width: 20px; height: 20px !important; min-height: 20px; }
+  .floor-dashboard--external .external-progress { width: auto; height: 100%; max-width: 64px; max-height: 64px; }
+  .floor-dashboard--external .external-progress .external-recipe-image,
+  .floor-dashboard--external .external-progress .item-thumbnail { width: 85% !important; height: 85% !important; }
+  .floor-dashboard--external .external-progress .external-recipe-image .item-thumbnail { width: 100% !important; height: 100% !important; }
+  .external-progress__badge { width: 13px; height: 13px; font-size: 8px; }
+  .external-item-state { font-size: 8px; line-height: 9px; }
+  .floor-dashboard--external .external-item-time { font-size: 12px; line-height: 13px; }
+  .external-item-note { position: absolute; top: 16px; left: 3px; font-size: 7px; line-height: 8px; background: #ffffffed; z-index: 1; }
+  .floor-dashboard--external .floor-card2__recipe { font-size: 8px; line-height: 9px; }
+  .floor-dashboard--external .floor-card2__actions { grid-template-rows: 22px; }
+  .floor-dashboard--external .floor-card2__actions .ant-btn { height: 22px !important; min-height: 22px; }
+}
+
+/* Finish time remains visible; operator name anchors the lower left. */
+.floor-dashboard--external .floor-card2__recipe { justify-content: flex-start; text-align: left; }
+.external-item-note { position: static; background: transparent; }
+@container (max-width: 600px) {
+  .floor-dashboard--external .floor-card2 { grid-template-rows: 12px minmax(0, 1fr) 31px 9px 22px; }
+  .external-item-note { position: static; font-size: 8px; line-height: 9px; background: transparent; }
+  .floor-dashboard--external .external-item-status { gap: 0; }
+}
+
+/* Consistent spacing for square cards and explicit completion timestamps. */
+.floor-dashboard--external .floor-card2 { padding: 10px; gap: 4px; grid-template-rows: 26px minmax(0, 1fr) 55px 16px 30px; }
+.floor-dashboard--external .external-item-status { gap: 2px; }
+.external-item-note { display: flex; justify-content: center; flex-wrap: wrap; column-gap: 3px; line-height: 12px; }
+.floor-dashboard--external .floor-card2__recipe { justify-content: flex-start; gap: 4px; }
+@container (max-width: 600px) {
+  .floor-dashboard--external .floor-card2 { padding: 4px; gap: 2px; grid-template-rows: 12px minmax(0, 1fr) 30px 9px 22px; }
+  .floor-dashboard--external .external-item-status { gap: 0; }
+  .external-item-state { line-height: 9px; font-size: 7px; }
+  .floor-dashboard--external .external-item-time { line-height: 12px; font-size: 11px; }
+  .external-item-note { display: block; white-space: nowrap; font-size: 7px; line-height: 9px; letter-spacing: -.2px; }
+  .floor-dashboard--external .floor-card2__actions { gap: 3px; }
 }

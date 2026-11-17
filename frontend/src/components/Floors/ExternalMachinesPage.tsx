@@ -92,7 +92,7 @@ export function ExternalMachinesPage() {
         <div className="external-workspace__identity">
           <span className="external-workspace__avatar" aria-hidden>{account ? account.username.slice(0, 2).toUpperCase() : <LaptopOutlined />}</span>
           <div><strong>{account ? account.username : 'พื้นที่ส่วนตัวในเครื่องนี้'}</strong>
-            <p>{account ? <><CheckCircleFilled /> จำการเข้าสู่ระบบแล้ว</> : 'รายการเดิมยังอยู่ครบ ใช้ต่อได้ทันที'}</p>
+            <p>{account ? <><CheckCircleFilled /> จำการเข้าสู่ระบบแล้ว</> : 'บันทึกเฉพาะเบราว์เซอร์นี้'}</p>
           </div>
         </div>
         {account ? <Dropdown trigger={['click']} menu={{ items: [
@@ -112,7 +112,7 @@ export function ExternalMachinesPage() {
           { label: 'ในเครื่องนี้', value: 'local', icon: <LaptopOutlined /> },
         ]} />
         <span>{mode === 'cloud' ? 'บันทึกในบัญชี • ดูต่อได้ทุกอุปกรณ์' : 'บันทึกเฉพาะเบราว์เซอร์นี้'}</span>
-      </div> : <div className="external-workspace__benefit"><CloudOutlined /><span></span></div>}
+      </div> : null}
     </section>
     {localError && <Alert type="warning" message={localError} className="external-account-alert" />}
     {account && localTimers.length > 0 && !imported && <section className="external-import-prompt">

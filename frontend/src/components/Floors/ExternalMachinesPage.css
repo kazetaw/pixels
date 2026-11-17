@@ -58,3 +58,15 @@
   .external-import-prompt > button { width: 100%; height: 40px !important; }
   .external-auth-heading h2 { font-size: 19px; }
 }
+
+/* Keep storage identity visible without pushing timers down the screen. */
+.external-workspace { margin-bottom: 12px; }
+.external-workspace__top { padding: 12px; gap: 8px; }
+@media (max-width: 600px) {
+  .external-workspace__avatar { width: 28px; height: 28px; border-radius: 8px; }
+  .external-workspace__identity strong { font-size: 12px; }
+  .external-workspace__identity p { font-size: 11px; margin: 0; }
+  .external-workspace__auth-actions { justify-content: flex-end; gap: 6px; }
+  .external-workspace__auth-actions > button { flex: 0 1 auto; font-size: 12px !important; }
+  .external-workspace__source { padding: 8px 12px; }
+}
