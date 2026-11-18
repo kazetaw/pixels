@@ -74,6 +74,14 @@ export function FloorTimerDashboard({ external = false, cloud = false, accountId
   const [confirmModal, confirmContext] = Modal.useModal();
   const [messageApi, contextHolder] = message.useMessage();
 
+  useEffect(() => {
+    if (!external || !cloud || loading) return;
+    const id = Number(new URLSearchParams(window.location.search).get('externalTimer'));
+    if (!id || !floors.some(floor => floor.floor_number === id)) return;
+    setHighlighted(id);
+    document.getElementById(`floor-card-${id}`)?.scrollIntoView({ block: 'center' });
+  }, [external, cloud, loading]);
+
   const load = useCallback(async () => {
     setLoading(true); setError(null);
     try {

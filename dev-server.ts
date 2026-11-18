@@ -11,6 +11,7 @@ import { resolve } from 'path';
 
 // Load .env.local first, fallback to .env
 config({ path: resolve(process.cwd(), '.env.local') });
+config({ path: resolve(process.cwd(), '.env.push.local') });
 config({ path: resolve(process.cwd(), '.env') });
 import express from 'express';
 import cors from 'cors';

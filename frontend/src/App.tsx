@@ -666,6 +666,7 @@ export default function App() {
   const [isStore] = useState(isStorePath);
   const [publicInventory, setPublicInventory] = useState(isInventoryPath);
   const [view, setViewState] = useState<MainView>(() => {
+    if (new URLSearchParams(window.location.search).has('externalTimer')) return 'external-machines';
     if (isInventoryPath()) return 'inventory';
     return savedNavigation(isAdminPath());
   });

@@ -1,3 +1,4 @@
+import { externalPushAccount } from './externalPush.js';
 import { randomBytes, scrypt, timingSafeEqual, createHash } from 'node:crypto';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getSupabase } from './db.js';
@@ -92,6 +93,12 @@ export async function externalAccountHandler(req: VercelRequest, res: VercelResp
       const token = randomBytes(32).toString('hex');
       const { error } = await db.from('external_sessions').insert({ token_hash: digest(token), owner_id: account.id, expires_at: new Date(Date.now() + DAYS * 1000).toISOString() });
       if (error) throw error;
+      // Replacing this browser's login must stop pushes for its previous account.
+      const previousToken = tokenFrom(req);
+      if (previousToken) {
+        const { error: revokeError } = await db.from('external_sessions').delete().eq('token_hash', digest(previousToken));
+        if (revokeError) throw revokeError;
+      }
       cookie(res, token);
       return res.json({ id: account.id, username: account.username });
     }
@@ -116,6 +123,7 @@ export async function externalAccountHandler(req: VercelRequest, res: VercelResp
       if (!renewed) return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบ' });
       cookie(res, token);
     }
+    if (route === 'push') return await externalPushAccount(req, res, owner, digest(token));
     if (route === 'session' && req.method === 'GET') {
       const { data, error } = await db.from('external_accounts').select('id,username').eq('id', owner).single();
       if (error) throw error; return res.json(data);

@@ -70,3 +70,7 @@
   .external-workspace__auth-actions > button { flex: 0 1 auto; font-size: 12px !important; }
   .external-workspace__source { padding: 8px 12px; }
 }
+.external-push-settings { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; margin-bottom: 16px; border: 1px solid #dce4ef; border-radius: 12px; background: #fff; }
+.external-push-settings strong { font-size: 12px; color: #334155; }
+.external-push-settings p { margin: 4px 0 0; font-size: 11px; color: #64748b; line-height: 1.6; }
+.external-push-settings .ant-alert { flex-basis: 100%; }

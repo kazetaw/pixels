@@ -1,3 +1,4 @@
+import { ExternalPushSettings } from './ExternalPushSettings';
 import './ExternalMachinesPage.css';
 import { useEffect, useState } from 'react';
 import { Alert, Button, Dropdown, Form, Input, Modal, Segmented, Skeleton, message } from 'antd';
@@ -121,6 +122,7 @@ export function ExternalMachinesPage() {
       <Button onClick={previewImport}>ตรวจรายการและนำเข้า</Button>
     </section>}
     {notice && <Alert type="success" showIcon message={notice} closable onClose={() => setNotice('')} className="external-account-alert" />}
+    <ExternalPushSettings key={`push:${account?.id ?? "local"}:${mode}`} accountId={account?.id} cloud={mode === "cloud"} />
     <FloorTimerDashboard key={`${mode}:${account?.id ?? 'local'}:${revision}`} external accountId={account?.id} cloud={mode === 'cloud' && !!account} />
     <Modal open={authOpen} onCancel={() => { if (!busy) setAuthOpen(false); }} footer={null} width={420} className="external-auth-modal" title={null} destroyOnClose maskClosable={!busy} closable={!busy}>
       <div className="external-auth-heading"><span aria-hidden><CloudOutlined /></span><h2>{register ? 'พื้นที่ของคุณ บนทุกอุปกรณ์' : 'กลับมาดูเครื่องนอกของคุณ'}</h2><p>{register ? 'สร้างบัญชี แล้วนำเข้ารายการเดิมได้เลย' : 'เข้าสู่ระบบครั้งเดียว ใช้งานต่อได้ยาว ๆ'}</p></div>

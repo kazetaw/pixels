@@ -4,6 +4,7 @@
   "outputDirectory": "frontend/dist",
   "installCommand": "npm ci --include=dev && npm ci --prefix frontend --include=dev",
   "framework": null,
+  "functions": { "api/index.ts": { "maxDuration": 60 } },
   "rewrites": [
     { "source": "/api/upload-image", "destination": "/api/upload-image" },
     { "source": "/api/:path*",       "destination": "/api/index" },
