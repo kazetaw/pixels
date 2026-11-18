@@ -1,6 +1,6 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getSupabase } from './db.js';
+import { getSupabase, readRecipes } from './db.js';
 
 type WebPushModule = {
   sendNotification: (sub: { endpoint: string; keys: { p256dh: string; auth: string } }, payload: string, options?: object) => Promise<unknown>;
@@ -55,12 +55,12 @@ export async function externalPushAccount(req: VercelRequest, res: VercelRespons
   if (error) throw error;
   return res.json({ enabled: true });
 }
-export function notificationPayload(row: any) {
+export function notificationPayload(row: any, recipeName?: string) {
   const name = String(row.timer_data.name || 'เครื่องนอก').slice(0, 120);
   const character = String(row.timer_data.character_name || '').slice(0, 80);
   return {
-    title: `${name} ผลิตเสร็จแล้ว`,
-    body: `${character ? `${character} · ` : ''}เสร็จ ${new Date(row.due_at).toLocaleTimeString('en-US', { timeZone: 'Asia/Bangkok', hour: 'numeric', minute: '2-digit' })} · กลับมาเก็บก่อนลอย`,
+    title: `${recipeName?.trim().slice(0, 120) || name} ผลิตเสร็จแล้ว`,
+    body: `${recipeName?.trim() ? `${name} · ` : ''}${character ? `${character} · ` : ''}เสร็จ ${new Date(row.due_at).toLocaleTimeString('en-US', { timeZone: 'Asia/Bangkok', hour: 'numeric', minute: '2-digit' })} · กลับมาเก็บก่อนลอย`,
     tag: `external-${row.timer_id}-${createHash('sha256').update(row.run_start).digest('hex').slice(0, 12)}`,
     url: `/?externalTimer=${row.timer_id}`,
   };
@@ -74,6 +74,12 @@ export async function externalPushDispatch(req: VercelRequest, res: VercelRespon
   try {
     const { data: jobs, error } = await db.rpc('external_push_claim');
     if (error) throw error;
+    // Resolve canonical catalog names once per batch, not once per device.
+    let recipeNames = new Map<string, string>();
+    if (jobs?.length) {
+      try { recipeNames = new Map((await readRecipes()).map(recipe => [recipe.id, recipe.name])); }
+      catch { console.error('Push recipe lookup failed; using machine names'); }
+    }
     let sent = 0, failed = 0;
     // Bounded batches keep runtime and provider traffic predictable.
     for (let i = 0; i < (jobs ?? []).length; i += 10) {
@@ -84,7 +90,7 @@ export async function externalPushDispatch(req: VercelRequest, res: VercelRespon
         if (!live) return;
         try {
           const webpush = await getWebPush();
-          await webpush.sendNotification(validateSubscription(row.subscription), JSON.stringify(notificationPayload(row)), {
+          await webpush.sendNotification(validateSubscription(row.subscription), JSON.stringify(notificationPayload(row, recipeNames.get(row.timer_data.recipe_id))), {
             TTL: 900, urgency: 'high', timeout: 8000,
             vapidDetails: { subject: process.env.WEB_PUSH_SUBJECT!, publicKey: process.env.WEB_PUSH_PUBLIC_KEY!, privateKey: process.env.WEB_PUSH_PRIVATE_KEY! },
           });

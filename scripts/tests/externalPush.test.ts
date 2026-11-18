@@ -24,6 +24,10 @@ test('notification links to a machine and stable tag deduplicates delivery retri
   assert.equal(payload.url, '/?externalTimer=12');
   assert.match(payload.body, /11:00 AM/);
   assert.match(payload.body, /ซันลี่/);
+  const named = notificationPayload(row, 'หน่วยความจำ');
+  assert.equal(named.title, 'หน่วยความจำ ผลิตเสร็จแล้ว');
+  assert.match(named.body, /แลป · ซันลี่/);
+  assert.equal(notificationPayload(row, ' ').title, payload.title);
   assert.equal(payload.tag, notificationPayload(row).tag);
   assert.notEqual(payload.tag, notificationPayload({ ...row, run_start: '2026-11-18T02:00:00Z' }).tag);
 });
