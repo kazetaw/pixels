@@ -214,20 +214,21 @@ export function FloorTimerDashboard({ external = false, cloud = false, accountId
           </span>
         ))}
       </div>
-      {!external && <div className="floor-overview">
+      <div className={`floor-overview${external ? " external-image-overview" : ""}`}>
         <div className="floor-overview__cells">
           {displayFloors.map((floor) => (
             <button
               key={floor.floor_number}
               className={`floor-overview-cell floor-overview-cell--${floor.displayStatus}`}
-              title={`${label(floor)} — ${statusMeta[floor.displayStatus].label}`}
+              title={`${label(floor)} — ${recipes.find(recipe => recipe.id === floor.recipe_id)?.name ?? "ยังไม่ได้เลือกสูตร"} — ${statusMeta[floor.displayStatus].label}`}
+              aria-label={`${label(floor)} — ${recipes.find(recipe => recipe.id === floor.recipe_id)?.name ?? "ยังไม่ได้เลือกสูตร"} — ${statusMeta[floor.displayStatus].label}`}
               onClick={() => {
                 setHighlighted(floor.floor_number);
                 document.getElementById(`floor-card-${floor.floor_number}`)
-                  ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  ?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
               }}
             >
-              {external ? label(floor) : floor.floor_number}
+              {external ? <><ItemThumbnail id={floor.recipe_id || undefined} size={38} /><i className={`floor-dot floor-dot--${floor.displayStatus}`} aria-hidden="true" /></> : floor.floor_number}
             </button>
           ))}
           {/* + add button as last cell */}
@@ -240,7 +241,7 @@ export function FloorTimerDashboard({ external = false, cloud = false, accountId
           </button>
         </div>
         <p className="floor-overview__hint">แตะเพื่อไปยังรายละเอียด</p>
-      </div>}</section>
+      </div></section>
     )}
 
     {/* ── Floor cards ── */}
