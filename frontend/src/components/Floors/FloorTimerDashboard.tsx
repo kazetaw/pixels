@@ -347,9 +347,9 @@ export function FloorTimerDashboard({ external = false, cloud = false, accountId
       <p className="floor-modal-note">ระบุเวลาที่ต้องการ — ระบบจะเริ่มนับถอยหลังทันที</p>
       <Form form={customTimerForm} layout="vertical" initialValues={{ hours: 0, minutes: 30, seconds: 0 }}>
         <div className="floor-time-inputs">
-          <Form.Item label="ชั่วโมง" name="hours" rules={[{ required: true }]}><InputNumber min={0} max={99} /></Form.Item>
-          <Form.Item label="นาที" name="minutes" rules={[{ required: true }]}><InputNumber min={0} max={59} /></Form.Item>
-          <Form.Item label="วินาที" name="seconds" rules={[{ required: true }]}><InputNumber min={0} max={59} /></Form.Item>
+          <Form.Item label="ชั่วโมง" name="hours" rules={[{ required: true }]}><InputNumber min={0} max={99} onChange={v => customTimerForm.setFieldValue('hours', v ?? 0)} /></Form.Item>
+          <Form.Item label="นาที" name="minutes" rules={[{ required: true }]}><InputNumber min={0} max={59} onChange={v => customTimerForm.setFieldValue('minutes', v ?? 0)} /></Form.Item>
+          <Form.Item label="วินาที" name="seconds" rules={[{ required: true }]}><InputNumber min={0} max={59} onChange={v => customTimerForm.setFieldValue('seconds', v ?? 0)} /></Form.Item>
         </div>
       </Form>
     </Modal>

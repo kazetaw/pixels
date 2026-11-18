@@ -61,6 +61,7 @@ import { CharacterTracker } from './components/CharacterTracker/CharacterTracker
 import { ProductionCalculator } from './components/shared/ProductionCalculator';
 import { CraftingGuide } from './components/CraftingGuide/CraftingGuide';
 import type { SaveStatus } from './hooks/useAppState';
+import { WelcomeBanner } from './components/shared/WelcomeBanner';
 
 const { Sider, Content } = Layout;
 
@@ -1041,6 +1042,7 @@ export default function App() {
 
           {view === 'external-machines' && (
             <div className="page-content floor-page-content">
+              <WelcomeBanner />
               <PageHead title="เครื่องนอก" sub="ตั้งชื่อและจับเวลาเครื่องนอกของคุณ" />
               <ExternalMachinesPage />
             </div>
