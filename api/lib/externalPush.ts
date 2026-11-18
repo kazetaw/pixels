@@ -1,12 +1,16 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
-import webpush from 'web-push';
+import type webpushType from 'web-push';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getSupabase } from './db.js';
+
+async function getWebPush(): Promise<typeof webpushType> {
+  return (await import('web-push')).default as typeof webpushType;
+}
 
 export function pushConfigured() {
   return Boolean(process.env.WEB_PUSH_PUBLIC_KEY && process.env.WEB_PUSH_PRIVATE_KEY && process.env.WEB_PUSH_SUBJECT && process.env.CRON_SECRET);
 }
-export function validateSubscription(value: any): webpush.PushSubscription {
+export function validateSubscription(value: any): { endpoint: string; keys: { p256dh: string; auth: string } } {
   if (!value || typeof value.endpoint !== 'string' || value.endpoint.length > 2048) throw new Error('ข้อมูลอุปกรณ์ไม่ถูกต้อง');
   const url = new URL(value.endpoint);
   // Push endpoints are capabilities, not arbitrary URLs: avoid server-side request forgery.
@@ -42,6 +46,7 @@ export async function externalPushAccount(req: VercelRequest, res: VercelRespons
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   if (!pushConfigured()) return res.status(503).json({ error: 'ระบบแจ้งเตือนยังไม่ได้ตั้งค่า' });
   const subscription = validateSubscription(req.body?.subscription);
+  const webpush = await getWebPush();
   const { error } = await db.from('external_push_subscriptions').upsert({ owner_id: owner, session_hash: sessionHash, endpoint: subscription.endpoint, subscription }, { onConflict: 'endpoint' });
   if (error) throw error;
   return res.json({ enabled: true });
@@ -74,6 +79,7 @@ export async function externalPushDispatch(req: VercelRequest, res: VercelRespon
         if (liveError) throw liveError;
         if (!live) return;
         try {
+          const webpush = await getWebPush();
           await webpush.sendNotification(validateSubscription(row.subscription), JSON.stringify(notificationPayload(row)), {
             TTL: 900, urgency: 'high', timeout: 8000,
             vapidDetails: { subject: process.env.WEB_PUSH_SUBJECT!, publicKey: process.env.WEB_PUSH_PUBLIC_KEY!, privateKey: process.env.WEB_PUSH_PRIVATE_KEY! },
