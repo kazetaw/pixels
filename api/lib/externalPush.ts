@@ -1,10 +1,14 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
-import type webpushType from 'web-push';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getSupabase } from './db.js';
 
-async function getWebPush(): Promise<typeof webpushType> {
-  return (await import('web-push')).default as typeof webpushType;
+type WebPushModule = {
+  sendNotification: (sub: { endpoint: string; keys: { p256dh: string; auth: string } }, payload: string, options?: object) => Promise<unknown>;
+  setVapidDetails: (subject: string, publicKey: string, privateKey: string) => void;
+};
+
+async function getWebPush(): Promise<WebPushModule> {
+  return await import('web-push') as unknown as WebPushModule;
 }
 
 export function pushConfigured() {
@@ -96,7 +100,7 @@ export async function externalPushDispatch(req: VercelRequest, res: VercelRespon
           } else {
             const { error } = await db.from('external_push_deliveries').update({ lease_until: null, next_attempt_at: new Date(Date.now() + Math.min(300, 30 * 2 ** row.attempts) * 1000).toISOString() }).eq('id', row.delivery_id);
             if (error) throw error;
-            console.error('External push delivery failed', status ?? 'transport');
+            console.error('External push delivery failed', status ?? 'transport', (e as Error).message?.slice(0, 200));
           }
         }
       }));
