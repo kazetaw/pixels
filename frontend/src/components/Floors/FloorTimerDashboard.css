@@ -480,3 +480,45 @@
   .floor-dashboard--external .floor-card2__actions .ant-btn { height: 28px !important; min-height: 28px; font-size: 10px !important; }
   .floor-dashboard--external .external-progress__badge { width: 17px; height: 17px; border-width: 2px; font-size: 10px; }
 }
+
+.external-config-footer{display:flex;align-items:center;gap:8px}.external-config-footer>span{flex:1}
+
+/* One flex row keeps delete/settings aligned at every breakpoint. */
+.floor-card-tools{display:contents}
+.floor-dashboard--external .floor-card2__head{padding-right:64px}
+.floor-dashboard--external .external-card-tools{position:absolute;top:7px;right:5px;display:flex;align-items:center;gap:2px;z-index:2}
+.floor-dashboard--external .external-card-tools .ant-btn{position:static;display:inline-flex;align-items:center;justify-content:center;flex:none;margin:0;padding:0;width:28px;height:28px!important;min-height:28px;font-size:13px;background:transparent;color:#8694aa}
+.floor-dashboard--external .external-card-tools .external-card-delete:not(:disabled):hover{color:#dc3545;background:#fff0f1}
+@media(min-width:901px){.floor-dashboard--external .floor-card2__head{padding-right:74px}.floor-dashboard--external .external-card-tools{top:15px;right:14px}.floor-dashboard--external .external-card-tools .ant-btn{width:34px;height:34px!important;min-height:34px;font-size:16px}}
+@media(max-width:900px){.floor-dashboard--external .floor-card2__head{padding-right:50px}.floor-dashboard--external .external-card-tools{top:4px;right:2px;gap:0}.floor-dashboard--external .external-card-tools .ant-btn{width:24px;height:24px!important;min-height:24px;font-size:12px}}
+
+.external-delete-dialog.ant-modal{max-width:calc(100vw - 40px);top:0;padding-bottom:0}
+.external-delete-dialog .ant-modal-container{padding:24px!important;border-radius:14px!important;background:#fff;box-shadow:0 16px 48px #00000020}
+.external-delete-dialog .ant-modal-confirm-title{color:#202428;font-size:18px;font-weight:600;line-height:1.5}
+.external-delete-dialog .ant-modal-confirm-content{margin-top:12px!important;color:#687078;font-size:13px}
+.external-delete-copy strong{display:block;color:#343b42;font-size:14px;font-weight:500;overflow-wrap:anywhere}
+.external-delete-copy p{margin:8px 0 4px;line-height:1.65}
+.external-delete-copy>span{color:#899096;font-size:12px}
+.external-delete-dialog .ant-modal-confirm-btns{display:flex;justify-content:flex-end;gap:8px;margin-top:24px}
+.external-delete-dialog .ant-modal-confirm-btns .ant-btn{margin:0!important;min-width:76px;height:36px!important;border-radius:7px;box-shadow:none;font-size:13px}
+.external-delete-dialog .ant-btn-dangerous.ant-btn-primary{background:#c44141!important;border-color:#c44141!important}
+.external-delete-dialog .ant-btn-dangerous.ant-btn-primary:not(:disabled):hover{background:#ac3434!important;border-color:#ac3434!important}
+
+/* Compact external-machine form: related fields share a row. */
+.external-add-dialog.ant-modal{max-width:calc(100vw - 28px);top:0;padding-bottom:0}
+.external-add-dialog .ant-modal-container{padding:22px!important;border-radius:14px!important;max-height:calc(100dvh - 32px);overflow-y:auto}
+.external-add-dialog .ant-modal-header{padding:0!important;margin:0 0 20px!important;border:0!important}
+.external-add-dialog .ant-modal-title{font-size:17px!important;font-weight:600!important}
+.external-add-dialog .ant-modal-close{top:16px;right:16px}
+.external-add-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:14px;row-gap:14px}
+.external-add-grid .ant-form-item{margin:0;min-width:0}
+.external-add-grid .ant-form-item-hidden{display:none}
+.external-add-grid .ant-form-item-label{padding-bottom:5px!important}
+.external-add-grid .ant-form-item-label>label{font-size:12px;color:#515963;height:auto}
+.external-add-grid .ant-select{width:100%;min-width:0}
+.external-add-grid .ant-input,.external-add-grid .ant-select-selector{border-radius:7px!important}
+.external-add-recipe{grid-column:1/-1}
+.external-add-hint{margin:10px 0 0;color:#8a9199;font-size:11px;line-height:1.5}
+.external-add-dialog .ant-modal-footer{margin-top:20px;padding-top:0}
+.external-add-dialog .ant-modal-footer .ant-btn{height:36px!important;border-radius:7px;font-size:13px;box-shadow:none}
+@media(max-width:380px){.external-add-dialog .ant-modal-container{padding:18px!important}.external-add-grid{column-gap:10px;row-gap:12px}.external-add-grid .ant-form-item-label>label{font-size:11px}}

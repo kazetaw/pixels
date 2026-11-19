@@ -2,6 +2,12 @@ import type { FloorTimer } from '../../types';
 
 export const EXTERNAL_TIMER_PREFIX = 'pixel-external-timer-v1:';
 
+export function deleteExternalTimer(id: number, storage: Storage = localStorage): void {
+  if (!Number.isSafeInteger(id) || id < 0) throw new Error('รหัสเครื่องนอกไม่ถูกต้อง');
+  try { storage.removeItem(EXTERNAL_TIMER_PREFIX + id); }
+  catch { throw new Error('ลบเครื่องนอกไม่ได้ กรุณาลองใหม่'); }
+}
+
 // One key per timer keeps edits to different timers in separate tabs independent.
 export function readExternalTimers(storage: Storage = localStorage): FloorTimer[] {
   const timers: FloorTimer[] = [];

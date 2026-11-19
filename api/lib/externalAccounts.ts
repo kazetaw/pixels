@@ -146,6 +146,14 @@ export async function externalAccountHandler(req: VercelRequest, res: VercelResp
       const { data, error } = await db.from('external_account_timers').insert({ owner_id: owner, data: validateTimer(req.body) }).select('id,data').single();
       if (error) throw error; return res.status(201).json(serialize(data));
     }
+    if (route === 'timers' && req.method === 'DELETE') {
+      const id = Number(segments[2]);
+      if (!Number.isSafeInteger(id) || id < 1) return res.status(400).json({ error: 'รหัสไม่ถูกต้อง' });
+      // Timer foreign keys cascade to its pending push deliveries.
+      const { error } = await db.from('external_account_timers').delete().eq('id', id).eq('owner_id', owner);
+      if (error) throw error;
+      return res.json({ ok: true });
+    }
     if (route === 'timers' && req.method === 'PATCH') {
       const id = Number(segments[2]);
       if (!Number.isSafeInteger(id) || id < 1) return res.status(400).json({ error: 'รหัสไม่ถูกต้อง' });

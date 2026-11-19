@@ -45,6 +45,12 @@ test('account API scopes reads, atomic edits and idempotent imports to authentic
     assert.equal((await call('PATCH', 'timers/99', { name: 'attempt', owner_id: 'owner-b' })).status, 404);
     assert.equal(requests.at(-1)!.body.p_owner, 'owner-a');
     assert.deepEqual(requests.at(-1)!.body.p_patch, { name: 'attempt' });
+    assert.equal((await call('DELETE', 'timers/99')).status, 200);
+    assert.equal(requests.at(-1)!.url.searchParams.get('owner_id'), 'eq.owner-a');
+    assert.equal(requests.at(-1)!.url.searchParams.get('id'), 'eq.99');
+    assert.equal((await call('DELETE', 'timers/invalid')).status, 400);
+    assert.equal((await call('DELETE', 'timers/99', {}, false)).status, 401);
+    assert.equal((await call('DELETE', 'timers/99', {}, true, true)).status, 403);
     await call('POST', 'import', { timers: [{ floor_number: 123, name: 'local', owner_id: 'owner-b', status: 'running', start_time: '2026-11-16T08:00:00Z', estimated_duration_seconds: 7200 }] });
     assert.equal(requests.at(-1)!.body[0].owner_id, 'owner-a');
     assert.equal(requests.at(-1)!.body[0].import_key, 'local:123');

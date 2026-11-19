@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { createExternalTimer, readExternalTimers, updateExternalTimer } from '../../frontend/src/components/Floors/externalTimerStorage';
+import { deleteExternalTimer, createExternalTimer, readExternalTimers, updateExternalTimer } from '../../frontend/src/components/Floors/externalTimerStorage';
 function memory(): Storage {
   const data = new Map<string, string>();
   return { get length() { return data.size; }, key: i => [...data.keys()][i] ?? null,
@@ -27,4 +27,15 @@ test('failed writes report errors and preserve existing timer', () => {
   storage.setItem = () => { throw new Error('QuotaExceeded'); };
   assert.throws(() => updateExternalTimer(timer.floor_number, { name: 'ใหม่' }, storage), /บันทึกเครื่องนอกไม่ได้/);
   assert.equal(readExternalTimers(storage)[0].name, 'เดิม');
+});
+
+test('delete removes only the selected local timer and reports storage failures', () => {
+  const storage = memory();
+  const first = createExternalTimer({ name: 'delete me' }, storage);
+  const second = createExternalTimer({ name: 'keep me' }, storage);
+  deleteExternalTimer(first.floor_number, storage);
+  assert.deepEqual(readExternalTimers(storage).map(x => x.floor_number), [second.floor_number]);
+  storage.removeItem = () => { throw new Error('blocked'); };
+  assert.throws(() => deleteExternalTimer(second.floor_number, storage), /ลบเครื่องนอกไม่ได้/);
+  assert.equal(readExternalTimers(storage).length, 1);
 });

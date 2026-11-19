@@ -1,10 +1,10 @@
 import { cloudTimers } from './externalAccountClient';
-import { EXTERNAL_TIMER_PREFIX, readExternalTimers, createExternalTimer, updateExternalTimer } from './externalTimerStorage';
+import { EXTERNAL_TIMER_PREFIX, readExternalTimers, createExternalTimer, updateExternalTimer, deleteExternalTimer } from './externalTimerStorage';
 import './FloorTimerDashboard.css';
 import { ItemThumbnail, ItemLabel, ItemVisualProvider, itemSelectVisuals } from '../shared/ItemVisual';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Empty, Form, Input, InputNumber, Modal, Select, Spin, Tag, message } from 'antd';
-import { CheckCircleFilled, CloudOutlined, PauseCircleOutlined, PlayCircleOutlined, PlusOutlined, ReloadOutlined, SettingOutlined, ClockCircleOutlined, UserOutlined } from '@ant-design/icons';
+import { CheckCircleFilled, CloudOutlined, PauseCircleOutlined, PlayCircleOutlined, PlusOutlined, ReloadOutlined, SettingOutlined, DeleteOutlined, ClockCircleOutlined, UserOutlined } from '@ant-design/icons';
 import { createFloorTimer, fetchAllData, fetchFloorTimers, updateFloorTimer } from '../../api/client';
 import type { FloorDisplayStatus, FloorTimer, Machine, Recipe, StockImageMap } from '../../types';
 import { machinesForProfession } from './floorOptions';
@@ -138,6 +138,32 @@ export function FloorTimerDashboard({ external = false, cloud = false, accountId
       return true;
     } catch (e) { messageApi.error((e as Error).message); return false; }
     finally { setSaving(false); }
+  };
+
+  const confirmDelete = (floor: FloorTimer) => {
+    if (!external) return;
+    confirmModal.confirm({
+      centered: true,
+      width: 360,
+      className: 'external-delete-dialog',
+      icon: null,
+      title: 'ลบเครื่องนี้ไหม?',
+      content: <div className="external-delete-copy"><strong>{label(floor)}</strong><p>{cloud ? 'เครื่องนี้จะหายไปจากบัญชี และจะไม่มีแจ้งเตือนแล้ว' : 'เครื่องนี้และเวลาที่ตั้งไว้จะถูกลบออก'}</p><span>ถ้าจะใช้ต่อ ต้องเพิ่มใหม่</span></div>,
+      okText: 'ลบ', cancelText: 'ยกเลิก', autoFocusButton: 'cancel',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        setSaving(true);
+        try {
+          if (cloud) await cloudTimers.remove(floor.floor_number, accountId);
+          else deleteExternalTimer(floor.floor_number);
+          setFloors(items => items.filter(item => item.floor_number !== floor.floor_number));
+          setConfiguring(null);
+          setCustomTimerFloor(current => current?.floor_number === floor.floor_number ? null : current);
+          messageApi.success(`ลบ ${label(floor)} แล้ว`);
+        } catch (e) { messageApi.error((e as Error).message); throw e; }
+        finally { setSaving(false); }
+      },
+    });
   };
 
   const startDirect = async (floor: FloorTimer) => {
@@ -275,7 +301,10 @@ export function FloorTimerDashboard({ external = false, cloud = false, accountId
                     <div className="floor-card2__head">
                       <span className="floor-card2__num" title={label(floor)}>{label(floor)}</span>
                       {!external && <Tag color={meta.color}>{meta.label}</Tag>}
+                      <span className={external ? 'external-card-tools' : 'floor-card-tools'}>
+                      {external && <Button className="external-card-delete" type="text" size="small" aria-label={`ลบ ${label(floor)}`} title="ลบเครื่องนอก" icon={<DeleteOutlined />} disabled={saving} onClick={() => confirmDelete(floor)} />}
                       <Button className="floor-card2__settings" type="text" size="small" aria-label={`ตั้งค่า ${label(floor)}`} icon={<SettingOutlined />} onClick={() => openConfig(floor)} />
+                      </span>
                     </div>
                     {/* Machine + finish time */}
                     <div className="floor-card2__machine">
@@ -354,7 +383,7 @@ export function FloorTimerDashboard({ external = false, cloud = false, accountId
       </Form>
     </Modal>
 
-    <Modal open={!!configuring} onCancel={() => setConfiguring(null)} onOk={() => void saveConfig()} okText="บันทึกการตั้งค่า" okButtonProps={{ loading: saving }} cancelText="ยกเลิก" title={`ตั้งค่าเครื่องและสูตร — ${configuring ? label(configuring) : ""}`}>
+    <Modal open={!!configuring} onCancel={() => setConfiguring(null)} onOk={() => void saveConfig()} okText="บันทึกการตั้งค่า" okButtonProps={{ loading: saving }} cancelText="ยกเลิก" footer={external ? (_, { OkBtn, CancelBtn }) => <div className="external-config-footer"><Button danger type="text" aria-label="ลบเครื่องนอก" title="ลบเครื่องนอก" icon={<DeleteOutlined />} disabled={saving} onClick={() => configuring && confirmDelete(configuring)} /><span /><CancelBtn /><OkBtn /></div> : undefined} title={`ตั้งค่าเครื่องและสูตร — ${configuring ? label(configuring) : ""}`}>
       <p className="floor-modal-note">เปลี่ยนอาชีพได้จากตรงนี้ โดยเครื่องและสูตรเดิมจะถูกล้างเพื่อให้เลือกใหม่อย่างถูกต้อง</p>
       <Form form={configForm} layout="vertical">
         {external && <Form.Item label="ชื่อเครื่องนอก / กลุ่มเครื่อง" name="name" rules={[{ required: true, whitespace: true, message: 'กรอกชื่อเครื่องนอก' }, { max: 120 }]}><Input maxLength={120} placeholder="เช่น แลปนอกวิศวะ ชั้น 1-3" /></Form.Item>}
@@ -390,10 +419,10 @@ export function FloorTimerDashboard({ external = false, cloud = false, accountId
       </Form>
     </Modal>
 
-    <Modal open={addOpen} onCancel={() => setAddOpen(false)} onOk={() => void addFloor()} okText={`เพิ่ม${unit}`} okButtonProps={{ loading: saving }} cancelText="ยกเลิก" title={`เพิ่ม${unit}ใหม่`}>
-      <Form form={floorForm} layout="vertical">
-        {external && <Form.Item label="ชื่อเครื่องนอก / กลุ่มเครื่อง" name="name" rules={[{ required: true, whitespace: true, message: 'กรอกชื่อเครื่องนอก' }, { max: 120 }]}><Input maxLength={120} placeholder="เช่น แลปนอกวิศวะ ชั้น 1-3" /></Form.Item>}
-        {external && <Form.Item label="ชื่อตัวละคร" name="character_name" rules={[{ max: 80, message: 'ชื่อตัวละครต้องไม่เกิน 80 ตัวอักษร' }]}><Input maxLength={80} placeholder="กรอกชื่อตัวละคร" /></Form.Item>}
+    <Modal centered={external} width={external ? 460 : undefined} className={external ? "external-add-dialog" : undefined} open={addOpen} onCancel={() => setAddOpen(false)} onOk={() => void addFloor()} okText={`เพิ่ม${unit}`} okButtonProps={{ loading: saving }} cancelText="ยกเลิก" title={external ? "เพิ่มเครื่องนอก" : `เพิ่ม${unit}ใหม่`}>
+      <Form form={floorForm} layout="vertical" className={external ? "external-add-grid" : undefined}>
+        {external && <Form.Item className="external-add-name" label="ชื่อเครื่อง / กลุ่มเครื่อง" name="name" rules={[{ required: true, whitespace: true, message: 'กรอกชื่อเครื่องนอก' }, { max: 120 }]}><Input maxLength={120} placeholder="เช่น แลปนอก ชั้น 1–3" /></Form.Item>}
+        {external && <Form.Item label="ตัวละคร" name="character_name" rules={[{ max: 80, message: 'ชื่อตัวละครต้องไม่เกิน 80 ตัวอักษร' }]}><Input maxLength={80} placeholder="ไม่บังคับ" /></Form.Item>}
         <Form.Item hidden={external} label="หมายเลขชั้น" name="floor_number" rules={[{ required: true, message: 'กรอกหมายเลขชั้น' }]}>
           <InputNumber min={1} precision={0} style={{ width: '100%' }} />
         </Form.Item>
@@ -405,7 +434,7 @@ export function FloorTimerDashboard({ external = false, cloud = false, accountId
             onChange={() => floorForm.setFieldsValue({ machine_id: undefined, recipe_id: undefined })}
           />
         </Form.Item>
-        <Form.Item label="เครื่องจักร (ไม่บังคับ)" name="machine_id">
+        <Form.Item label={external ? "เครื่องจักร" : "เครื่องจักร (ไม่บังคับ)"} name="machine_id">
           <Select
             showSearch optionFilterProp="label"
             disabled={!addProfession}
@@ -421,7 +450,7 @@ export function FloorTimerDashboard({ external = false, cloud = false, accountId
             onChange={() => floorForm.setFieldValue('recipe_id', undefined)}
           />
         </Form.Item>
-        <Form.Item label="สูตรการผลิต (ไม่บังคับ)" name="recipe_id">
+        <Form.Item className={external ? "external-add-recipe" : undefined} label={external ? "สูตรการผลิต" : "สูตรการผลิต (ไม่บังคับ)"} name="recipe_id">
           <Select
             {...itemSelectVisuals} showSearch optionFilterProp="label" allowClear
             disabled={!addMachineId}
@@ -431,6 +460,7 @@ export function FloorTimerDashboard({ external = false, cloud = false, accountId
           />
         </Form.Item>
       </Form>
+      {external && <p className="external-add-hint">ยังไม่เลือกเครื่องหรือสูตรก็ได้ ไว้เติมทีหลัง</p>}
     </Modal>
   </div></ItemVisualProvider>;
 }

@@ -16,6 +16,7 @@ export async function accountRequest<T>(path: string, method = 'GET', body?: unk
   return result as T;
 }
 export const cloudTimers = {
+  remove: (id: number, owner?: string) => accountRequest<{ ok: boolean }>(`timers/${id}`, 'DELETE', undefined, owner),
   read: (owner?: string) => accountRequest<FloorTimer[]>('timers', 'GET', undefined, owner),
   create: (timer: Partial<FloorTimer>, owner?: string) => accountRequest<FloorTimer>('timers', 'POST', timer, owner),
   update: (id: number, patch: Partial<FloorTimer>, owner?: string) => accountRequest<FloorTimer>(`timers/${id}`, 'PATCH', patch, owner),
