@@ -485,12 +485,18 @@
 
 /* Compact action pair: card size, not viewport width, controls the layout. */
 .floor-card-tools{display:contents}
-.floor-dashboard--external .floor-card2__head{padding-right:48px}
-.floor-dashboard--external .external-card-tools{position:absolute;top:4px;right:3px;display:inline-flex;align-items:center;justify-content:flex-end;gap:0;width:48px;z-index:2}
-.floor-dashboard--external .external-card-tools .ant-btn{position:static;inset:auto;display:inline-flex;align-items:center;justify-content:center;flex:0 0 24px;margin:0!important;padding:0;width:24px;min-width:24px;max-width:24px;height:26px!important;min-height:26px;font-size:12px;background:transparent;color:#8694aa;border-radius:5px}
+.floor-dashboard--external .floor-card2__head{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:2px;padding:0;min-width:0}
+.floor-dashboard--external .floor-card2__head .floor-card2__num{min-width:0;width:auto}
+.floor-dashboard--external .external-card-tools{position:static;display:inline-flex;align-items:center;justify-content:flex-end;gap:0;width:40px;justify-self:end;z-index:2}
+.floor-dashboard--external .external-card-tools .ant-btn{position:static;inset:auto;display:inline-flex;align-items:center;justify-content:center;flex:0 0 20px;margin:0!important;padding:0;width:20px;min-width:20px;max-width:20px;height:24px!important;min-height:24px;font-size:12px;background:transparent;color:#8694aa;border-radius:5px}
+.floor-dashboard--external .external-card-tools .anticon{transform:none}
+.floor-dashboard--external .external-card-tools .floor-card2__settings:not(:disabled):hover{color:#475569;background:#edf1f5}
 .floor-dashboard--external .external-card-tools .external-card-delete:not(:disabled):hover{color:#dc3545;background:#fff0f1}
 .floor-dashboard--external .external-card-tools .ant-btn:focus-visible{outline:2px solid #64748b;outline-offset:1px}
-@media(pointer:coarse){.floor-dashboard--external .external-card-tools .ant-btn{height:30px!important;min-height:30px}}
+@container (max-width:600px){
+  .floor-dashboard--external .floor-card2{grid-template-rows:24px minmax(0,1fr) 30px 9px 22px}
+  .floor-dashboard--external .external-card-tools .ant-btn{height:24px!important;min-height:24px}
+}
 
 .external-delete-dialog.ant-modal{max-width:calc(100vw - 40px);top:0;padding-bottom:0}
 .external-delete-dialog .ant-modal-container{padding:24px!important;border-radius:14px!important;background:#fff;box-shadow:0 16px 48px #00000020}
