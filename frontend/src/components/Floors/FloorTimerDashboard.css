@@ -528,3 +528,13 @@
 .external-add-dialog .ant-modal-footer{margin-top:20px;padding-top:0}
 .external-add-dialog .ant-modal-footer .ant-btn{height:36px!important;border-radius:7px;font-size:13px;box-shadow:none}
 @media(max-width:380px){.external-add-dialog .ant-modal-container{padding:18px!important}.external-add-grid{column-gap:10px;row-gap:12px}.external-add-grid .ant-form-item-label>label{font-size:11px}}
+
+/* Give mobile artwork the flexible space; keep metadata along the edges. */
+.floor-dashboard--external .external-progress .external-recipe-image { width: 94% !important; height: 94% !important; }
+@container (max-width: 600px) {
+  .floor-dashboard--external .floor-card2 { padding: 3px; gap: 1px; grid-template-rows: 20px minmax(0, 1fr) 12px 9px 22px; }
+  .floor-dashboard--external .external-progress { width: auto; height: 100%; max-width: 100%; max-height: 100%; min-height: 0; }
+  .floor-dashboard--external .external-item-state { position: absolute; top: 26px; left: 4px; font-size: 7px; line-height: 9px; gap: 1px; }
+  .floor-dashboard--external .external-item-note { position: absolute; inset: auto 4px 27px auto; max-width: 68%; font-size: 7px; line-height: 9px; white-space: normal; text-align: right; }
+  .floor-dashboard--external .floor-card2__recipe { max-width: 30%; }
+}
